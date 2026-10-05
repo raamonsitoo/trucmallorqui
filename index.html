@@ -1,0 +1,1384 @@
+<!doctype html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Truc mallorquí en línia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Young+Serif&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#e4eee9; --ink:#10302e; --muted:#486562; --panel:#f6fbf8; --line:#b7cbc4;
+  --red:#b8322a; --blue:#2a4a9a; --gold:#e0a21f; --card:#fbf6e9;
+  --serif:'Young Serif',Georgia,'Times New Roman',serif;
+  --sans:'Atkinson Hyperlegible',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--bg:#0a1b1d;--ink:#e2eeea;--muted:#8fb0aa;--panel:#112629;--line:#24444a;}
+}
+:root[data-theme="dark"]{--bg:#0a1b1d;--ink:#e2eeea;--muted:#8fb0aa;--panel:#112629;--line:#24444a;}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.45}
+button{font:inherit}
+
+.band{height:14px;background-image:var(--tile);background-size:auto 100%;background-repeat:repeat-x}
+.app{max-width:760px;margin:0 auto;padding:12px 12px 28px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 0 12px;flex-wrap:wrap}
+.top h1{font-family:var(--serif);font-weight:400;font-size:2rem;line-height:1;margin:0}
+.top p{margin:2px 0 0;font-size:.82rem;color:var(--muted)}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.btn{border:2px solid transparent;border-radius:10px;padding:.55rem .95rem;min-height:44px;font-weight:700;cursor:pointer;color:#fff;background:var(--ink)}
+.btn:focus-visible,.sbtn:focus-visible,.lookbar button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.btn.truc{background:var(--red)}
+.btn.envit{background:var(--blue)}
+.btn.ok{background:var(--ink);color:var(--bg)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--ink)}
+.btn.sm{min-height:38px;padding:.35rem .75rem;font-size:.9rem}
+.btn:active{transform:translateY(1px)}
+
+.score{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;margin-bottom:10px}
+.team{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:6px 12px}
+.tname{font-weight:700;line-height:1.2}
+.tsub{font-size:.76rem;color:var(--muted)}
+.pts{font-family:var(--serif);display:flex;align-items:baseline;gap:3px}
+.pts b{font-weight:400;font-size:1.9rem;line-height:1.1}
+.pts span{color:var(--muted);font-size:.85rem}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:2px 0 6px}
+.bar i{display:block;height:100%;background:var(--red)}
+.team.t0 .bar i{background:var(--blue)}
+.cant{font-size:.76rem;color:var(--muted);display:flex;gap:6px;align-items:center}
+.dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink);display:inline-block}
+.dot.on{background:var(--gold)}
+.mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-width:84px;text-align:center}
+.stake{font-size:.8rem;font-weight:700;line-height:1.25}
+.tricks{display:flex;gap:5px}
+.tm{width:22px;height:22px;border-radius:50%;border:2px dashed var(--line);display:grid;place-items:center;font-size:.7rem;font-weight:700}
+.tm.us{background:var(--blue);border:2px solid var(--blue);color:#fff}
+.tm.them{background:var(--red);border:2px solid var(--red);color:#fff}
+.tm.tie{border:2px solid var(--muted);color:var(--muted)}
+
+/* Escenari 3D */
+.stage{position:relative;height:clamp(400px,66vh,620px);border-radius:22px;overflow:hidden;background:#150e0b;touch-action:none;
+  box-shadow:inset 0 0 0 3px rgba(255,255,255,.08);user-select:none;-webkit-user-select:none}
+.stage.myturn{box-shadow:inset 0 0 0 3px var(--gold)}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+.labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lab{position:absolute;left:0;top:0;display:flex;flex-direction:column;align-items:center;gap:4px;will-change:transform;visibility:hidden}
+.nm{display:inline-flex;gap:6px;align-items:center;font-weight:700;font-size:.82rem;padding:.2rem .6rem;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;white-space:nowrap}
+.nm.turn{background:var(--gold);color:#2b1c00}
+.tag{font-size:.66rem;font-weight:700;border:1px solid currentColor;border-radius:6px;padding:0 4px;line-height:1.35}
+.bub{background:var(--card);color:#1b1b1b;padding:.25rem .65rem;border-radius:12px;font-weight:700;font-size:.9rem;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.bub0{position:absolute;left:10px;bottom:52px;display:none}
+.trickhud{position:absolute;left:50%;bottom:35%;transform:translateX(-50%);display:flex;gap:6px;pointer-events:none;z-index:2;max-width:98%}
+.tc{display:flex;flex-direction:column;align-items:center;gap:3px}
+.tc svg{width:clamp(46px,13vw,64px);height:auto;border-radius:7px;box-shadow:0 3px 10px rgba(0,0,0,.55)}
+.tc span{font-size:.7rem;font-weight:700;color:#fff;border-radius:8px;padding:0 7px;line-height:1.5}
+.tc.us span{background:var(--blue)}
+.tc.them span{background:var(--red)}
+.tc.win svg{outline:3px solid var(--gold);outline-offset:1px}
+.you{position:absolute;left:10px;bottom:10px;pointer-events:none}
+.reticle{position:absolute;left:50%;top:44%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;border:2px solid rgba(255,255,255,.5);pointer-events:none}
+.lookbar{position:absolute;top:10px;left:0;right:0;display:flex;justify-content:center;gap:6px;z-index:3;flex-wrap:wrap;padding:0 8px}
+.lookbar button{background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:.35rem .8rem;min-height:38px;font-weight:700;font-size:.85rem;cursor:pointer}
+.lookbar button:active{background:var(--gold);color:#2b1c00}
+.toast{position:absolute;left:50%;top:54px;transform:translateX(-50%);background:rgba(0,0,0,.72);color:#fff;border-radius:12px;padding:.3rem .7rem;font-size:.8rem;font-weight:700;max-width:90%;text-align:center;opacity:0;transition:opacity .2s;pointer-events:none;z-index:4;white-space:nowrap}
+.toast.show{opacity:1}
+.nogl{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:#fff;background:#150e0b}
+.nogl[hidden]{display:none}
+.nogl a{color:var(--gold)}
+
+.clock{position:absolute;right:10px;bottom:10px;pointer-events:none;display:none;background:rgba(0,0,0,.65);color:#fff;border-radius:999px;padding:.22rem .75rem;font-weight:700;font-size:.85rem;z-index:3}
+.clock.on{display:block}
+.clock.low{background:var(--red);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.08)}}
+.timerbar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.timerbar i{display:block;height:100%;width:100%;background:var(--gold)}
+.timerbar.low i{background:var(--red)}
+.lobby{position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto;display:grid;place-items:start center;padding:16px}
+.lobby[hidden]{display:none}
+.lobby-card{width:min(560px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px 18px 20px;margin-top:3vh}
+.lobby-card h2{font-family:var(--serif);font-weight:400;font-size:1.7rem;margin:0 0 6px}
+.lobby-card h3{font-size:.95rem;margin:14px 0 6px}
+.fld{display:flex;flex-direction:column;gap:6px;margin:10px 0;font-weight:700;font-size:.9rem}
+.fld input,#codeIn,#shareUrl{font:inherit;padding:.6rem .7rem;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);min-height:44px}
+#codeIn{width:7rem;text-transform:uppercase;letter-spacing:.2em;text-align:center}
+#shareUrl{flex:1;min-width:0;font-size:.82rem}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:2px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:.4rem .8rem;font-weight:700;min-height:40px;cursor:pointer;font-size:.88rem}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.lobby .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.bigcode{font-family:var(--serif);font-size:2rem;letter-spacing:.25em;font-weight:400}
+.seats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seat{border:2px dashed var(--line);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;min-height:86px}
+.seat:not(.empty){border-style:solid}
+.seat.me{border-color:var(--gold);background:rgba(224,162,31,.14)}
+.seat span{font-size:.86rem;color:var(--muted);word-break:break-word}
+.lobby-err{color:var(--red);font-weight:700;min-height:1.4em;margin:10px 0 0}
+.linklike{background:none;border:0;color:var(--ink);text-decoration:underline;cursor:pointer;padding:8px 0;font:inherit}
+.conn{position:fixed;left:0;right:0;top:0;z-index:60;background:var(--red);color:#fff;text-align:center;padding:.4rem;font-weight:700}
+.banner{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;padding:.8rem 1.2rem;border-radius:16px;font-weight:700;text-align:center;z-index:6;max-width:92%}
+.codechip{font-weight:700;font-size:.85rem;border:2px solid var(--line);border-radius:999px;padding:.25rem .7rem}
+.actions{margin-top:12px;min-height:96px;display:flex;flex-direction:column;gap:8px}
+.status{margin:0;font-weight:700}
+.hint{margin:0;font-size:.88rem;color:var(--muted)}
+.hint b{color:var(--ink)}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+
+.signs{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.signs h2{font-size:.95rem;margin:0 0 6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.signs label{font-size:.82rem;font-weight:400;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
+.sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.signs.talk{margin-bottom:0}
+.sbtn{min-height:48px;border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:4px 2px;cursor:pointer;line-height:1.15;font-size:.8rem;font-weight:700}
+.sbtn small{display:block;font-weight:400;font-size:.68rem;color:var(--muted)}
+.sbtn:active{background:var(--ink);color:var(--bg)}
+.sbtn:active small{color:var(--bg)}
+.sbtn:disabled{opacity:.45;cursor:default}
+
+.log{margin-top:10px;font-size:.88rem;color:var(--muted)}
+.log summary{cursor:pointer;padding:6px 0}
+.log ol{margin:0;padding:0 0 0 1.1rem;max-height:9rem;overflow:auto}
+
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;padding:16px;z-index:50}
+.overlay[hidden]{display:none}
+.sheet{background:var(--panel);color:var(--ink);width:min(560px,100%);max-height:88vh;max-height:88dvh;overflow:auto;border-radius:18px;padding:20px 20px 22px}
+.sheet h2{font-family:var(--serif);font-weight:400;font-size:1.5rem;margin:0 0 8px}
+.sheet h3{font-size:1rem;margin:18px 0 6px}
+.sheet p,.sheet li{max-width:62ch}
+.sheet ul{padding-left:1.15rem;margin:6px 0}
+.sheet .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.tier{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+.tier .n{width:1.5rem;color:var(--muted);font-size:.85rem;flex:none}
+.tier .mini{display:flex;gap:4px;flex-wrap:wrap}
+.tier .mini svg{width:32px;height:auto}
+.tier .lab2{font-size:.8rem;color:var(--muted);margin-left:auto}
+table.k{border-collapse:collapse;font-size:.92rem;margin:6px 0}
+table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0;text-align:left}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:420px){.top h1{font-size:1.7rem}.team{padding:6px 10px}.sbtn{font-size:.74rem}}
+</style>
+</head>
+<body>
+<div class="band" aria-hidden="true"></div>
+<main class="app">
+  <header class="top">
+    <div>
+      <h1>Truc mallorquí</h1>
+      <p id="sub">En línia</p>
+    </div>
+    <div class="top-actions">
+      <span class="codechip" id="codeChip" hidden></span>
+      <button class="btn ghost sm" data-ov="signs">Senyes</button>
+      <button class="btn ghost sm" data-ov="rules">Regles</button>
+      <button class="btn ghost sm" data-ov="ask-leave">Sortir</button>
+    </div>
+  </header>
+  <section class="score" id="score" aria-label="Marcador"></section>
+  <section class="stage" id="stage" aria-label="Taula de joc en 3D">
+    <canvas id="cv"></canvas>
+    <div class="labels" id="labels"></div>
+    <div class="reticle" aria-hidden="true"></div>
+    <div class="lookbar">
+      <button data-look="3" id="lk3">◀ Miquel</button>
+      <button data-look="2" id="lk2">Catalina</button>
+      <button data-look="1" id="lk1">Toni ▶</button>
+      <button data-zoom="1" aria-label="Apropar o allunyar la vista">Zoom</button>
+    </div>
+    <div class="trickhud" id="trickhud" aria-label="Cartes de la ronda"></div>
+    <div class="bub bub0" id="bub0" role="status"></div>
+    <div class="you nm" id="you">Tu</div>
+    <div class="toast" id="toast" role="status"></div>
+    <div class="banner" id="banner" hidden></div>
+    <div class="clock" id="clock" role="timer"></div>
+    <div class="nogl" id="nogl" hidden><p>El teu navegador no pot mostrar el 3D.<br>Prova amb un altre navegador o dispositiu.</p></div>
+  </section>
+  <section class="actions" id="actions" aria-live="polite"></section>
+  <section class="signs talk" aria-label="Parlar amb Catalina">
+    <h2 id="talkTitle">Parlar amb el teu company</h2>
+    <div class="tgrid">
+      <button class="sbtn" data-talk="tu">Vaig a tu<small>tira tu la bona</small></button>
+      <button class="sbtn" data-talk="mi">Vina a mi<small>la tir jo</small></button>
+      <button class="sbtn" data-talk="envit">Demana envit<small>que el canti ella</small></button>
+    </div>
+  </section>
+  <section class="signs" aria-label="Senyes a Catalina">
+    <h2><span id="signTitle">Fer una seña al teu company</span>
+      <label><input type="checkbox" id="help" checked> Ajuda: mostra què vol dir cada seña</label></h2>
+    <div class="sgrid" id="sgrid"></div>
+  </section>
+  <details class="log"><summary>Registre de la mà</summary><ol id="log"></ol></details>
+</main>
+<div class="conn" id="conn" hidden>Connexió perduda. Tornant a connectar…</div>
+<div class="lobby" id="lobby" hidden>
+  <div class="lobby-card">
+    <h2>Truc mallorquí en línia</h2>
+    <label class="fld">El teu nom <input id="nameIn" maxlength="16" autocomplete="nickname" placeholder="Nom"></label>
+    <div class="fld"><span>El teu aspecte</span>
+      <div class="chips" id="looks">
+        <button class="chip" data-lk="palla">Capell de palla</button>
+        <button class="chip" data-lk="barretina">Barretina</button>
+        <button class="chip" data-lk="mocador">Mocador</button>
+      </div></div>
+    <div id="lobbyMenu">
+      <div class="row"><button class="btn ok" id="btnCreate">Crear una sala</button><button class="btn ghost" id="btnQuick">Jugar contra bots</button></div>
+      <div class="row"><input id="codeIn" maxlength="4" placeholder="CODI" autocapitalize="characters" aria-label="Codi de la sala"><button class="btn truc" id="btnJoin">Entrar a una sala</button></div>
+    </div>
+    <div id="lobbyRoom" hidden>
+      <p>Codi de la sala: <b class="bigcode" id="roomCode"></b></p>
+      <div class="row"><input id="shareUrl" readonly aria-label="Enllaç per convidar"><button class="btn ghost sm" id="btnCopy">Copiar enllaç</button></div>
+      <h3>Parella A</h3><div class="seats" id="seatsA"></div>
+      <h3>Parella B</h3><div class="seats" id="seatsB"></div>
+      <p class="hint">Cada parella s'asseu enfrontada: el teu company és el del seient de davant. Els seients lliures els jugaran bots.</p>
+      <div class="row"><button class="btn ok" id="btnStart">Començar la partida</button><button class="btn ghost" data-ov="ask-leave">Sortir de la sala</button></div>
+      <p class="hint" id="waitMsg">Esperant que l'amfitrió comenci la partida…</p>
+    </div>
+    <p class="lobby-err" id="lobbyErr" role="alert"></p>
+    <button class="linklike" data-ov="rules">Regles i senyes</button>
+  </div>
+</div>
+<div class="overlay" id="overlay" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+
+// ==PURE-START==
+const SUITS=['oros','copes','espases','bastos'];
+const NUMS=[1,3,4,5,6,7,10,11,12];
+const TRUC_VALUE=[1,3,6,9,24];
+const TRUC_REFUSE=[0,1,3,6,9];
+const ENVIT_VALUE=[0,2,4,6,24];
+const ENVIT_REFUSE=[0,1,2,4,6];
+
+function makeDeck(){const d=[];for(const s of SUITS)for(const n of NUMS)d.push({n,s});return d;}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function cardRank(c){
+  const n=c.n,s=c.s;
+  if(n===11&&s==='bastos')return 100;
+  if(n===10&&s==='oros')return 99;
+  if(n===1&&s==='espases')return 98;
+  if(n===1&&s==='bastos')return 97;
+  if(n===7&&s==='espases')return 96;
+  if(n===7&&s==='oros')return 95;
+  if(n===3)return 90;
+  if(n===1)return 85;
+  if(n===12)return 80;
+  if(n===11)return 75;
+  if(n===10)return 70;
+  if(n===7)return 65;
+  if(n===6)return 60;
+  if(n===5)return 55;
+  return 50;
+}
+const isAmo=c=>c.n===11&&c.s==='bastos';
+const isMadona=c=>c.n===10&&c.s==='oros';
+const pip=c=>c.n<=7?c.n:0;
+function pairEnvit(a,b){
+  if((isAmo(a)&&isMadona(b))||(isMadona(a)&&isAmo(b)))return 35;
+  if(isAmo(a))return 28+pip(b);
+  if(isAmo(b))return 28+pip(a);
+  if(isMadona(a))return 27+pip(b);
+  if(isMadona(b))return 27+pip(a);
+  if(a.s===b.s)return 20+pip(a)+pip(b);
+  return Math.max(pip(a),pip(b));
+}
+function envitValue(hand){
+  let best=0;
+  for(let i=0;i<hand.length;i++)for(let j=i+1;j<hand.length;j++)best=Math.max(best,pairEnvit(hand[i],hand[j]));
+  return best;
+}
+function trickWinner(played){
+  let best=-1,top=[];
+  for(const x of played){const r=cardRank(x.card);if(r>best){best=r;top=[x];}else if(r===best)top.push(x);}
+  const teams=new Set(top.map(x=>x.p%2));
+  if(teams.size===1)return{team:top[0].p%2,player:top[0].p,tie:false};
+  return{team:null,player:top[0].p,tie:true};
+}
+function handDecision(res,manoTeam){
+  if(res.length<2)return undefined;
+  const a=res.filter(x=>x===0).length,b=res.filter(x=>x===1).length;
+  if(a>=2)return 0;
+  if(b>=2)return 1;
+  if(res.length===2){
+    if(res[0]===null&&res[1]!==null)return res[1];
+    if(res[0]!==null&&res[1]===null)return res[0];
+    return undefined;
+  }
+  if(res[2]!==null)return res[2];
+  if(res[0]!==null)return res[0];
+  return manoTeam;
+}
+function cardPower(c){
+  const r=cardRank(c);
+  if(r>=95)return 3;
+  if(r>=90)return 2;
+  if(r>=80)return 1.4;
+  if(r>=70)return 0.9;
+  if(r>=65)return 0.5;
+  return 0.15;
+}
+// Senyes: quina seña correspon a cada carta
+function signOf(c){
+  if(isAmo(c))return 'amo';
+  if(isMadona(c))return 'madona';
+  if(c.n===1&&c.s==='espases')return 'asE';
+  if(c.n===1&&c.s==='bastos')return 'asB';
+  if(c.n===7&&c.s==='espases')return 'sieteE';
+  if(c.n===7&&c.s==='oros')return 'sieteO';
+  if(c.n===3)return 'tres';
+  return null;
+}
+// ==PURE-END==
+
+const $=s=>document.querySelector(s);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const SPEED=typeof window.__SPEED==='number'?window.__SPEED:1;
+const AUTO=window.__AUTO===true;
+let NAMES=['Tu','Toni','Catalina','Miquel'];
+const team=p=>p%2;
+const tl=t=>t===0?'nosaltres':'ells';
+const cap=s=>s[0].toUpperCase()+s.slice(1);
+const plural=n=>n===1?'punt':'punts';
+const ptsText=n=>n>=24?'el cantó':`${n} ${plural(n)}`;
+class Abort extends Error{}
+let token=0;
+const sleep=ms=>new Promise((res,rej)=>{const t=token;setTimeout(()=>t===token?res():rej(new Abort()),ms*SPEED);});
+const keyOf=c=>c.n+'-'+c.s;
+
+// ---------- Roba de llengües ----------
+const TILE_SVG="<svg xmlns='http://www.w3.org/2000/svg' width='36' height='24' viewBox='0 0 36 24'>"
+ +"<rect width='36' height='24' fill='#2a4a9a'/>"
+ +"<path d='M0 24C0 12 9 6 18 0C27 6 36 12 36 24Z' fill='#f3ece0'/>"
+ +"<path d='M6 24C6 15 12 10 18 6C24 10 30 15 30 24Z' fill='#b8322a'/>"
+ +"<path d='M12 24C12 18 15 15 18 12C21 15 24 18 24 24Z' fill='#2a4a9a'/></svg>";
+document.documentElement.style.setProperty('--tile','url("data:image/svg+xml,'+encodeURIComponent(TILE_SVG)+'")');
+
+// ---------- Dibuix de cartes (SVG) ----------
+const GLYPH={
+  oros:'<circle r="9" fill="#e2a823" stroke="#7a4b0a" stroke-width="1.3"/><circle r="5.5" fill="none" stroke="#7a4b0a" stroke-width="1"/><circle r="2" fill="#7a4b0a"/>',
+  copes:'<path d="M-8-9H8C8-1 4 3 1.2 4.4V8H5.5V10H-5.5V8H-1.2V4.4C-4 3-8-1-8-9Z" fill="#c0392b" stroke="#5b1612" stroke-width="1.2" stroke-linejoin="round"/>',
+  espases:'<path d="M0-10L2.4-6.5V2.5H-2.4V-6.5Z" fill="#8fb3d9" stroke="#1c3556" stroke-width="1.1" stroke-linejoin="round"/><rect x="-6.5" y="2.5" width="13" height="2.4" rx="1" fill="#3b6aa0" stroke="#1c3556" stroke-width="1"/><rect x="-1.2" y="4.9" width="2.4" height="4" fill="#3b6aa0" stroke="#1c3556" stroke-width="1"/><circle cy="9.3" r="1.5" fill="#1c3556"/>',
+  bastos:'<g transform="rotate(30)"><rect x="-2.8" y="-10" width="5.6" height="20" rx="2.8" fill="#5a9a46" stroke="#26471e" stroke-width="1.2"/><circle cx="-2.6" cy="-3" r="1.6" fill="#5a9a46" stroke="#26471e" stroke-width="1"/><circle cx="2.6" cy="3" r="1.6" fill="#5a9a46" stroke="#26471e" stroke-width="1"/></g>'
+};
+const SUITCOL={oros:'#7a4b0a',copes:'#7a1d16',espases:'#1c3556',bastos:'#26471e'};
+const FIG={10:'SOTA',11:'CAVALL',12:'REI'};
+const PIPS={
+  1:[[50,75,2.6]],
+  3:[[50,46,1.35],[50,75,1.35],[50,104,1.35]],
+  4:[[35,52,1.5],[65,52,1.5],[35,98,1.5],[65,98,1.5]],
+  5:[[35,50,1.4],[65,50,1.4],[50,75,1.4],[35,100,1.4],[65,100,1.4]],
+  6:[[35,48,1.35],[65,48,1.35],[35,75,1.35],[65,75,1.35],[35,102,1.35],[65,102,1.35]],
+  7:[[35,48,1.3],[65,48,1.3],[35,75,1.3],[65,75,1.3],[35,102,1.3],[65,102,1.3],[50,61,1.3]]
+};
+const glyph=(s,x,y,k)=>`<g transform="translate(${x} ${y}) scale(${k})">${GLYPH[s]}</g>`;
+function cardLabel(c){
+  const extra=isAmo(c)?' (amo)':isMadona(c)?' (madona)':'';
+  return `${c.n} de ${c.s}${extra}`;
+}
+function cardSVG(c){
+  const col=SUITCOL[c.s];
+  let body='';
+  if(c.n>=10){
+    body=`<rect x="24" y="30" width="52" height="90" rx="5" fill="none" stroke="${col}" stroke-width="2"/>`
+      +`<rect x="29" y="35" width="42" height="80" rx="3" fill="none" stroke="${col}" stroke-width=".8"/>`
+      +glyph(c.s,50,68,2.2)
+      +`<text x="50" y="106" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="9" letter-spacing="1" fill="${col}">${FIG[c.n]}</text>`;
+  }else body=PIPS[c.n].map(a=>glyph(c.s,a[0],a[1],a[2])).join('');
+  const corner=`<text x="11" y="23" font-family="Georgia,serif" font-weight="700" font-size="19" fill="${col}" text-anchor="middle">${c.n}</text>${glyph(c.s,11,36,.55)}`;
+  return `<svg class="card" viewBox="0 0 100 150" role="img" aria-label="${cardLabel(c)}">`
+    +`<rect x="1" y="1" width="98" height="148" rx="9" fill="#fbf6e9" stroke="#3a3a3a" stroke-width="1.5"/>`
+    +corner+`<g transform="rotate(180 50 75)">${corner}</g>`+body+`</svg>`;
+}
+function svgImage(svg,w,h){
+  const img=new Image();
+  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg.replace('<svg ',`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" `));
+  return img;
+}
+
+// ---------- Senyes ----------
+const SIGNS={
+  amo:{short:'Celles',sub:'amo',tw:"celles amunt",gesture:"Pujar les celles",card:"Amo (11 de bastos)",power:3,dur:1.1},
+  madona:{short:'Un ull',sub:'madona',tw:"guinya un ull",gesture:"Guinyar un ull",card:"Madona (10 d'oros)",power:3,dur:1.0},
+  asE:{short:'Llengua dreta',sub:"as d'espases",tw:"llengua a la seva dreta",gesture:"Treure la llengua cap a la seva dreta",card:"As d'espases",power:3,dur:1.3},
+  asB:{short:'Llengua esq.',sub:'as de bastos',tw:"llengua a la seva esquerra",gesture:"Treure la llengua cap a la seva esquerra",card:"As de bastos",power:3,dur:1.3},
+  sieteE:{short:'Llavi dret',sub:"7 d'espases",tw:"llavi a la seva dreta",gesture:"Moure el llavi cap a la seva dreta",card:"7 d'espases",power:3,dur:1.3},
+  sieteO:{short:'Llavi esquerre',sub:"7 d'oros",tw:"llavi a la seva esquerra",gesture:"Moure el llavi cap a la seva esquerra",card:"7 d'oros",power:3,dur:1.3},
+  tres:{short:'Mossegar llavi',sub:'un 3',tw:"es mossega el llavi",gesture:"Mossegar-se el llavi",card:"Un 3 (qualsevol)",power:2,dur:1.4},
+  buit:{short:'Dos ulls',sub:'vaig buit',tw:"guinya els dos ulls",gesture:"Guinyar els dos ulls",card:"Va buit (cap carta bona)",power:0,dur:1.1}
+};
+
+// ---------- Estat ----------
+const G={cantons:[0,0],scores:[0,0],dealer:0,log:[],status:''};
+let H=null;
+const UI={mode:'idle',resolve:null,reject:null,resp:null,foldArm:false,ovResolve:null,ovReject:null};
+
+const TRUC_CALL=['','Truc!','Retruc!','Val 9!','Tots!'];
+const ENVIT_CALL=['','Envit!','Jo envit!','2 més!','Envit tots!'];
+const TRUC_BTN=['','Truc (3)','Retruc (6)','Val 9 (9)','Tots (el cantó)'];
+const ENVIT_BTN=['','Envit (2)','Jo envit (4)','2 més (6)','Envit tots'];
+const callText=(k,l)=>k==='truc'?TRUC_CALL[l]:ENVIT_CALL[l];
+function log(t){G.log.unshift(t);if(G.log.length>40)G.log.pop();renderLog();}
+
+const canCallTruc=p=>!!H&&!H.over&&H.trucLevel<4&&(H.trucOwner===null||H.trucOwner===team(p));
+const canCallEnvit=p=>!!H&&!H.over&&H.trickNo===0&&!H.envitDone&&H.trucLevel===0;
+const helpOn=()=>{const e=$('#help');return !!e&&e.checked;};
+
+// ================== VISTA 3D ==================
+const View=(function(){
+  const noop={ready:false,setRoster(){},sync(){},focus(){return -1;},angleTo(){return 9;},emit(){},nod(){},setGaze(){},snap(){},zoom(){},isSigning(){return false;},onSignEnd:null,toast(){},frame:null,debug:{}};
+  if(typeof THREE==='undefined')return noop;
+  const stage=$('#stage'),cv=$('#cv');
+  let R;
+  try{R=new THREE.WebGLRenderer({canvas:cv,antialias:true});}catch(e){return noop;}
+  R.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+
+  const scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x1a110c);
+  scene.fog=new THREE.Fog(0x1a110c,8,16);
+  const cam=new THREE.PerspectiveCamera(50,1,0.05,40);
+  const CAMPOS=new THREE.Vector3(0,1.32,1.5);
+  cam.position.copy(CAMPOS);cam.rotation.order='YXZ';scene.add(cam);
+  const SEAT=[[0,1.5],[1.5,0],[0,-1.5],[-1.5,0]];
+  const HEAD=SEAT.map(s=>new THREE.Vector3(s[0],1.42,s[1]));HEAD[0].copy(CAMPOS);
+  const TABLE=new THREE.Vector3(0,0.8,0);
+  const V={yaw:0,tyaw:0,pitch:-0.12,tpitch:-0.12,tfov:50};
+  const yawFor=p=>Math.atan2(CAMPOS.x-SEAT[p][0],CAMPOS.z-SEAT[p][1]);
+
+  const M=(c,o)=>new THREE.MeshLambertMaterial(Object.assign({color:c},o||{}));
+  const MB=(c,o)=>new THREE.MeshBasicMaterial(Object.assign({color:c},o||{}));
+  function mesh(geo,mat,x,y,z){const m=new THREE.Mesh(geo,mat);m.position.set(x||0,y||0,z||0);return m;}
+  function canvasTex(w,h,draw){
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const ctx=c.getContext('2d');draw(ctx,w,h);
+    const t=new THREE.CanvasTexture(c);t.anisotropy=4;return t;
+  }
+  function limb(a,b,r,mat){
+    const va=new THREE.Vector3(a[0],a[1],a[2]),vb=new THREE.Vector3(b[0],b[1],b[2]);
+    const len=va.distanceTo(vb);
+    const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r*0.9,len,8),mat);
+    m.position.copy(va).add(vb).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),vb.clone().sub(va).normalize());
+    return m;
+  }
+
+  // ----- Sala -----
+  scene.add(new THREE.HemisphereLight(0xffe2b8,0x1a110a,0.5));
+  scene.add(new THREE.AmbientLight(0xffe9cf,0.12));
+  const lamp=new THREE.PointLight(0xffd9a0,1.0,14,1);lamp.position.set(0,2.35,0);scene.add(lamp);
+
+  const floorTex=canvasTex(512,512,(x,w,h)=>{
+    x.fillStyle='#5b3a22';x.fillRect(0,0,w,h);
+    for(let i=0;i<8;i++){x.fillStyle=i%2?'#684327':'#563520';x.fillRect(i*64,0,62,h);}
+    x.strokeStyle='rgba(0,0,0,.35)';x.lineWidth=2;
+    for(let i=0;i<=8;i++){x.beginPath();x.moveTo(i*64,0);x.lineTo(i*64,h);x.stroke();}
+    for(let i=0;i<60;i++){x.fillStyle='rgba(0,0,0,.08)';x.fillRect(Math.random()*w,Math.random()*h,2+Math.random()*30,1);}
+  });
+  floorTex.wrapS=floorTex.wrapT=THREE.RepeatWrapping;floorTex.repeat.set(4,4);
+  const floor=mesh(new THREE.CircleGeometry(7,40),M(0xffffff,{map:floorTex}));
+  floor.rotation.x=-Math.PI/2;scene.add(floor);
+
+  const wallTex=canvasTex(1024,256,(x,w,h)=>{
+    x.fillStyle='#a88a60';x.fillRect(0,0,w,h);
+    x.fillStyle='#4a2f1b';x.fillRect(0,h*0.62,w,h*0.38);
+    x.fillStyle='#3a2415';x.fillRect(0,h*0.62,w,6);
+    for(let i=0;i<40;i++){x.fillStyle='rgba(120,90,50,.08)';x.fillRect(Math.random()*w,Math.random()*h*0.6,30+Math.random()*80,2);}
+    const img=svgImage(TILE_SVG,36,24);
+    img.onload=()=>{for(let xx=0;xx<w;xx+=36)for(let yy=0;yy<3;yy++)x.drawImage(img,xx,h*0.34+yy*0,36,24);wallTex.needsUpdate=true;};
+  });
+  wallTex.wrapS=THREE.RepeatWrapping;wallTex.repeat.set(2,1);
+  const walls=mesh(new THREE.CylinderGeometry(6.6,6.6,3.5,40,1,true),M(0xffffff,{map:wallTex,side:THREE.BackSide}),0,1.75,0);scene.add(walls);
+  const ceil=mesh(new THREE.CircleGeometry(6.6,40),M(0x3a2415));ceil.rotation.x=Math.PI/2;ceil.position.y=3.5;scene.add(ceil);
+  for(let i=-2;i<=2;i++){const b=mesh(new THREE.BoxGeometry(13,0.2,0.22),M(0x2a190e),0,3.4,i*1.5);scene.add(b);}
+  // finestres
+  for(let i=0;i<5;i++){
+    const a=-0.9+i*0.45+Math.PI;
+    const w=mesh(new THREE.PlaneGeometry(0.9,1.1),MB(0x2c4468),Math.sin(a)*6.55,1.85,Math.cos(a)*6.55);
+    w.lookAt(0,1.85,0);scene.add(w);
+    const f=mesh(new THREE.BoxGeometry(0.04,1.12,0.03),M(0x2a190e),0,0,0.01);w.add(f);
+    const f2=mesh(new THREE.BoxGeometry(0.92,0.04,0.03),M(0x2a190e),0,0,0.01);w.add(f2);
+  }
+  // barrils
+  for(let i=0;i<9;i++){
+    const a=i*(Math.PI*2/9)+0.3,r=5.6;
+    const b=mesh(new THREE.CylinderGeometry(0.38,0.38,0.8,14),M(0x6b4423),Math.sin(a)*r,0.4,Math.cos(a)*r);
+    scene.add(b);
+    for(const yy of [-0.25,0.25]){const ring=mesh(new THREE.CylinderGeometry(0.395,0.395,0.05,14),M(0x2a2a2a),0,yy,0);b.add(ring);}
+  }
+  // llum
+  const shade=mesh(new THREE.ConeGeometry(0.4,0.3,18,1,true),M(0x2b4a8f,{side:THREE.DoubleSide}),0,2.5,0);scene.add(shade);
+  scene.add(mesh(new THREE.SphereGeometry(0.07,10,8),MB(0xfff1c8),0,2.33,0));
+  scene.add(mesh(new THREE.CylinderGeometry(0.01,0.01,1,4),M(0x222222),0,3.0,0));
+
+  // ----- Taula -----
+  const topTex=canvasTex(1024,1024,(x,w,h)=>{
+    const c=w/2;
+    x.fillStyle='#6d4326';x.fillRect(0,0,w,h);
+    for(let i=0;i<40;i++){x.strokeStyle=i%2?'rgba(40,20,5,.18)':'rgba(255,220,170,.07)';x.lineWidth=2+Math.random()*3;x.beginPath();x.arc(c,c,30+i*12.5,0,Math.PI*2);x.stroke();}
+    x.fillStyle='#1b5b52';x.beginPath();x.arc(c,c,c*0.7,0,Math.PI*2);x.fill();
+    for(let i=0;i<1500;i++){x.fillStyle='rgba(255,255,255,.035)';const a=Math.random()*6.28,r=Math.random()*c*0.68;x.fillRect(c+Math.cos(a)*r,c+Math.sin(a)*r,2,2);}
+    x.strokeStyle='#d9a21e';x.lineWidth=7;x.beginPath();x.arc(c,c,c*0.7,0,Math.PI*2);x.stroke();
+    x.strokeStyle='rgba(255,255,255,.3)';x.lineWidth=4;x.setLineDash([22,16]);x.beginPath();x.arc(c,c,c*0.5,0,Math.PI*2);x.stroke();
+  });
+  const sideTex=canvasTex(256,32,(x,w,h)=>{x.fillStyle='#4a2c16';x.fillRect(0,0,w,h);x.fillStyle='#5b3920';x.fillRect(0,0,w,8);});
+  const tableTop=new THREE.Mesh(new THREE.CylinderGeometry(1,1,0.06,56),[M(0xffffff,{map:sideTex}),M(0xffffff,{map:topTex}),M(0x3a2415)]);
+  tableTop.position.y=0.73;scene.add(tableTop);
+  scene.add(mesh(new THREE.CylinderGeometry(0.13,0.16,0.7,12),M(0x4a2c16),0,0.35,0));
+  scene.add(mesh(new THREE.CylinderGeometry(0.5,0.55,0.05,20),M(0x3a2415),0,0.025,0));
+  // ensaïmada
+  const plate=mesh(new THREE.CylinderGeometry(0.11,0.1,0.015,18),M(0xf2f2ee),0.62,0.768,0.5);scene.add(plate);
+  const ens=mesh(new THREE.TorusGeometry(0.055,0.03,10,20),M(0xe5c48a),0,0.03,0);ens.rotation.x=Math.PI/2;ens.scale.z=0.7;plate.add(ens);
+  const sug=mesh(new THREE.TorusGeometry(0.055,0.018,8,20),M(0xfdfcf6),0,0.052,0);sug.rotation.x=Math.PI/2;plate.add(sug);
+
+  // ----- Cartes -----
+  const cardGeo=new THREE.BoxGeometry(0.13,0.195,0.003);
+  const edgeMat=MB(0xe8dfc8);
+  const texCache={},matCache={};
+  function faceMat(c){
+    const k=keyOf(c);
+    if(matCache[k])return matCache[k];
+    const cvs=document.createElement('canvas');cvs.width=200;cvs.height=300;
+    const x=cvs.getContext('2d');x.fillStyle='#fbf6e9';x.fillRect(0,0,200,300);
+    const t=new THREE.CanvasTexture(cvs);t.anisotropy=4;
+    const img=svgImage(cardSVG(c),200,300);
+    img.onload=()=>{x.drawImage(img,0,0,200,300);t.needsUpdate=true;};
+    return matCache[k]=MB(0xffffff,{map:t});
+  }
+  const backTex=canvasTex(200,300,(x,w,h)=>{
+    x.fillStyle='#2a4a9a';x.fillRect(0,0,w,h);
+    const img=svgImage(TILE_SVG,36,24);
+    img.onload=()=>{
+      for(let xx=12;xx<w-12;xx+=36)for(let yy=12;yy<h-12;yy+=24)x.drawImage(img,xx,yy,36,24);
+      x.lineWidth=14;x.strokeStyle='#fbf6e9';x.strokeRect(7,7,w-14,h-14);
+      backTex.needsUpdate=true;
+    };
+    x.lineWidth=14;x.strokeStyle='#fbf6e9';x.strokeRect(7,7,w-14,h-14);
+  });
+  const backMat=MB(0xffffff,{map:backTex});
+  function makeCard(c){return new THREE.Mesh(cardGeo,[edgeMat,edgeMat,edgeMat,edgeMat,c?faceMat(c):backMat,backMat]);}
+
+  // ----- Personatges -----
+  const LOOKS={
+    palla:{skin:0xd9a47a,sleeve:0x3d5f8f,hair:0x2b1d14,hat:'palla',mustache:true,lip:0x9a4a42},
+    mocador:{skin:0xe8bf9c,sleeve:0xf1e8d8,hair:0x4a2f1c,hat:'mocador',female:true,lip:0xb02a3a},
+    barretina:{skin:0xc9916b,sleeve:0xefe6d2,hair:0x1c1a18,hat:'barretina',mustache:true,lip:0x8f4540}
+  };
+  const SHIRTS=[0x3d5f8f,0x7a2f3a,0x2c2a2a,0x3f6b43];
+  function buildChar(p,look,tint){
+    const cfg=Object.assign({},LOOKS[look]||LOOKS.palla,{shirt:SHIRTS[tint%4]});
+    const g=new THREE.Group(),ch={group:g,gaze:-1,anim:null,nod:0,p,look,tint};
+    const skin=M(cfg.skin),shirt=M(cfg.shirt),sleeve=M(cfg.sleeve),pants=M(0x2e2a26),hairM=M(cfg.hair),white=M(0xffffff),pink=M(0xe58089),lipM=M(cfg.lip),dark=M(0x1b1410);
+    g.add(mesh(new THREE.CylinderGeometry(0.27,0.27,0.06,16),M(0x5a3a22),0,0.46,0));
+    g.add(mesh(new THREE.CylinderGeometry(0.035,0.05,0.43,8),M(0x3a2415),0,0.23,0));
+    const torso=mesh(new THREE.CylinderGeometry(0.2,0.26,0.6,14),shirt,0,0.84,0);torso.scale.z=0.78;g.add(torso);ch.torso=torso;
+    for(const s of [-1,1]){
+      g.add(mesh(new THREE.SphereGeometry(0.1,10,8),sleeve,s*0.27,1.08,0));
+      g.add(limb([s*0.27,1.04,0],[s*0.34,0.86,0.3],0.065,sleeve));
+      g.add(limb([s*0.34,0.86,0.3],[s*0.2,0.8,0.58],0.058,sleeve));
+      g.add(mesh(new THREE.SphereGeometry(0.065,10,8),skin,s*0.2,0.79,0.6));
+      g.add(mesh(new THREE.BoxGeometry(0.13,0.13,0.5),pants,s*0.12,0.54,0.28));
+      g.add(mesh(new THREE.BoxGeometry(0.11,0.46,0.11),pants,s*0.12,0.27,0.52));
+    }
+    g.add(mesh(new THREE.CylinderGeometry(0.07,0.08,0.14,10),skin,0,1.2,0));
+    // cap
+    const head=new THREE.Group();head.position.set(0,1.42,0);head.rotation.order='YXZ';g.add(head);ch.head=head;
+    const skull=mesh(new THREE.SphereGeometry(0.21,22,16),skin);skull.scale.set(1,1.06,1);head.add(skull);
+    for(const s of [-1,1])head.add(mesh(new THREE.SphereGeometry(0.045,8,6),skin,s*0.205,0,0));
+    head.add(mesh(new THREE.SphereGeometry(0.042,10,8),M(cfg.skin-0x0a0a0a),0,-0.02,0.205));
+    ch.eyes={};ch.brows={};ch.lids={};
+    for(const s of [-1,1]){
+      head.add(mesh(new THREE.SphereGeometry(0.055,12,10),white,s*0.085,0.045,0.175));
+      head.add(mesh(new THREE.SphereGeometry(0.026,8,6),dark,s*0.085,0.045,0.205));
+      const lid=new THREE.Group();lid.position.set(s*0.085,0.045,0.2);
+      const ls=mesh(new THREE.SphereGeometry(0.07,12,10),skin);ls.scale.set(1,1,0.6);lid.add(ls);
+      lid.add(mesh(new THREE.BoxGeometry(0.1,0.009,0.01),dark,0,-0.012,0.042));
+      lid.scale.y=0.001;lid.visible=false;head.add(lid);
+      ch.lids[s]=lid;
+      const br=mesh(new THREE.BoxGeometry(0.115,0.024,0.02),hairM,s*0.085,0.128,0.2);
+      br.rotation.z=s*0.1;br.userData.baseY=0.128;head.add(br);ch.brows[s]=br;
+    }
+    const mouth=new THREE.Group();mouth.position.set(0,-0.1,0.188);head.add(mouth);
+    mouth.add(mesh(new THREE.BoxGeometry(0.1,0.022,0.012),M(0x4a1515),0,0,0));
+    const lips=new THREE.Group();mouth.add(lips);ch.lips=lips;
+    lips.add(mesh(new THREE.BoxGeometry(0.12,0.013,0.014),lipM,0,0.011,0.004));
+    ch.lower=mesh(new THREE.BoxGeometry(0.105,0.017,0.014),lipM,0,-0.012,0.004);lips.add(ch.lower);
+    ch.teeth=mesh(new THREE.BoxGeometry(0.095,0.018,0.012),white,0,-0.003,0.015);ch.teeth.visible=false;lips.add(ch.teeth);
+    ch.tongue=mesh(new THREE.SphereGeometry(0.045,10,8),pink,0,-0.008,0.014);ch.tongue.scale.set(2.1,0.7,0.9);ch.tongue.visible=false;mouth.add(ch.tongue);
+    if(cfg.mustache)head.add(mesh(new THREE.BoxGeometry(0.14,0.026,0.026),hairM,0,-0.058,0.2));
+    if(cfg.hat==='palla'){
+      head.add(mesh(new THREE.CylinderGeometry(0.17,0.19,0.13,16),M(0xd9c07a),0,0.22,0));
+      head.add(mesh(new THREE.CylinderGeometry(0.38,0.38,0.014,24),M(0xcdb36b),0,0.17,0));
+      head.add(mesh(new THREE.CylinderGeometry(0.192,0.192,0.03,16),M(0x8a2a22),0,0.19,0));
+    }else if(cfg.hat==='barretina'){
+      const bn=mesh(new THREE.CylinderGeometry(0.2,0.215,0.07,16),M(0x1c1a18),0,0.15,0);head.add(bn);
+      const sock=mesh(new THREE.CylinderGeometry(0.03,0.2,0.4,14),M(0xb8322a),0.03,0.35,-0.02);sock.rotation.z=-0.3;head.add(sock);
+    }else if(cfg.hat==='mocador'){
+      const cap=mesh(new THREE.SphereGeometry(0.225,18,12),M(0x2a4a9a),0,0.06,-0.035);cap.scale.set(1,0.85,1.05);head.add(cap);
+      head.add(mesh(new THREE.TorusGeometry(0.2,0.014,6,24),M(0xf3ece0),0,0.095,0.02));
+      head.add(mesh(new THREE.SphereGeometry(0.09,12,10),hairM,0,0.03,-0.23));
+      for(const s of [-1,1])head.add(mesh(new THREE.SphereGeometry(0.018,6,6),M(0xe0a21f),s*0.21,-0.06,0.02));
+    }
+    // cartes a la mà (reversos cap a fora)
+    ch.cardsGroup=new THREE.Group();ch.cardsGroup.position.set(0,1.04,0.34);g.add(ch.cardsGroup);
+    ch.cards=[];
+    for(let i=0;i<3;i++){
+      const m=makeCard(null);m.rotation.y=Math.PI;m.rotation.z=(i-1)*0.22;m.position.set((i-1)*0.075,-Math.abs(i-1)*0.01,i*0.004);m.scale.setScalar(0.8);
+      ch.cardsGroup.add(m);ch.cards.push(m);
+    }
+    const P=SEAT[p];
+    g.position.set(P[0],0,P[1]);
+    g.rotation.y=Math.atan2(-P[0],-P[1]);
+    scene.add(g);
+    return ch;
+  }
+  const chars={1:buildChar(1,'palla',1),2:buildChar(2,'mocador',2),3:buildChar(3,'barretina',3)};
+  function setRoster(looks,tints){
+    for(let p=1;p<4;p++){
+      const l=looks[p-1],t=tints[p-1],old=chars[p];
+      if(old&&old.look===l&&old.tint===t)continue;
+      const nc=buildChar(p,l,t);
+      if(old){nc.gaze=old.gaze;scene.remove(old.group);}
+      chars[p]=nc;
+    }
+    scene.updateMatrixWorld(true);
+  }
+  scene.updateMatrixWorld(true);
+
+  // ----- Mans en primera persona -----
+  const handGroup=new THREE.Group();handGroup.position.set(0,-0.235,-0.72);cam.add(handGroup);
+  const armMat=M(0x2f5a3a),skinMat=M(0xd6a07a);
+  const arms=new THREE.Group();cam.add(arms);
+  for(const s of [-1,1]){
+    arms.add(limb([s*0.34,-0.5,-0.42],[s*0.115,-0.29,-0.7],0.03,MB(0x2f5a3a)));
+    arms.add(mesh(new THREE.SphereGeometry(0.032,10,8),MB(0xd6a07a),s*0.105,-0.275,-0.705));
+  }
+  let handMeshes=[],handSig='',hoverIdx=-1;
+  const flyFrom={};
+  function layoutHand(){
+    const n=handMeshes.length;
+    const visH=2*0.72*Math.tan(25*Math.PI/180),visW=visH*cam.aspect;
+    const sp=Math.min(0.16,visW*0.3),sc=Math.min(1.15,sp/0.16);
+    handMeshes.forEach((m,i)=>{
+      const o=i-(n-1)/2;
+      m.userData.bx=o*sp;m.userData.by=-Math.abs(o)*0.012;
+      m.rotation.z=-o*0.12;m.scale.setScalar(sc);
+      m.position.z=i*0.003;
+    });
+  }
+  function syncHands(){
+    const hand=H?H.hands[0]:[];
+    const sig=hand.map(keyOf).join('|');
+    if(sig!==handSig){
+      handMeshes.forEach(m=>{
+        if(!hand.some(c=>keyOf(c)===m.userData.key)){
+          const v=new THREE.Vector3();m.getWorldPosition(v);flyFrom[m.userData.key]=v;
+        }
+        handGroup.remove(m);
+      });
+      handMeshes=hand.map((c,i)=>{const m=makeCard(c);m.userData={key:keyOf(c),idx:i,bx:0,by:0,ly:0};m.position.set(0,0,0);handGroup.add(m);return m;});
+      handSig=sig;layoutHand();
+    }
+    for(let p=1;p<4;p++){const n=H?H.hands[p].length:0;chars[p].cards.forEach((m,i)=>{m.visible=i<n;});}
+  }
+
+  // ----- Cartes a la taula -----
+  const playedMap={},tweens=[];
+  const ringGeo=new THREE.PlaneGeometry(0.16,0.225);
+  function syncPlayed(){
+    const keys={};
+    const list=H?H.played:[];
+    for(const x of list){
+      const k=keyOf(x.card);keys[k]=1;
+      let o=playedMap[k];
+      if(!o){
+        const m=makeCard(x.card);
+        const P=SEAT[x.p],len=Math.hypot(P[0],P[1]);
+        const rad=x.p===0?0.36:0.42;
+        const to=new THREE.Vector3(P[0]/len*rad+(Math.random()-0.5)*0.04,0.772,P[1]/len*rad+(Math.random()-0.5)*0.04);
+        m.scale.setScalar(1.3);m.rotation.order='YXZ';m.rotation.x=-Math.PI/2;m.rotation.y=Math.atan2(P[0],P[1])+(Math.random()-0.5)*0.25;
+        let from=flyFrom[k];
+        if(!from){from=new THREE.Vector3();if(chars[x.p])chars[x.p].cardsGroup.getWorldPosition(from);else from.set(0,1.0,1.0);}
+        delete flyFrom[k];
+        m.position.copy(from);scene.add(m);
+        tweens.push({m,from:from.clone(),to,t:0,dur:0.34});
+        const ring=new THREE.Mesh(ringGeo,MB(0xe0a21f));ring.position.z=-0.004;ring.visible=false;m.add(ring);
+        o=playedMap[k]={m,ring};
+      }
+      o.ring.visible=H.winPlayer===x.p;
+    }
+    for(const k in playedMap)if(!keys[k]){scene.remove(playedMap[k].m);delete playedMap[k];}
+  }
+
+  // ----- Etiquetes HTML -----
+  const labsEl=$('#labels'),labs={};
+  for(let p=1;p<4;p++){
+    const d=document.createElement('div');d.className='lab';d.innerHTML='<div class="bub" style="display:none"></div><div class="nm"></div>';
+    labsEl.appendChild(d);labs[p]={el:d,bub:d.firstChild,nm:d.lastChild};
+  }
+  const bub0=$('#bub0'),you=$('#you');
+  function sync(){
+    for(let p=1;p<4;p++){
+      const L=labs[p],turn=H&&H.turn===p&&!H.over,mano=H&&H.mano===p;
+      L.nm.className='nm'+(turn?' turn':'');
+      L.nm.innerHTML=esc(NAMES[p])+(mano?'<span class="tag">mà</span>':'');
+      const b=H&&H.bubbles[p];L.bub.textContent=b||'';L.bub.style.display=b?'block':'none';
+    }
+    const b0=H&&H.bubbles[0];bub0.textContent=b0||'';bub0.style.display=b0?'block':'none';
+    const t0=H&&H.turn===0&&!H.over;
+    you.className='you nm'+(t0?' turn':'');
+    you.innerHTML=esc(NAMES[0])+(H&&H.mano===0?'<span class="tag">mà</span>':'');
+    stage.classList.toggle('myturn',UI.mode==='turn'||UI.mode==='respond');
+    syncHands();syncPlayed();
+  }
+
+  // ----- Cara: animacions de les senyes -----
+  const smooth=e=>e*e*(3-2*e);
+  function applyFace(ch,dt,time){
+    let env=0,id=null;
+    const a=ch.anim;
+    if(a){
+      a.t+=dt;const k=a.t/a.dur;
+      if(k>=1){ch.anim=null;if(View.onSignEnd)View.onSignEnd(ch.p,a.id,a.seen);}
+      else{const e=k<0.2?k/0.2:k>0.8?(1-k)/0.2:1;env=smooth(e);id=a.id;}
+    }
+    for(const s of [-1,1]){
+      ch.brows[s].position.y=ch.brows[s].userData.baseY+(id==='amo'?0.075*env:0);
+      let lid=0;
+      if(id==='buit')lid=env;
+      else if(id==='madona'&&a.eye===s)lid=env;
+      ch.lids[s].visible=lid>0.06;ch.lids[s].scale.y=Math.max(0.001,lid);
+    }
+    ch.tongue.visible=(id==='asE'||id==='asB')&&env>0.08;
+    if(ch.tongue.visible){const side=id==='asE'?-1:1;ch.tongue.position.x=side*(0.05+0.1*env);}
+    let lx=0,lr=0;
+    if(id==='sieteE'){lx=-0.08*env;lr=-0.3*env;}
+    if(id==='sieteO'){lx=0.08*env;lr=0.3*env;}
+    ch.lips.position.x=lx;ch.lips.rotation.z=lr;
+    ch.teeth.visible=id==='tres'&&env>0.25;
+    ch.lower.position.y=-0.012+(id==='tres'?0.006*env:0);
+    if(ch.nod>0){ch.nod-=dt;}
+    ch.torso.scale.y=1+0.012*Math.sin(time*1.8+ch.p);
+  }
+  const tmp=new THREE.Vector3();
+  function headLook(ch,dt,nodAdd){
+    const g=ch.gaze;
+    const T=(g===-1||g==null)?TABLE:(g===0?CAMPOS:HEAD[g]);
+    tmp.copy(T);ch.group.worldToLocal(tmp);tmp.y-=1.42;
+    const yaw=clamp(Math.atan2(tmp.x,tmp.z),-1.25,1.25);
+    let pitch=clamp(Math.atan2(-tmp.y,Math.hypot(tmp.x,tmp.z)),-0.4,0.5);
+    if(ch.nod>0)pitch+=0.28*Math.sin(Math.PI*(1-ch.nod/0.5));
+    const r=Math.min(1,dt*7);
+    ch.head.rotation.y+=(yaw-ch.head.rotation.y)*r;
+    ch.head.rotation.x+=(pitch-ch.head.rotation.x)*r;
+  }
+
+  // ----- Mirada de l'usuari -----
+  const fwd=new THREE.Vector3(),dirv=new THREE.Vector3();
+  function angleTo(p){
+    cam.getWorldDirection(fwd);
+    dirv.copy(HEAD[p]).sub(CAMPOS).normalize();
+    return Math.acos(clamp(fwd.dot(dirv),-1,1));
+  }
+  function focus(){
+    let best=-1,ba=0.19;
+    for(let p=1;p<4;p++){const a=angleTo(p);if(a<ba){ba=a;best=p;}}
+    return best;
+  }
+
+  // ----- Entrada -----
+  const raycaster=new THREE.Raycaster();
+  const ndc=new THREE.Vector2();
+  function pick(e){
+    const r=cv.getBoundingClientRect();
+    ndc.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+    raycaster.setFromCamera(ndc,cam);
+    const hits=raycaster.intersectObjects(handMeshes,false);
+    return hits.length?handMeshes.indexOf(hits[0].object):-1;
+  }
+  function hfov(){return 2*Math.atan(Math.tan(cam.fov*Math.PI/360)*cam.aspect);}
+  let drag=null;
+  cv.addEventListener('pointerdown',e=>{try{cv.setPointerCapture(e.pointerId);}catch(_){}drag={x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,moved:false};cv.style.cursor='grabbing';});
+  cv.addEventListener('pointermove',e=>{
+    if(drag){
+      if(Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>7)drag.moved=true;
+      if(drag.moved){
+        const k=hfov()/cv.clientWidth;
+        V.tyaw=clamp(V.tyaw+(e.clientX-drag.x)*k,-1.2,1.2);V.yaw=V.tyaw;
+        V.tpitch=clamp(V.tpitch+(e.clientY-drag.y)*k,-0.5,0.3);V.pitch=V.tpitch;
+      }
+      drag.x=e.clientX;drag.y=e.clientY;
+    }else if(e.pointerType==='mouse'){hoverIdx=pick(e);}
+  });
+  cv.addEventListener('pointerup',e=>{
+    if(drag&&!drag.moved){
+      const i=pick(e);
+      if(i>=0){
+        if(UI.mode==='turn'&&UI.resolve)UI.resolve({type:'play',idx:i});
+        else toast('Encara no és el teu torn');
+      }
+    }
+    drag=null;cv.style.cursor='grab';
+  });
+  cv.addEventListener('pointercancel',()=>{drag=null;cv.style.cursor='grab';});
+  cv.addEventListener('wheel',e=>{e.preventDefault();V.tfov=clamp(V.tfov+e.deltaY*0.02,26,58);},{passive:false});
+
+  let toastT=null;
+  function toast(t,ms){
+    const el=$('#toast');el.textContent=t;el.classList.add('show');
+    clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),ms||1800);
+  }
+  function snap(p){V.tyaw=yawFor(p);V.tpitch=p===2?-0.12:-0.1;}
+  function zoom(){V.tfov=V.tfov>38?30:50;}
+
+  // ----- Bucle -----
+  function resize(){
+    const w=stage.clientWidth,h=stage.clientHeight;
+    if(!w||!h)return;
+    R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();layoutHand();
+  }
+  if(typeof ResizeObserver!=='undefined')new ResizeObserver(resize).observe(stage);else window.addEventListener('resize',resize);
+  resize();
+
+  let last=performance.now();
+  const wv=new THREE.Vector3();
+  function loop(now){
+    requestAnimationFrame(loop);
+    const dt=Math.min(0.05,(now-last)/1000);last=now;
+    const time=now/1000;
+    const r=Math.min(1,dt*9);
+    V.yaw+=(V.tyaw-V.yaw)*r;V.pitch+=(V.tpitch-V.pitch)*r;
+    if(Math.abs(cam.fov-V.tfov)>0.05){cam.fov+=(V.tfov-cam.fov)*Math.min(1,dt*8);cam.updateProjectionMatrix();layoutHand();}
+    cam.rotation.set(V.pitch,V.yaw,0);
+    handGroup.scale.setScalar(Math.tan(cam.fov*Math.PI/360)/Math.tan(25*Math.PI/180)*0.9);
+    arms.scale.copy(handGroup.scale);
+    cam.updateMatrixWorld(true);
+    // mans i cartes
+    const ready=UI.mode==='turn';
+    handMeshes.forEach((m,i)=>{
+      const ty=m.userData.by+(ready?(hoverIdx===i?0.05:0.015):0);
+      m.userData.ly+=(ty-m.userData.ly)*Math.min(1,dt*14);
+      m.position.x=m.userData.bx;m.position.y=m.userData.ly;
+    });
+    // tweens
+    for(let i=tweens.length-1;i>=0;i--){
+      const tw=tweens[i];tw.t+=dt;const k=Math.min(1,tw.t/tw.dur),e=1-Math.pow(1-k,3);
+      tw.m.position.lerpVectors(tw.from,tw.to,e);tw.m.position.y+=Math.sin(Math.PI*k)*0.14;
+      if(k>=1)tweens.splice(i,1);
+    }
+    // senyes i mirades
+    const f=focus();
+    for(let p=1;p<4;p++){
+      const ch=chars[p];
+      if(ch.anim&&f===p)ch.anim.seen=true;
+      applyFace(ch,dt,time);headLook(ch,dt);
+    }
+    if(View.frame)View.frame(dt);
+    // etiquetes
+    const w=stage.clientWidth,h=stage.clientHeight;
+    for(let p=1;p<4;p++){
+      wv.copy(HEAD[p]);wv.y+=0.5;wv.project(cam);
+      const L=labs[p];
+      if(wv.z>1||Math.abs(wv.x)>1.1||Math.abs(wv.y)>1.1){L.el.style.visibility='hidden';continue;}
+      L.el.style.visibility='visible';
+      L.el.style.transform=`translate(${((wv.x*0.5+0.5)*w).toFixed(1)}px,${((-wv.y*0.5+0.5)*h).toFixed(1)}px) translate(-50%,-100%)`;
+    }
+    R.render(scene,cam);
+  }
+  requestAnimationFrame(loop);
+
+  const api={
+    ready:true,sync,focus,angleTo,toast,snap,zoom,setRoster,onSignEnd:null,frame:null,
+    emit(p,id){const ch=chars[p];if(!ch)return;ch.anim={id,t:0,dur:SIGNS[id].dur,eye:Math.random()<0.5?-1:1,seen:false};},
+    nod(p){if(chars[p])chars[p].nod=0.5;},
+    setGaze(p,t){if(chars[p])chars[p].gaze=t;},
+    isSigning(p){return !!(chars[p]&&chars[p].anim);},
+    debug:{V,chars,cam,scene,yawFor}
+  };
+  return api;
+})();
+
+// ---------- Render (HTML) ----------
+function renderScore(){
+  const el=$('#score');if(!el)return;
+  const block=t=>{
+    const pts=G.scores[t];
+    const dots=[0,1].map(i=>`<span class="dot${i<G.cantons[t]?' on':''}"></span>`).join('');
+    return `<div class="team t${t}"><div class="tname">${t===0?'Nosaltres':'Ells'}</div>`
+      +`<div class="tsub">${t===0?esc(NAMES[0])+' i '+esc(NAMES[2]):esc(NAMES[1])+' i '+esc(NAMES[3])}</div>`
+      +`<div class="pts"><b>${pts}</b><span>/24</span></div>`
+      +`<div class="bar"><i style="width:${pts/24*100}%"></i></div>`
+      +`<div class="cant" role="img" aria-label="${G.cantons[t]} cantons guanyats de 2">Cantons ${dots}</div></div>`;
+  };
+  const marks=[0,1,2].map(i=>{
+    const r=H?H.tricks[i]:undefined;
+    let txt='',cls='';
+    if(r===0){txt='N';cls=' us';}else if(r===1){txt='E';cls=' them';}else if(r===null){txt='=';cls=' tie';}
+    return `<span class="tm${cls}">${txt}</span>`;
+  }).join('');
+  let stake=H?(H.trucLevel===4?'En joc: el cantó':`En joc: ${ptsText(TRUC_VALUE[H.trucLevel])}`):'';
+  if(H&&H.envitPending)stake+=`<br>Envit: ${H.envitLevel===4?'el cantó':ENVIT_VALUE[H.envitLevel]}`;
+  el.innerHTML=block(0)+`<div class="mid"><div class="stake">${stake}</div><div class="tricks" aria-label="Rondes guanyades">${marks}</div></div>`+block(1);
+}
+function renderTrick(){
+  const el=$('#trickhud');if(!el)return;
+  el.innerHTML=H?H.played.map(x=>`<div class="tc ${team(x.p)===0?'us':'them'}${H.winPlayer===x.p?' win':''}">${cardSVG(x.card)}<span>${esc(NAMES[x.p])}</span></div>`).join(''):'';
+}
+function renderTable(){View.sync();renderTrick();}
+function renderActions(){
+  const el=$('#actions');if(!el)return;
+  let html=`<p class="status">${G.status||''}</p>`;
+  if(UI.mode==='turn'||UI.mode==='respond')html+='<div class="timerbar" id="timerbar"><i></i></div>';
+  if(UI.mode==='turn'&&H){
+    const b=[];
+    if(canCallTruc(0))b.push(`<button class="btn truc" data-act="truc">${TRUC_BTN[H.trucLevel+1]}</button>`);
+    if(canCallEnvit(0))b.push(`<button class="btn envit" data-act="envit">${ENVIT_BTN[H.envitLevel+1]}</button>`);
+    const cur=TRUC_VALUE[H.trucLevel];
+    b.push(`<button class="btn ghost" data-act="fold">${UI.foldArm?`Segur? Perds ${ptsText(cur)}`:'Me\'n vaig'}</button>`);
+    if(H.trickNo===0&&H.initial[0])html+=`<p class="hint">El teu envit: <b>${envitValue(H.initial[0])}</b></p>`;
+    html+=`<div class="btns">${b.join('')}</div>`;
+  }else if(UI.mode==='respond'&&UI.resp){
+    const r=UI.resp;const b=[];
+    b.push(`<button class="btn ok" data-act="vull">Vull</button>`);
+    b.push(`<button class="btn ghost" data-act="no">No vull</button>`);
+    if(r.level<4)b.push(`<button class="btn ${r.kind==='truc'?'truc':'envit'}" data-act="raise">${r.kind==='truc'?TRUC_BTN[r.level+1]:ENVIT_BTN[r.level+1]}</button>`);
+    html+=`<div class="btns">${b.join('')}</div>`;
+  }
+  el.innerHTML=html;
+  updateClock();
+}
+function renderLog(){const el=$('#log');if(el)el.innerHTML=G.log.map(t=>`<li>${t}</li>`).join('');}
+function renderSigns(){
+  const el=$('#sgrid');if(!el)return;
+  el.innerHTML=Object.keys(SIGNS).map(k=>`<button class="sbtn" data-sign="${k}" aria-label="${SIGNS[k].gesture}">${SIGNS[k].short}<small>${SIGNS[k].sub}</small></button>`).join('');
+}
+function render(){renderScore();renderTable();renderActions();renderLog();}
+
+// ---------- Superposicions ----------
+function showOverlay(html){const o=$('#overlay');o.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;o.hidden=false;}
+function hideOverlay(){const o=$('#overlay');o.hidden=true;o.innerHTML='';}
+function waitOverlay(html){
+  if(AUTO)return Promise.resolve();
+  return new Promise((res,rej)=>{showOverlay(html);UI.ovResolve=()=>{hideOverlay();UI.ovResolve=null;UI.ovReject=null;res();};UI.ovReject=rej;});
+}
+function tierRow(i,cards,label){
+  return `<div class="tier"><span class="n">${i+1}</span><div class="mini">${cards.map(c=>cardSVG(c)).join('')}</div><span class="lab2">${label||''}</span></div>`;
+}
+function signsGuideHTML(){
+  const rows=Object.keys(SIGNS).map(k=>`<tr><td>${SIGNS[k].gesture}</td><td>${SIGNS[k].card}</td></tr>`).join('');
+  return `<h3>Senyes amb la cara</h3>
+  <p>Dreta i esquerra són les de qui fa la seña. Quan el teu company et mira de cara, la seva dreta és a la teva esquerra.</p>
+  <table class="k"><tr><th>Gest</th><th>Carta</th></tr>${rows}</table>
+  <p>Només llegeixes una seña si tens la cara de qui la fa al centre de la vista. Si un rival et mira just quan fas una seña, la veu. Mira com giren el cap: qui mira cap a tu et pot pillar.</p>`;
+}
+function rulesHTML(backAttr,backLabel){
+  const S4=n=>SUITS.map(s=>({n,s}));
+  const tiers=[
+    [[{n:11,s:'bastos'}],'amo'],[[{n:10,s:'oros'}],'madona'],[[{n:1,s:'espases'}]],[[{n:1,s:'bastos'}]],[[{n:7,s:'espases'}]],[[{n:7,s:'oros'}]],
+    [S4(3)],[[{n:1,s:'copes'},{n:1,s:'oros'}]],[S4(12)],
+    [[{n:11,s:'espases'},{n:11,s:'copes'},{n:11,s:'oros'}]],[[{n:10,s:'espases'},{n:10,s:'copes'},{n:10,s:'bastos'}]],
+    [[{n:7,s:'copes'},{n:7,s:'bastos'}]],[S4(6)],[S4(5)],[S4(4)]
+  ];
+  const rows=tiers.map((t,i)=>tierRow(i,t[0],t[1])).join('');
+  return `<h2>Regles d'aquesta versió</h2>
+  <p>Baralla de 36 cartes: l'1, 3, 4, 5, 6, 7, 10, 11 i 12 dels quatre pals. El 2, el 8 i el 9 no hi juguen. Quatre jugadors en dues parelles, tres cartes cadascú. Es juguen fins a tres rondes i qui en guanya dues guanya la mà.</p>
+  <h3>Ordre de les cartes, de la més alta a la més baixa</h3>${rows}
+  <h3>Punts de la mà</h3>
+  <table class="k"><tr><th>Cant</th><th>Si es vol</th><th>Si no es vol</th></tr>
+  <tr><td>Sense cant</td><td>1</td><td></td></tr>
+  <tr><td>Truc</td><td>3</td><td>1</td></tr>
+  <tr><td>Retruc</td><td>6</td><td>3</td></tr>
+  <tr><td>Val 9</td><td>9</td><td>6</td></tr>
+  <tr><td>Tots</td><td>el cantó</td><td>9</td></tr></table>
+  <h3>Envits (només a la primera ronda)</h3>
+  <p>Compten dues cartes de la mà. Dues cartes del mateix pal valen 20 més el valor de cada una (10, 11 i 12 sumen 0). Sense parella de pal, val la carta més alta d'un dígit. L'amo (11 de bastos) val 28 i la madona (10 d'oros) val 27 i s'ajunten amb qualsevol carta: es suma el valor de l'altra. Amo i madona junts fan 35.</p>
+  <table class="k"><tr><th>Cant</th><th>Si es vol</th><th>Si no es vol</th></tr>
+  <tr><td>Envit</td><td>2</td><td>1</td></tr>
+  <tr><td>Jo envit</td><td>4</td><td>2</td></tr>
+  <tr><td>2 més</td><td>6</td><td>4</td></tr>
+  <tr><td>Envit tots</td><td>el cantó</td><td>6</td></tr></table>
+  <h3>Cantó i partida</h3>
+  <p>Un cantó es juga a 24 punts. Guanya la partida qui guanya dos cantons.</p>
+  ${signsGuideHTML()}
+  <h3>Coses que he suposat</h3>
+  <ul>
+    <li>Tens 40 segons per tirar carta o contestar un cant. Si s'acaba el temps, es tira la carta més baixa o es diu «no vull».</li>
+    <li>Els seients buits els juguen bots. Si algú es desconnecta, un bot juga per ell fins que torni.</li>
+    <li>Si les dues cartes més altes d'una ronda són iguals i de parelles diferents, la ronda s'empata. Si s'empata la primera, guanya la mà qui guanyi la segona. Si s'empata la segona, guanya qui va guanyar la primera. Si s'empaten les tres, guanya la parella de qui és mà.</li>
+    <li>Després d'un empat, la ronda següent la surt qui va tirar primer de les cartes empatades.</li>
+    <li>Només es pot cantar envit abans que algú canti truc.</li>
+    <li>Només la parella que ha dit «vull» pot pujar el truc. Es canta quan és el teu torn, abans de tirar carta.</li>
+    <li>Empat d'envits: guanya qui és més a prop de la mà.</li>
+    <li>Els envits es canten i s'accepten a la primera ronda, però no es diuen fins que acaba la mà. Només es veu l'envit guanyador. Un envit acceptat es diu igualment encara que la mà acabi abans, i els seus punts se sumen abans dels de la mà.</li>
+    <li>Els bots d'una parella ho parlen entre ells amb les dues mans. Un bot company teu només coneix la seva mà i el que li diguis amb les senyes.</li>
+    <li>«Vaig a tu» vol dir que el teu company tira la carta bona en aquesta ronda, i «Vina a mi» que la tires tu. Es diu en veu alta, així que els rivals ho senten. Catalina i els rivals també ho diuen de tant en tant, segons les cartes que duen.</li>
+    <li>«Demana envit» avisa el teu company perquè canti envit al seu torn de la primera ronda, si encara es pot.</li>
+    <li>Les senyes es poden fer en qualsevol moment de la mà. Un rival que et pilla una seña la farà servir contra tu.</li>
+  </ul>
+  <div class="row"><button class="btn ok" ${backAttr}>${backLabel}</button></div>`;
+}
+function showIntro(){
+  showOverlay(`<h2>Truc mallorquí 3D</h2>
+  <p>Seus a la taula amb Catalina davant i els rivals als costats. Arrossega per girar el cap, o fes servir els botons de dalt, i toca una carta per tirar-la.</p>
+  <p>Pots parlar amb Catalina («Vaig a tu», «Vina a mi») i demanar-li que canti envit. Les senyes són de debò: només les veus si mires qui les fa, i els rivals te les poden pillar si et miren.</p>
+  <div class="row"><button class="btn ok" data-ov="start">Començar</button><button class="btn ghost" data-ov="signs-intro">Veure les senyes</button><button class="btn ghost" data-ov="rules-intro">Regles</button></div>`);
+}
+
+// ================== XARXA, SALA I PARTIDA ==================
+const store={
+  get(k){try{return localStorage.getItem(k);}catch(e){return null;}},
+  set(k,v){try{localStorage.setItem(k,v);}catch(e){/* res */}}
+};
+const Me={seat:-1,code:'',phase:'menu',host:-1,players:[],name:store.get('truc_name')||'',look:store.get('truc_look')||'palla',holdGame:false,lastGaze:-2,signCd:0};
+const rel=a=>(a-Me.seat+4)%4;
+const absOf=r=>(r+Me.seat)%4;
+const vteam=t=>(t===null||t===undefined)?null:(t===Me.seat%2?0:1);
+const nm=p=>esc(NAMES[p]);
+const pt=n=>n>=24?'cantó':n;
+
+// ---------- Temporitzador (el rellotge real el porta el servidor) ----------
+const Clock={active:false,left:40,total:40,last:0};
+function updateClock(){
+  const chip=$('#clock'),bar=$('#timerbar');
+  const low=Clock.active&&Clock.left<=10;
+  if(chip){chip.className='clock'+(Clock.active?' on':'')+(low?' low':'');chip.textContent=Clock.active?`Temps: ${Math.max(0,Math.ceil(Clock.left))} s`:'';}
+  if(bar){bar.classList.toggle('low',low);bar.firstChild.style.width=(Clock.active?Math.max(0,Clock.left/Clock.total*100):0)+'%';}
+}
+function clockSet(ms){Clock.total=Math.max(40,ms/1000);Clock.left=ms/1000;Clock.last=performance.now();Clock.active=true;updateClock();}
+function clockStop(){Clock.active=false;updateClock();}
+setInterval(()=>{
+  if(!Clock.active)return;
+  const now=performance.now();
+  Clock.left=Math.max(0,Clock.left-(now-Clock.last)/1000);Clock.last=now;
+  updateClock();
+},200);
+
+// ---------- Bafarades i estat ----------
+function setStatus(t){G.status=t;G.statusAt=Date.now();renderActions();}
+function say(p,text){
+  if(!H)return;
+  H.bubbles[p]=text;renderTable();
+  setTimeout(()=>{if(H&&H.bubbles[p]===text){H.bubbles[p]=null;renderTable();}},1700);
+}
+function updateStatus(){
+  if(!H)return;
+  if(UI.mode==='turn')G.status='El teu torn: toca una carta o canta.';
+  else if(UI.mode==='respond'&&UI.resp){
+    const r=UI.resp;
+    G.status=`${esc(NAMES[r.callerP])} canta ${callText(r.kind,r.level).replace('!','')} (${r.kind==='truc'?ptsText(TRUC_VALUE[r.level]):ptsText(ENVIT_VALUE[r.level])}). Què dius?`;
+  }else if(H.turn!=null&&H.turn!==0&&!H.over&&Date.now()-(G.statusAt||0)>1200)G.status=`${esc(NAMES[H.turn])} pensa…`;
+}
+
+// ---------- Connexió ----------
+function showConn(on){const c=$('#conn');if(c)c.hidden=!on;}
+const Net={
+  ws:null,tries:0,timer:null,
+  connect(){
+    const proto=location.protocol==='https:'?'wss':'ws';
+    let ws;
+    try{ws=new WebSocket(`${proto}://${location.host}/ws`);}catch(e){this.retry();return;}
+    this.ws=ws;
+    ws.onopen=()=>{this.tries=0;showConn(false);ws.send(JSON.stringify({t:'hello',token:store.get('truc_token')}));};
+    ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data);}catch(e){return;}onMsg(m);};
+    ws.onclose=()=>{showConn(true);this.retry();};
+    ws.onerror=()=>{};
+  },
+  retry(){clearTimeout(this.timer);this.tries++;this.timer=setTimeout(()=>this.connect(),Math.min(8000,500*this.tries));},
+  send(o){if(this.ws&&this.ws.readyState===1)this.ws.send(JSON.stringify(o));}
+};
+function onMsg(m){
+  switch(m.t){
+    case 'hello':
+      store.set('truc_token',m.token);
+      if(!m.resumed&&Me.code)resetToMenu('S\'ha perdut la sessió de la sala.');
+      break;
+    case 'room':onRoom(m);break;
+    case 'snap':if(Me.seat>=0)applySnap(m);break;
+    case 'ev':if(Me.seat>=0)onEvent(m.e);break;
+    case 'gz':if(Me.seat>=0)applyGaze(m.g);break;
+    case 'err':lobbyError(m.m);View.toast(m.m);break;
+    case 'left':resetToMenu('');break;
+  }
+}
+function resetToMenu(msg){
+  Me.code='';Me.phase='menu';Me.seat=-1;Me.players=[];Me.holdGame=false;
+  H=null;UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();
+  G.cantons=[0,0];G.scores=[0,0];G.status='';G.log=[];
+  NAMES=['Tu','Toni','Catalina','Miquel'];
+  hideOverlay();render();routeScreen();lobbyError(msg||'');
+}
+
+// ---------- Sala ----------
+function onRoom(m){
+  Me.code=m.code;Me.phase=m.phase;Me.host=m.host;Me.seat=m.you;Me.players=m.seats;
+  updateRoster();routeScreen();
+}
+function updateRoster(){
+  const arr=[];
+  for(let r=0;r<4;r++){const x=Me.players[absOf(r)];arr.push(r===0?'Tu':x.name);}
+  NAMES=arr;
+  const looks=[],tints=[];
+  for(let r=1;r<4;r++){const a=absOf(r);looks.push(Me.players[a].look);tints.push(a);}
+  View.setRoster(looks,tints);
+  $('#lk3').textContent='◀ '+NAMES[3];
+  $('#lk2').textContent=NAMES[2];
+  $('#lk1').textContent=NAMES[1]+' ▶';
+  $('#sub').textContent=`${NAMES[0]} i ${NAMES[2]} contra ${NAMES[1]} i ${NAMES[3]}`;
+  $('#talkTitle').textContent=`Parlar amb ${NAMES[2]}`;
+  $('#signTitle').textContent=`Fer una seña a ${NAMES[2]}`;
+  const cc=$('#codeChip');cc.textContent='Sala '+Me.code;cc.hidden=!Me.code;
+  render();
+}
+function routeScreen(){
+  const lobby=$('#lobby');
+  const inGame=!!Me.code&&(Me.phase==='playing'||Me.holdGame);
+  if(inGame)lobby.hidden=true;
+  else{lobby.hidden=false;renderLobby();}
+}
+function lobbyError(t){const e=$('#lobbyErr');if(e)e.textContent=t||'';}
+function renderLobby(){
+  const inRoom=!!Me.code;
+  $('#lobbyMenu').hidden=inRoom;
+  $('#lobbyRoom').hidden=!inRoom;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.lk===Me.look));
+  if(!inRoom)return;
+  $('#roomCode').textContent=Me.code;
+  $('#shareUrl').value=location.origin+location.pathname+'?sala='+Me.code;
+  const seatHTML=i=>{
+    const x=Me.players[i],mine=i===Me.seat;
+    let label;
+    if(x.human)label=esc(x.name)+(mine?' (tu)':'')+(i===Me.host?' · amfitrió':'')+(x.connected?'':' · desconnectat');
+    else label='Lliure: hi jugarà un bot ('+esc(x.name)+')';
+    const btn=(!x.human&&!mine)?`<button class="btn sm ghost" data-sit="${i}">Seure aquí</button>`:'';
+    return `<div class="seat${mine?' me':''}${x.human?'':' empty'}"><b>Seient ${i+1}</b><span>${label}</span>${btn}</div>`;
+  };
+  $('#seatsA').innerHTML=seatHTML(0)+seatHTML(2);
+  $('#seatsB').innerHTML=seatHTML(1)+seatHTML(3);
+  const host=Me.host===Me.seat;
+  $('#btnStart').hidden=!host;
+  $('#waitMsg').hidden=host;
+}
+function readProfile(){
+  const n=($('#nameIn').value||'').replace(/[<>&"'`]/g,'').trim().slice(0,16)||'Jugador';
+  Me.name=n;store.set('truc_name',n);store.set('truc_look',Me.look);
+  return {name:n,look:Me.look};
+}
+function setupLobby(){
+  $('#nameIn').value=Me.name;
+  document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+    Me.look=c.dataset.lk;store.set('truc_look',Me.look);renderLobby();
+    if(Me.code){const p=readProfile();Net.send({t:'profile',name:p.name,look:p.look});}
+  }));
+  $('#nameIn').addEventListener('change',()=>{if(Me.code){const p=readProfile();Net.send({t:'profile',name:p.name,look:p.look});}});
+  $('#btnCreate').addEventListener('click',()=>{lobbyError('');const p=readProfile();Net.send({t:'create',name:p.name,look:p.look});});
+  $('#btnQuick').addEventListener('click',()=>{lobbyError('');const p=readProfile();Net.send({t:'create',name:p.name,look:p.look,quick:true});});
+  $('#btnJoin').addEventListener('click',()=>{
+    lobbyError('');const p=readProfile();
+    const code=($('#codeIn').value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if(code.length<4){lobbyError('Escriu el codi de 4 lletres de la sala.');return;}
+    Net.send({t:'join',code,name:p.name,look:p.look});
+  });
+  $('#btnStart').addEventListener('click',()=>Net.send({t:'start'}));
+  $('#btnCopy').addEventListener('click',()=>{
+    const u=$('#shareUrl');u.select();
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u.value).then(()=>lobbyError('Enllaç copiat.')).catch(()=>lobbyError('Copia l\'enllaç del requadre.'));}
+    else lobbyError('Copia l\'enllaç del requadre.');
+  });
+  $('#shareUrl').addEventListener('focus',e=>e.target.select());
+  const q=new URLSearchParams(location.search).get('sala');
+  if(q)$('#codeIn').value=q.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);
+}
+
+// ---------- Estat de la partida (el servidor mana) ----------
+function applySnap(s){
+  const par=Me.seat%2;
+  G.cantons=[s.g.cantons[par],s.g.cantons[1-par]];
+  G.scores=[s.g.scores[par],s.g.scores[1-par]];
+  const h=s.h;
+  if(!h){H=null;UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();render();return;}
+  const prev=H?H.bubbles:{};
+  const hands=[],initial=[];
+  for(let r=0;r<4;r++){const a=absOf(r);hands.push(r===0?h.mine:new Array(h.counts[a]).fill(0));}
+  initial[0]=h.init;
+  H={hands,initial,mano:rel(h.mano),turn:h.turn==null?null:rel(h.turn),over:h.over,trickNo:h.trickNo,
+     tricks:h.tricks.map(t=>vteam(t)),played:h.played.map(x=>({p:rel(x.p),card:x.card})),
+     trucLevel:h.trucLevel,trucOwner:vteam(h.trucOwner),envitLevel:h.envitLevel,envitDone:h.envitDone,envitPending:h.envitPending,
+     winPlayer:h.winPlayer==null?null:rel(h.winPlayer),dealt:h.dealt,bubbles:prev};
+  const was=UI.mode;
+  if(h.pending){
+    const pd=h.pending;
+    UI.mode=pd.kind==='turn'?'turn':'respond';
+    UI.resp=pd.kind==='respond'?{kind:pd.data.kind,level:pd.data.level,callerP:rel(pd.data.callerP)}:null;
+    UI.resolve=a=>{UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();Net.send({t:'act',a});renderActions();renderTable();};
+    if(was!==UI.mode)UI.foldArm=false;
+    clockSet(pd.left);
+  }else{UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();}
+  updateStatus();
+  render();
+}
+function applyGaze(g){
+  for(let a=0;a<4;a++){
+    if(a===Me.seat)continue;
+    const t=g[a];
+    View.setGaze(rel(a),t===-1?-1:(t===Me.seat?0:rel(t)));
+  }
+}
+function showBanner(html,ms){
+  const b=$('#banner');b.innerHTML=html;b.hidden=false;
+  clearTimeout(showBanner.t);showBanner.t=setTimeout(()=>{b.hidden=true;},ms);
+}
+
+// ---------- Esdeveniments del servidor ----------
+function onEvent(e){
+  const P=a=>rel(a);
+  switch(e.e){
+    case 'deal':
+      G.log=[];renderLog();
+      log(`Reparteix ${nm(P(e.dealer))}. Surt ${nm(P(e.mano))}.`);
+      setStatus(`Reparteix ${nm(P(e.dealer))}. Surt ${nm(P(e.mano))}.`);break;
+    case 'play':log(`${nm(P(e.p))} tira ${cardLabel(e.card)}`);break;
+    case 'call':{
+      const p=P(e.p),txt=callText(e.kind,e.level);
+      say(p,txt);setStatus(`${nm(p)}: ${txt}`);log(`${nm(p)} canta ${txt.replace('!','')}`);break;}
+    case 'debate':
+      say(P(e.p),'Ho parlam…');setTimeout(()=>say(P(e.q),'Mmm…'),800);
+      log(`${nm(P(e.p))} i ${nm(P(e.q))} ho parlen`);break;
+    case 'ans':
+      say(P(e.p),e.a==='vull'?'Vull!':'No vull');log(`${nm(P(e.p))}: ${e.a==='vull'?'vull':'no vull'}`);break;
+    case 'envitOk':{const m=`Envit acceptat (${ptsText(ENVIT_VALUE[e.level])}). Es diran en acabar la mà.`;setStatus(m);log(m);break;}
+    case 'envitSoon':setStatus('Mà acabada: toca dir els envits.');break;
+    case 'envitShow':{
+      say(P(e.p),`Tinc ${e.val}`);
+      const m=`Envits: guanya ${nm(P(e.p))} amb ${e.val}. Punts per a ${tl(vteam(e.wt))} (+${pt(e.pts)})`;
+      setStatus(m);log(m);break;}
+    case 'refuse':{
+      const m=`Envit no volgut. Punts per a ${tl(vteam(e.callerTeam))} (+${pt(e.pts)})`;setStatus(m);log(m);break;}
+    case 'trick':{
+      const m=e.tie?'Empat a la ronda.':`Ronda per a ${tl(vteam(e.team))}.`;setStatus(m);log(m);break;}
+    case 'result':{
+      let m;
+      if(e.how==='fold')m=`${e.p===Me.seat?'Te\'n vas':nm(P(e.p))+' se\'n va'}. Punts per a ${tl(vteam(e.t))} (+${pt(e.pts)})`;
+      else if(e.how==='refuse'){const rt=vteam(e.respTeam);m=`${cap(tl(rt))} no ${rt===0?'volem':'volen'}. Punts per a ${tl(vteam(e.t))} (+${pt(e.pts)})`;}
+      else m=`Mà per a ${tl(vteam(e.t))} (+${pt(e.pts)})`;
+      setStatus(m);log(m);break;}
+    case 'timeout':{
+      if(e.p===Me.seat){const m=e.a==='play'?'Temps esgotat: es tira la carta més baixa':'Temps esgotat: no vols';View.toast(m,2400);log(m);}
+      else log(`${nm(P(e.p))} ha esgotat el temps`);
+      break;}
+    case 'talk':{const t=e.w==='tu'?'Vaig a tu':'Vina a mi';say(P(e.p),t);log(`${nm(P(e.p))}: ${t.toLowerCase()}`);break;}
+    case 'ok':say(P(e.p),'Entès');break;
+    case 'yes':say(P(e.p),'Va!');break;
+    case 'ask':
+      say(P(e.p),`${NAMES[P(e.to)]}, demana envit!`);log(`${nm(P(e.p))}: ${nm(P(e.to))}, demana envit`);
+      if(e.to===Me.seat)View.toast(`${NAMES[P(e.p)]} et demana que cantis envit`,2600);
+      break;
+    case 'deny':View.toast(e.why==='tirat'?'El teu company ja ha tirat carta':'Ja no es pot cantar envit');break;
+    case 'sign':if(P(e.p)!==0)View.emit(P(e.p),e.id);break;
+    case 'nod':if(P(e.p)!==0)View.nod(P(e.p));break;
+    case 'caught':if(helpOn())View.toast(`${NAMES[P(e.p)]} t'ha vist la seña!`,2000);break;
+    case 'canton':{
+      const par=Me.seat%2,mine=e.scores[par],theirs=e.scores[1-par];
+      showBanner(`Cantó per a ${tl(vteam(e.w))}<br>${mine} a ${theirs}`,3800);
+      log(`Cantó per a ${tl(vteam(e.w))}: ${mine} a ${theirs}`);break;}
+    case 'game':{
+      const par=Me.seat%2,mine=e.cantons[par],theirs=e.cantons[1-par];
+      Me.holdGame=true;
+      showOverlay(`<h2>${vteam(e.w)===0?'Heu guanyat la partida':'Heu perdut la partida'}</h2><p>Cantons: ${mine} a ${theirs}.</p><div class="row"><button class="btn ok" data-ov="backlobby">Tornar a la sala</button></div>`);
+      break;}
+  }
+}
+
+// ---------- Senyes, paraules i mirada ----------
+View.onSignEnd=function(p,id,seen){
+  if(seen&&helpOn())View.toast(`${NAMES[p]}: ${SIGNS[id].tw} = ${SIGNS[id].sub}`,2400);
+};
+function humanSign(id){
+  if(!H||H.over||!H.dealt){View.toast('Les senyes es fan durant la mà');return;}
+  const t=performance.now();
+  if(t<Me.signCd)return;
+  Me.signCd=t+1100;
+  Net.send({t:'sign',id});
+  View.toast(`Fas: ${SIGNS[id].tw}`,1200);
+}
+function humanTalk(kind){
+  if(!H||H.over||!H.dealt){View.toast('Només es pot parlar durant la mà');return;}
+  Net.send({t:'talk',kind});
+}
+setInterval(()=>{
+  if(Me.phase!=='playing'||Me.seat<0||!View.ready)return;
+  let best=-1,ba=0.4;
+  for(let r=1;r<4;r++){const a=View.angleTo(r);if(a<ba){ba=a;best=r;}}
+  const abs=best<0?-1:absOf(best);
+  if(abs!==Me.lastGaze){Me.lastGaze=abs;Net.send({t:'gaze',target:abs});}
+},250);
+
+// ---------- Esdeveniments de la pàgina ----------
+document.addEventListener('click',e=>{
+  const sit=e.target.closest('[data-sit]');
+  if(sit){Net.send({t:'sit',seat:+sit.dataset.sit});return;}
+  const tk=e.target.closest('[data-talk]');
+  if(tk){humanTalk(tk.dataset.talk);return;}
+  const sb=e.target.closest('[data-sign]');
+  if(sb){humanSign(sb.dataset.sign);return;}
+  const lk=e.target.closest('[data-look]');
+  if(lk){View.snap(+lk.dataset.look);return;}
+  if(e.target.closest('[data-zoom]')){View.zoom();return;}
+  const ov=e.target.closest('[data-ov]');
+  if(ov){
+    const a=ov.dataset.ov;
+    if(a==='rules')showOverlay(rulesHTML('data-ov="close"','Tancar'));
+    else if(a==='signs')showOverlay(signsGuideHTML()+'<div class="row"><button class="btn ok" data-ov="close">Tancar</button></div>');
+    else if(a==='close')hideOverlay();
+    else if(a==='ask-leave'){
+      showOverlay(`<h2>Sortir de la sala</h2><p>Si surts enmig d'una partida, un bot jugarà pel teu seient.</p><div class="row"><button class="btn ok" data-ov="leave">Sortir</button><button class="btn ghost" data-ov="close">Continuar</button></div>`);
+    }
+    else if(a==='leave'){hideOverlay();Net.send({t:'leave'});}
+    else if(a==='backlobby'){Me.holdGame=false;hideOverlay();routeScreen();}
+    return;
+  }
+  const b=e.target.closest('[data-act]');
+  if(!b||!UI.resolve)return;
+  const a=b.dataset.act;
+  if(UI.mode==='turn'){
+    if(a==='truc')UI.resolve({type:'truc'});
+    else if(a==='envit')UI.resolve({type:'envit'});
+    else if(a==='fold'){
+      if(UI.foldArm){UI.foldArm=false;UI.resolve({type:'fold'});}
+      else{UI.foldArm=true;renderActions();}
+    }
+  }else if(UI.mode==='respond'){
+    UI.resolve(a);
+  }
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&!$('#overlay').hidden)hideOverlay();
+  const d=View.debug&&View.debug.V;
+  if(!d||!$('#overlay').hidden||!$('#lobby').hidden)return;
+  if(e.key==='ArrowLeft')d.tyaw=clamp(d.tyaw+0.3,-1.2,1.2);
+  else if(e.key==='ArrowRight')d.tyaw=clamp(d.tyaw-0.3,-1.2,1.2);
+  else if(e.key==='ArrowUp')d.tpitch=clamp(d.tpitch+0.1,-0.5,0.3);
+  else if(e.key==='ArrowDown')d.tpitch=clamp(d.tpitch-0.1,-0.5,0.3);
+});
+
+// ---------- Inici ----------
+window.__truc={G,get H(){return H;},Me,View,Net};
+renderSigns();
+setupLobby();
+render();
+if(!View.ready)$('#nogl').hidden=false;
+routeScreen();
+Net.connect();
+})();
+</script>
+</body>
+</html>
+
