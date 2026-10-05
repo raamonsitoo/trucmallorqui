@@ -137,6 +137,15 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
+    const gm = url.match(/^\/(google[a-z0-9]+\.html)$/);
+  if (gm) {
+    fs.readFile(path.join(__dirname, 'public', gm[1]), (e, data) => {
+      if (e) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('No trobat'); }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(data);
+    });
+    return;
+  }
   res.writeHead(404, { 'Content-Type': 'text/plain' });
   res.end('No trobat');
 });
