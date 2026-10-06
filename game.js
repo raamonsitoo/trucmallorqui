@@ -139,6 +139,7 @@ class Game {
         mano: H.mano, turn: H.turn, over: H.over, trickNo: H.trickNo, tricks: H.tricks, played: H.played,
         trucLevel: H.trucLevel, trucOwner: H.trucOwner, envitLevel: H.envitLevel, envitDone: H.envitDone,
         envitPending: H.envitPending, winPlayer: H.winPlayer, dealt: H.dealt,
+        envitFalta: this.envitFalta(), envitMax: this.maxEnvitLevel(),
         counts: H.hands.map(h => h.length), mine: H.hands[s], init: H.initial[s] || [],
         pending: p ? { kind: p.kind, data: p.data, left: Math.max(0, p.deadline - Date.now()) } : null
       };
@@ -238,7 +239,7 @@ class Game {
       a = a.type === 'play' ? { type: 'play', idx: a.idx } : { type: a.type };
     } else {
       if (a !== 'vull' && a !== 'no' && a !== 'raise') return;
-      if (a === 'raise' && p.data.level >= 4) return;
+      if (a === 'raise' && p.data.level >= (p.data.kind === 'envit' ? this.maxEnvitLevel() : 4)) return;
       if (seat in p.answers) return;
       p.answers[seat] = a;
       // Pujar ja és el màxim, o ja han contestat tots: es decideix ara.
@@ -254,7 +255,13 @@ class Game {
 
   // ---------- Regles de crida ----------
   canCallTruc(p) { const H = this.H; return !!H && !H.over && H.trucLevel < 4 && (H.trucOwner === null || H.trucOwner === p % 2); }
-  canCallEnvit(p) { const H = this.H; return !!H && !H.over && H.trickNo === 0 && !H.envitDone && H.trucLevel === 0; }
+  // L'envit es pot cantar a la primera ronda, també si ja s'ha acceptat el truc.
+  canCallEnvit(p) { const H = this.H; return !!H && !H.over && H.trickNo === 0 && !H.envitDone; }
+  // «Envit tots» val els punts que falten a la parella que va davant per arribar a 24.
+  envitFalta() { const sc = this.G.scores; return 24 - Math.max(sc[0], sc[1]); }
+  envitPts(level) { return level === 4 ? this.envitFalta() : ENVIT_VALUE[level]; }
+  // Només es pot pujar a «tots» si val més que el «2 més» (6 punts).
+  maxEnvitLevel() { return this.envitFalta() > ENVIT_VALUE[3] ? 4 : 3; }
 
   // ---------- Marcador ----------
   addScore(t, pts) {
@@ -327,7 +334,7 @@ class Game {
     const c = H.caught[1 - p % 2];
     if (c.includes('amo') || c.includes('madona')) e -= 2;
     const acc = [0, 25, 27, 29, 33][level], rai = [0, 30, 32, 34, 99][level];
-    if (level < 4 && e >= rai) return 'raise';
+    if (level < this.maxEnvitLevel() && e >= rai) return 'raise';
     if (e >= acc) return 'vull';
     if (Math.random() < 0.08) return 'vull';
     return 'no';
@@ -513,7 +520,7 @@ class Game {
     let level = (isTruc ? H.trucLevel : H.envitLevel) + 1;
     let callerP = caller, callerTeam = caller % 2;
     while (true) {
-      this.emit({ e: 'call', p: callerP, kind, level });
+      this.emit({ e: 'call', p: callerP, kind, level, pts: isTruc ? TRUC_VALUE[level] : this.envitPts(level) });
       this.snap();
       await this.sleep(900);
       const respTeam = 1 - callerTeam;
@@ -539,7 +546,7 @@ class Game {
         if (isTruc) { H.trucLevel = level; H.trucOwner = respTeam; this.snap(); }
         else {
           H.envitLevel = level; H.envitDone = true; H.envitPending = true;
-          this.snap(); this.emit({ e: 'envitOk', level });
+          this.snap(); this.emit({ e: 'envitOk', level, pts: this.envitPts(level) });
           await this.sleep(900);
         }
         return;
@@ -553,7 +560,7 @@ class Game {
     const vals = [0, 1, 2, 3].map(p => envitValue(H.initial[p]));
     let best = -1, bp = 0;
     for (let i = 0; i < 4; i++) { const p = (H.mano + i) % 4; if (vals[p] > best) { best = vals[p]; bp = p; } }
-    const pts = ENVIT_VALUE[level];
+    const pts = this.envitPts(level);
     this.emit({ e: 'envitShow', p: bp, val: best, wt: bp % 2, pts });
     this.addScore(bp % 2, pts);
     this.snap();

@@ -43,15 +43,15 @@ ca:{
  trucP:"Una mà sense cants val 1 punt. Al teu torn, abans de tirar, pots cantar <b>truc</b> per jugar-te'n més. Els rivals poden dir <b>«vull»</b> (acceptar), <b>«no vull»</b> (i et donen els punts d'abans) o <b>pujar</b>: retruc, val 9 i, al final, <b>tots</b> (el cantó sencer).",
  th:['Cant','Si es vol','Si no es vol'],trucRows:[['Sense cant','1','—'],['Truc','3','1'],['Retruc','6','3'],['Val 9','9','6'],['Tots','el cantó','9']],
  trucNote:"Després d'un «vull», només pot tornar a pujar la parella que ha acceptat.",
- envitP:"L'envit és una aposta sobre quin jugador té millors <b>dues cartes</b> per sumar. Només es pot cantar a la <b>primera ronda</b> i abans que algú canti truc. Els envits es canten i s'accepten durant la mà, però <b>no es diuen fins que la mà s'acaba</b>.",
+ envitP:"L'envit és una aposta sobre quin jugador té millors <b>dues cartes</b> per sumar. Només es pot cantar a la <b>primera ronda</b>, i també s'hi val si ja s'ha cantat i acceptat el truc. Els envits es canten i s'accepten durant la mà, però <b>no es diuen fins que la mà s'acaba</b>.",
  envitH:"Com es compta l'envit",
  envitList:`<ul><li><b>Dues cartes del mateix pal</b>: 20 + el valor de cada carta. La sota, el cavall i el rei valen 0.</li>
 <li><b>Sense dues cartes del mateix pal</b>: val la carta més alta d'un dígit.</li>
 <li><b>L'amo val 28</b> i <b>la madona 27</b>, i s'ajunten amb <b>qualsevol</b> carta: hi sumes el valor de l'altra.</li>
 <li><b>Amo i madona junts fan 35</b>, la jugada màxima.</li></ul>`,
  exH:'Exemples',ex:['7 i 6 de copes: 20 + 7 + 6 = <b>33</b>',"Rei i 3 d'espases: 20 + 0 + 3 = <b>23</b>",'Madona i 5 de bastos: 27 + 5 = <b>32</b>','Amo i madona: <b>35</b>',"7 d'oros i 5 de copes (pals diferents): <b>7</b>"],
- envitRows:[['Envit','2','1'],['Jo envit','4','2'],['2 més','6','4'],['Envit tots','el cantó','6']],
- envitNote:"Si dos jugadors empaten a envit, guanya el que és més a prop de la mà. Un envit acceptat es compta encara que la mà acabi abans, i els seus punts se sumen abans dels de la mà.",
+ envitRows:[['Envit','2','1'],['Jo envit','4','2'],['2 més','6','4'],['Envit tots','el que falta a la parella que va davant per arribar a 24','6']],
+ envitNote:"<b>Envit tots:</b> val els punts que falten a la parella que va davant per arribar a 24. Per exemple, si anau 15 a 9, l'envit tots val 9. Només es pot pujar a tots si val més que el «2 més». Si dos jugadors empaten a envit, guanya el que és més a prop de la mà. Un envit acceptat es compta encara que la mà acabi abans, i els seus punts se sumen abans dels de la mà.",
  senyesP:"El més bonic del truc mallorquí: amb gests de la cara, dius al teu company quines cartes bones duus. <b>Dreta i esquerra són les de qui fa la seña</b> (quan el teu company et mira de cara, la seva dreta és la teva esquerra).",
  sth:['Gest','Vol dir'],
  signs:[['Pujar les celles',"L'amo (cavall de bastos)"],['Guinyar un ull',"La madona (sota d'oros)"],['Treure la llengua cap a la seva dreta',"As d'espases"],['Treure la llengua cap a la seva esquerra','As de bastos'],['Moure el llavi cap a la seva dreta',"7 d'espases"],['Moure el llavi cap a la seva esquerra',"7 d'oros"],['Mossegar-se el llavi','Un 3'],['Guinyar els dos ulls','No du cap carta bona (va buit)']],
@@ -91,15 +91,15 @@ es:{
  trucP:'Una mano sin cantos vale 1 punto. En tu turno, antes de tirar, puedes cantar <b>truc</b> para jugarte más. Los rivales pueden decir <b>«vull»</b> (aceptar), <b>«no vull»</b> (y te dan los puntos de antes) o <b>subir</b>: retruc, val 9 y, al final, <b>tots</b> (el «cantó» entero).',
  th:['Canto','Si se acepta','Si no se acepta'],trucRows:[['Sin canto','1','—'],['Truc','3','1'],['Retruc','6','3'],['Val 9','9','6'],['Tots','el cantó','9']],
  trucNote:'Después de un «vull», solo puede volver a subir la pareja que ha aceptado.',
- envitP:'El envit es una apuesta sobre qué jugador tiene mejores <b>dos cartas</b> para sumar. Solo se puede cantar en la <b>primera ronda</b> y antes de que alguien cante truc. Los envites se cantan y se aceptan durante la mano, pero <b>no se dicen hasta que la mano termina</b>.',
+ envitP:'El envit es una apuesta sobre qué jugador tiene mejores <b>dos cartas</b> para sumar. Solo se puede cantar en la <b>primera ronda</b>, y también vale si ya se ha cantado y aceptado el truc. Los envites se cantan y se aceptan durante la mano, pero <b>no se dicen hasta que la mano termina</b>.',
  envitH:'Cómo se cuenta el envit',
  envitList:`<ul><li><b>Dos cartas del mismo palo</b>: 20 + el valor de cada carta. La sota, el caballo y el rey valen 0.</li>
 <li><b>Sin dos cartas del mismo palo</b>: vale la carta más alta de un dígito.</li>
 <li><b>El amo vale 28</b> y <b>la madona 27</b>, y se juntan con <b>cualquier</b> carta: sumas el valor de la otra.</li>
 <li><b>Amo y madona juntos hacen 35</b>, la jugada máxima.</li></ul>`,
  exH:'Ejemplos',ex:['7 y 6 de copas: 20 + 7 + 6 = <b>33</b>','Rey y 3 de espadas: 20 + 0 + 3 = <b>23</b>','Madona y 5 de bastos: 27 + 5 = <b>32</b>','Amo y madona: <b>35</b>','7 de oros y 5 de copas (palos distintos): <b>7</b>'],
- envitRows:[['Envit','2','1'],['Jo envit','4','2'],['2 més','6','4'],['Envit tots','el cantó','6']],
- envitNote:'Si dos jugadores empatan a envit, gana el que está más cerca de la mano. Un envit aceptado se cuenta aunque la mano acabe antes, y sus puntos se suman antes que los de la mano.',
+ envitRows:[['Envit','2','1'],['Jo envit','4','2'],['2 més','6','4'],['Envit tots','lo que le falta a la pareja que va delante para llegar a 24','6']],
+ envitNote:'<b>Envit tots:</b> vale los puntos que le faltan a la pareja que va delante para llegar a 24. Por ejemplo, si vais 15 a 9, el envit tots vale 9. Solo se puede subir a tots si vale más que el «2 més». Si dos jugadores empatan a envit, gana el que está más cerca de la mano. Un envit aceptado se cuenta aunque la mano acabe antes, y sus puntos se suman antes que los de la mano.',
  senyesP:'Lo más bonito del truc mallorquín: con gestos de la cara le dices a tu compañero qué cartas buenas llevas. <b>Derecha e izquierda son las de quien hace la seña</b> (cuando tu compañero te mira de frente, su derecha es tu izquierda).',
  sth:['Gesto','Significa'],
  signs:[['Levantar las cejas','El amo (caballo de bastos)'],['Guiñar un ojo','La madona (sota de oros)'],['Sacar la lengua hacia su derecha','As de espadas'],['Sacar la lengua hacia su izquierda','As de bastos'],['Mover el labio hacia su derecha','7 de espadas'],['Mover el labio hacia su izquierda','7 de oros'],['Morderse el labio','Un 3'],['Guiñar los dos ojos','No lleva ninguna carta buena (va «buit»)']],

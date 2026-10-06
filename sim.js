@@ -29,11 +29,12 @@ class Bot{
       if(p.kind==='turn'){
         const r=Math.random();
         if(r<0.12&&h.trucLevel<4&&(h.trucOwner===null||h.trucOwner===me%2))return this.send({t:'act',a:{type:'truc'}});
-        if(r<0.2&&h.trickNo===0&&!h.envitDone&&h.trucLevel===0)return this.send({t:'act',a:{type:'envit'}});
+        if(r<0.2&&h.trickNo===0&&!h.envitDone)return this.send({t:'act',a:{type:'envit'}});
         return this.send({t:'act',a:{type:'play',idx:Math.floor(Math.random()*h.mine.length)}});
       }
       const r=Math.random();
-      this.send({t:'act',a:r<0.55?'vull':r<0.8?'no':(p.data.level<4?'raise':'vull')});
+      const max=p.data.kind==='envit'?(h.envitMax||4):4;
+      this.send({t:'act',a:r<0.55?'vull':r<0.8?'no':(p.data.level<max?'raise':'vull')});
     },5);
   }
   async until(fn,ms=30000){const t0=Date.now();while(Date.now()-t0<ms){if(fn())return true;await new Promise(r=>setTimeout(r,20));}return false;}
@@ -92,10 +93,25 @@ async function scenario4(){
   console.log('4) reconnexió: seient',b2.room.you,'recuperat i partida acabada');
   a.ws.close();b2.ws.close();
 }
+// Regles de l'envit, provades directament sobre el motor
+function scenario5(){
+  const {Game}=require('./game.js');
+  const room={seats:[0,1,2,3].map(()=>({human:false})),sendAll(){},sendSeat(){},phase:'playing'};
+  const g=new Game(room,{speed:0});
+  g.H={over:false,trickNo:0,envitDone:false,trucLevel:2,trucOwner:1};
+  assert(g.canCallEnvit(0),"s'ha de poder envidar a la primera ronda amb el truc acceptat");
+  g.H.trickNo=1;assert(!g.canCallEnvit(0),'a la segona ronda ja no es pot envidar');
+  g.G.scores=[15,9];assert.equal(g.envitPts(4),9);assert.equal(g.maxEnvitLevel(),4);
+  g.G.scores=[3,0];assert.equal(g.envitPts(4),21);
+  g.G.scores=[0,0];assert.equal(g.envitPts(4),24);
+  g.G.scores=[10,20];assert.equal(g.envitPts(4),4);assert.equal(g.maxEnvitLevel(),3,'si tots val 6 o menys, no es pot pujar a tots');
+  assert.equal(g.envitPts(1),2);assert.equal(g.envitPts(3),6);
+  console.log('5) regles: envit després del truc i «envit tots» = el que falta (15-9 → 9; 10-20 → només fins a 2 més)');
+}
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    await scenario1();await scenario2();await scenario3();await scenario4();
+    scenario5();await scenario1();await scenario2();await scenario3();await scenario4();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });

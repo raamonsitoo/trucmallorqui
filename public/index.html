@@ -99,10 +99,15 @@ button{font:inherit}
 .tag{font-size:.66rem;font-weight:700;border:1px solid currentColor;border-radius:6px;padding:0 4px;line-height:1.35}
 .bub{background:var(--card);color:#1b1b1b;padding:.25rem .65rem;border-radius:12px;font-weight:700;font-size:.9rem;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.4)}
 .bub0{position:absolute;left:10px;bottom:52px;display:none}
-.trickhud{position:absolute;left:50%;bottom:35%;transform:translateX(-50%);display:flex;gap:6px;pointer-events:none;z-index:2;max-width:98%}
+.trickhud{position:absolute;left:10px;top:56px;display:flex;gap:5px;pointer-events:none;z-index:2;max-width:46%;padding:6px 7px 5px;border-radius:12px;background:rgba(8,20,16,.42)}
+.trickhud:empty{display:none}
 .tc{display:flex;flex-direction:column;align-items:center;gap:3px}
-.tc svg{width:clamp(46px,13vw,64px);height:auto;border-radius:7px;box-shadow:0 3px 10px rgba(0,0,0,.55)}
-.tc span{font-size:.7rem;font-weight:700;color:#fff;border-radius:8px;padding:0 7px;line-height:1.5}
+.tc svg{width:clamp(30px,7vw,42px);height:auto;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.tc span{font-size:.6rem;font-weight:700;color:#fff;border-radius:8px;padding:0 5px;line-height:1.5;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* mode simple 2D: les cartes de la ronda continuen al mig (no hi ha taula 3D) */
+.stage.flat .trickhud{left:50%;top:auto;bottom:35%;transform:translateX(-50%);max-width:98%;background:none;padding:0}
+.stage.flat .tc svg{width:clamp(46px,13vw,64px);border-radius:7px}
+.stage.flat .tc span{font-size:.7rem;max-width:none}
 .tc.us span{background:var(--blue)}
 .tc.them span{background:var(--red)}
 .tc.win svg{outline:3px solid var(--gold);outline-offset:1px}
@@ -1281,7 +1286,12 @@ const callText=(k,l)=>k==='truc'?TRUC_CALL[l]:ENVIT_CALL[l];
 function log(t){G.log.unshift(t);if(G.log.length>40)G.log.pop();renderLog();}
 
 const canCallTruc=p=>!!H&&!H.over&&H.trucLevel<4&&(H.trucOwner===null||H.trucOwner===team(p));
-const canCallEnvit=p=>!!H&&!H.over&&H.trickNo===0&&!H.envitDone&&H.trucLevel===0;
+const canCallEnvit=p=>!!H&&!H.over&&H.trickNo===0&&!H.envitDone; // també després d'acceptar el truc
+// «Envit tots» val el que falta a la parella que va davant per arribar a 24
+const envitFalta=()=>H&&H.envitFalta!=null?H.envitFalta:24-Math.max(G.scores?G.scores[0]||0:0,G.scores?G.scores[1]||0:0);
+const envitPts=l=>l===4?envitFalta():ENVIT_VALUE[l];
+const envitMax=()=>H&&H.envitMax?H.envitMax:4;
+const envitBtn=l=>l===4?`Envit tots (${envitFalta()>=24?'el cantó':envitFalta()})`:ENVIT_BTN[l];
 const helpOn=()=>{const e=$('#help');return !!e&&e.checked;};
 
 // ================== VISTA 3D ==================
@@ -2299,7 +2309,7 @@ function renderScore(){
     return `<span class="tm${cls}">${txt}</span>`;
   }).join('');
   let stake=H?(H.trucLevel===4?'En joc: el cantó':`En joc: ${ptsText(TRUC_VALUE[H.trucLevel])}`):'';
-  if(H&&H.envitPending)stake+=`<br>Envit: ${H.envitLevel===4?'el cantó':ENVIT_VALUE[H.envitLevel]}`;
+  if(H&&H.envitPending)stake+=`<br>Envit: ${envitPts(H.envitLevel)>=24?'el cantó':envitPts(H.envitLevel)}`;
   el.innerHTML=block(0)+`<div class="mid"><div class="stake">${stake}</div><div class="tricks" aria-label="Rondes guanyades">${marks}</div></div>`+block(1);
 }
 function renderTrick(){
@@ -2327,17 +2337,17 @@ function renderActions(){
   if(UI.mode==='turn'&&H){
     const b=[];
     if(canCallTruc(0))b.push(`<button class="btn truc" data-act="truc">${TRUC_BTN[H.trucLevel+1]}</button>`);
-    if(canCallEnvit(0))b.push(`<button class="btn envit" data-act="envit">${ENVIT_BTN[H.envitLevel+1]}</button>`);
+    if(canCallEnvit(0))b.push(`<button class="btn envit" data-act="envit">${envitBtn(H.envitLevel+1)}</button>`);
     const cur=TRUC_VALUE[H.trucLevel];
     b.push(`<button class="btn ghost${UI.foldArm?' armed':''}" data-act="fold">${UI.foldArm?`Segur? Perds ${ptsText(cur)}`:'Me\'n vaig'}</button>`);
     const env=(H.trickNo===0&&H.initial[0])?` <small class="hint">· El teu envit: <b>${envitValue(H.initial[0])}</b></small>`:'';
     html=`<div class="turnbox"><p class="status">${G.status||''}${env} <span class="keyhint">· Tecles: 1 2 3 tirar, T truc, E envit</span></p><div class="timerbar" id="timerbar"><i></i></div><div class="bigbtns">${b.join('')}</div></div>`;
   }else if(UI.mode==='respond'&&UI.resp){
     const r=UI.resp,isT=r.kind==='truc';
-    const pts=isT?ptsText(TRUC_VALUE[r.level]):ptsText(ENVIT_VALUE[r.level]);
+    const pts=isT?ptsText(TRUC_VALUE[r.level]):ptsText(envitPts(r.level));
     const mine=(!isT&&H&&H.initial[0])?` · El teu envit: <b>${envitValue(H.initial[0])}</b>`:'';
     const b=[];
-    if(r.level<4)b.push(`<button class="btn ${isT?'truc':'envit'}" data-act="raise">${isT?TRUC_BTN[r.level+1]:ENVIT_BTN[r.level+1]}</button>`);
+    if(r.level<(isT?4:envitMax()))b.push(`<button class="btn ${isT?'truc':'envit'}" data-act="raise">${isT?TRUC_BTN[r.level+1]:envitBtn(r.level+1)}</button>`);
     b.push(`<button class="btn ok" data-act="vull">Vaig!</button>`);
     b.push(`<button class="btn ghost" data-act="no">No hi vaig</button>`);
     html=`<div class="respond"><p class="q"><span class="keyhint" style="float:right">V vull · N no · P pujar</span>${esc(NAMES[r.callerP])}: ${callText(r.kind,r.level)} <small>(en joc ${pts}${mine})</small></p><div class="timerbar" id="timerbar"><i></i></div><div class="bigbtns">${b.join('')}</div></div>`;
@@ -2388,13 +2398,13 @@ function rulesHTML(backAttr,backLabel){
   <tr><td>Retruc</td><td>6</td><td>3</td></tr>
   <tr><td>Val 9</td><td>9</td><td>6</td></tr>
   <tr><td>Tots</td><td>el cantó</td><td>9</td></tr></table>
-  <h3>Envits (només a la primera ronda)</h3>
+  <h3>Envits (només a la primera ronda, també si ja s'ha acceptat el truc)</h3>
   <p>Compten dues cartes de la mà. Dues cartes del mateix pal valen 20 més el valor de cada una (10, 11 i 12 sumen 0). Sense parella de pal, val la carta més alta d'un dígit. L'amo (11 de bastos) val 28 i la madona (10 d'oros) val 27 i s'ajunten amb qualsevol carta: es suma el valor de l'altra. Amo i madona junts fan 35.</p>
   <table class="k"><tr><th>Cant</th><th>Si es vol</th><th>Si no es vol</th></tr>
   <tr><td>Envit</td><td>2</td><td>1</td></tr>
   <tr><td>Jo envit</td><td>4</td><td>2</td></tr>
   <tr><td>2 més</td><td>6</td><td>4</td></tr>
-  <tr><td>Envit tots</td><td>el cantó</td><td>6</td></tr></table>
+  <tr><td>Envit tots</td><td>el que falta per arribar a 24 a la parella que va davant</td><td>6</td></tr></table>
   <h3>Cantó i partida</h3>
   <p>Un cantó es juga a 24 punts. Guanya la partida qui guanya dos cantons.</p>
   ${signsGuideHTML()}
@@ -2404,7 +2414,8 @@ function rulesHTML(backAttr,backLabel){
     <li>Els seients buits els juguen bots. Si algú es desconnecta, un bot juga per ell fins que torni.</li>
     <li>Si les dues cartes més altes d'una ronda són iguals i de parelles diferents, la ronda s'empata. Si s'empata la primera, guanya la mà qui guanyi la segona. Si s'empata la segona, guanya qui va guanyar la primera. Si s'empaten les tres, guanya la parella de qui és mà.</li>
     <li>Després d'un empat, la ronda següent la surt qui va tirar primer de les cartes empatades.</li>
-    <li>Només es pot cantar envit abans que algú canti truc.</li>
+    <li>L'envit es canta a la primera ronda. Si s'ha cantat truc i s'ha acceptat, encara es pot envidar mentre duri la primera ronda.</li>
+    <li>«Envit tots» val els punts que falten a la parella que va davant per arribar a 24 (si van 15 a 9, val 9). Només es pot pujar a tots si val més que el «2 més».</li>
     <li>Només la parella que ha dit «vull» pot pujar el truc. Es canta quan és el teu torn, abans de tirar carta.</li>
     <li>Empat d'envits: guanya qui és més a prop de la mà.</li>
     <li>Els envits es canten i s'accepten a la primera ronda, però no es diuen fins que acaba la mà. Només es veu l'envit guanyador. Un envit acceptat es diu igualment encara que la mà acabi abans, i els seus punts se sumen abans dels de la mà.</li>
@@ -2463,7 +2474,7 @@ function updateStatus(){
   if(UI.mode==='turn')G.status='El teu torn: toca una carta o canta.';
   else if(UI.mode==='respond'&&UI.resp){
     const r=UI.resp;
-    G.status=`${esc(NAMES[r.callerP])} canta ${callText(r.kind,r.level).replace('!','')} (${r.kind==='truc'?ptsText(TRUC_VALUE[r.level]):ptsText(ENVIT_VALUE[r.level])}). Què dius?`;
+    G.status=`${esc(NAMES[r.callerP])} canta ${callText(r.kind,r.level).replace('!','')} (${r.kind==='truc'?ptsText(TRUC_VALUE[r.level]):ptsText(envitPts(r.level))}). Què dius?`;
   }else if(H.turn!=null&&H.turn!==0&&!H.over&&Date.now()-(G.statusAt||0)>1200)G.status=`${esc(NAMES[H.turn])} pensa…`;
 }
 
@@ -2687,7 +2698,7 @@ function applySnap(s){
   initial[0]=h.init;
   H={hands,initial,mano:rel(h.mano),turn:h.turn==null?null:rel(h.turn),over:h.over,trickNo:h.trickNo,
      tricks:h.tricks.map(t=>vteam(t)),played:h.played.map(x=>({p:rel(x.p),card:x.card})),
-     trucLevel:h.trucLevel,trucOwner:vteam(h.trucOwner),envitLevel:h.envitLevel,envitDone:h.envitDone,envitPending:h.envitPending,
+     trucLevel:h.trucLevel,trucOwner:vteam(h.trucOwner),envitLevel:h.envitLevel,envitDone:h.envitDone,envitPending:h.envitPending,envitFalta:h.envitFalta,envitMax:h.envitMax,
      winPlayer:h.winPlayer==null?null:rel(h.winPlayer),dealt:h.dealt,bubbles:prev};
   const was=UI.mode;
   if(h.pending){
@@ -2738,7 +2749,7 @@ function onEvent(e){
       break;}
     case 'ans':
       say(P(e.p),e.a==='vull'?'Vull!':'No vull');log(`${nm(P(e.p))}: ${e.a==='vull'?'vull':'no vull'}`);break;
-    case 'envitOk':{const m=`Envit acceptat (${ptsText(ENVIT_VALUE[e.level])}). Es diran en acabar la mà.`;setStatus(m);log(m);break;}
+    case 'envitOk':{const m=`Envit acceptat (${ptsText(e.pts!=null?e.pts:envitPts(e.level))}). Es diran en acabar la mà.`;setStatus(m);log(m);break;}
     case 'envitSoon':setStatus('Mà acabada: toca dir els envits.');break;
     case 'envitShow':{
       say(P(e.p),`Tinc ${e.val}`);
@@ -2874,7 +2885,7 @@ document.addEventListener('keydown',e=>{
     }else if(UI.mode==='respond'&&UI.resp){
       if(k==='v'){UI.resolve('vull');return;}
       if(k==='n'){UI.resolve('no');return;}
-      if(k==='p'&&UI.resp.level<4){UI.resolve('raise');return;}
+      if(k==='p'&&UI.resp.level<(UI.resp.kind==='truc'?4:envitMax())){UI.resolve('raise');return;}
     }
   }
   const d=View.debug&&View.debug.V;
