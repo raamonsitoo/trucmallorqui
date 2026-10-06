@@ -11,6 +11,10 @@ const ENVIT_REFUSE = [0, 1, 2, 4, 6];
 const SIGN_POWER = { amo: 3, madona: 3, asE: 3, asB: 3, sieteE: 3, sieteO: 3, tres: 2, buit: 0 };
 const SIGN_DUR = { amo: 1.1, madona: 1.0, asE: 1.3, asB: 1.3, sieteE: 1.3, sieteO: 1.3, tres: 1.4, buit: 1.1 };
 const SIGN_IDS = Object.keys(SIGN_DUR);
+// Resposta en parella: si un contesta i el company encara no, aquest té uns segons per dir-hi la seva.
+// Mana la resposta que «més vol»: pujar > vull > no vull.
+const TEAM_WINDOW_MS = 7000;
+const ANS_RANK = { no: 0, vull: 1, raise: 2 };
 
 function makeDeck() { const d = []; for (const s of SUITS) for (const n of NUMS) d.push({ n, s }); return d; }
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -130,7 +134,7 @@ class Game {
     const H = this.H, G = this.G;
     const out = { t: 'snap', phase: this.room.phase, g: { cantons: G.cantons, scores: G.scores, dealer: G.dealer }, h: null };
     if (H) {
-      const p = this.pending && this.pending.seats.includes(s) ? this.pending : null;
+      const p = this.pending && this.pending.seats.includes(s) && !(s in this.pending.answers) ? this.pending : null;
       out.h = {
         mano: H.mano, turn: H.turn, over: H.over, trickNo: H.trickNo, tricks: H.tricks, played: H.played,
         trucLevel: H.trucLevel, trucOwner: H.trucOwner, envitLevel: H.envitLevel, envitDone: H.envitDone,
@@ -166,8 +170,10 @@ class Game {
     const p = this.pending;
     if (p && p.seats.includes(s)) {
       p.seats = p.seats.filter(x => x !== s);
+      delete p.answers[s];
       // Si encara hi ha un altre humà que pot respondre, l'esperam a ell.
       if (!p.seats.length) { clearTimeout(p.timer); this.pending = null; p.by = s; p.resolve(this.fallback(p.kind, s, p.data)); }
+      else if (p.seats.every(x => x in p.answers)) this.finishAsk(p);
     }
     this.snap();
   }
@@ -177,22 +183,38 @@ class Game {
   }
 
   // ---------- Preguntar a una persona ----------
-  // `seats` pot ser un seient o una llista: el primer que contesta decideix.
-  // Resol amb la resposta; el seient que ha contestat queda a `this.lastBy`.
+  // `seats` pot ser un seient o una llista (la parella que respon un cant).
+  // Resol amb la resposta; el seient que l'ha donada queda a `this.lastBy`.
   ask(seats, kind, data) {
     seats = Array.isArray(seats) ? seats.slice() : [seats];
     return new Promise((resolve, reject) => {
-      const p = { seats, kind, data, deadline: Date.now() + this.timerMs, resolve: v => { this.lastBy = p.by; resolve(v); }, reject, timer: null, by: seats[0] };
-      p.timer = setTimeout(() => {
-        if (this.pending !== p) return;
-        this.pending = null; this.stats.timeouts++;
-        for (const s of p.seats) this.emit({ e: 'timeout', p: s, a: kind === 'turn' ? 'play' : 'no' });
-        p.by = p.seats[0];
-        p.resolve(kind === 'turn' ? this.timeoutPlay(p.seats[0]) : 'no');
-      }, this.timerMs);
+      const p = { seats, kind, data, answers: {}, deadline: 0, resolve: v => { this.lastBy = p.by; resolve(v); }, reject, timer: null, by: seats[0] };
       this.pending = p;
+      this.armAsk(p, this.timerMs);
       this.snap();
     });
+  }
+  armAsk(p, ms) {
+    clearTimeout(p.timer);
+    p.deadline = Date.now() + ms;
+    p.timer = setTimeout(() => {
+      if (this.pending !== p) return;
+      const anyAnswer = Object.keys(p.answers).length > 0;
+      if (!anyAnswer) {
+        this.stats.timeouts++;
+        for (const s of p.seats) this.emit({ e: 'timeout', p: s, a: p.kind === 'turn' ? 'play' : 'no' });
+      }
+      if (p.kind === 'turn') { this.pending = null; p.by = p.seats[0]; p.resolve(this.timeoutPlay(p.seats[0])); }
+      else this.finishAsk(p);
+    }, ms);
+  }
+  // Tanca una resposta de parella: guanya la resposta que més vol.
+  finishAsk(p) {
+    if (this.pending !== p) return;
+    clearTimeout(p.timer); this.pending = null;
+    let best = 'no', by = p.seats[0];
+    for (const [seat, a] of Object.entries(p.answers)) if (ANS_RANK[a] > ANS_RANK[best] || (best === 'no' && a === 'no')) { best = a; by = Number(seat); }
+    p.by = by; p.resolve(best);
   }
   timeoutPlay(seat) {
     const hand = this.H.hands[seat]; let idx = 0;
@@ -217,6 +239,15 @@ class Game {
     } else {
       if (a !== 'vull' && a !== 'no' && a !== 'raise') return;
       if (a === 'raise' && p.data.level >= 4) return;
+      if (seat in p.answers) return;
+      p.answers[seat] = a;
+      // Pujar ja és el màxim, o ja han contestat tots: es decideix ara.
+      if (a === 'raise' || p.seats.every(x => x in p.answers)) { this.finishAsk(p); return; }
+      // Primer que contesta: el company ho veu i té uns segons per dir-hi la seva.
+      this.emit({ e: 'teamAns', p: seat, a, kind: p.data.kind, level: p.data.level });
+      this.armAsk(p, Math.min(TEAM_WINDOW_MS, Math.max(0, p.deadline - Date.now()) + 1500, this.timerMs));
+      this.snap();
+      return;
     }
     clearTimeout(p.timer); this.pending = null; p.by = seat; p.resolve(a);
   }
