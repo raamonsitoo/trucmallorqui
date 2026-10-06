@@ -173,11 +173,59 @@ button{font:inherit}
 @media (max-width:560px){#btnFs .lbl{display:none}#btnFs{font-size:1.1rem;padding:.2rem .7rem}}
 @media (max-width:440px){.top-actions{gap:5px}.top-actions .btn.sm{padding:.3rem .5rem;font-size:.84rem}#btnFs{padding:.2rem .5rem}.codechip{padding:.25rem .5rem;font-size:.8rem}}
 /* Pantalla completa: més espai per a la taula */
-:fullscreen .band{display:none}
-:fullscreen .app{padding-top:6px}
-:fullscreen .top{margin:0 0 6px}
-:fullscreen .top p{display:none}
-:fullscreen .top h1{font-size:1.4rem}
+/* ---- Mode joc (pantalla completa): taula al mig, opcions als costats ---- */
+body.immersive{overflow:hidden}
+body.immersive .band,body.immersive .log,body.immersive .top>div:first-child{display:none}
+body.immersive .app{max-width:none;margin:0;height:100vh;height:100dvh;padding:8px;display:grid;gap:8px;
+  grid-template-columns:minmax(180px,20vw) minmax(0,1fr) minmax(200px,22vw);
+  grid-template-rows:auto auto minmax(0,1fr);
+  grid-template-areas:"score stage top" "talk stage actions" "signs stage actions"}
+body.immersive .top{grid-area:top;margin:0}
+body.immersive .top-actions{gap:5px;justify-content:flex-end}
+body.immersive .top-actions .btn.sm{min-height:34px;padding:.2rem .55rem;font-size:.8rem}
+body.immersive #score{grid-area:score;margin:0;grid-template-columns:1fr 1fr;gap:6px}
+body.immersive #score .mid{grid-column:1/-1;grid-row:1;flex-direction:row;min-width:0;gap:8px}
+body.immersive #score .team{padding:4px 8px}
+body.immersive #score .pts b{font-size:1.4rem}
+body.immersive #score .tsub,body.immersive #score .cant{font-size:.7rem}
+body.immersive .stage{grid-area:stage;height:auto!important;min-height:0;border-radius:16px}
+body.immersive #actions{grid-area:actions;margin:0;min-height:0;justify-content:flex-end;overflow:auto}
+body.immersive .bigbtns{grid-auto-flow:row;grid-auto-columns:auto}
+body.immersive .bigbtns .btn{min-height:52px}
+body.immersive .respond .q,body.immersive .turnbox .status{font-size:.92rem}
+body.immersive #talkBox{grid-area:talk;margin:0;padding:8px}
+body.immersive #signBox{grid-area:signs;margin:0;padding:8px;overflow:auto;min-height:0}
+body.immersive .signs h2{font-size:.85rem;margin-bottom:4px}
+body.immersive .tgrid{grid-template-columns:1fr;gap:4px}
+body.immersive .tgrid .sbtn{flex-direction:row;justify-content:space-between;gap:6px;padding:.3rem .5rem}
+body.immersive .sgrid{grid-template-columns:1fr 1fr;gap:4px}
+body.immersive .sgrid .sbtn{padding:.25rem .3rem;font-size:.78rem}
+/* pantalles baixes (mòbil horitzontal): tot més compacte */
+@media (max-height:520px){
+  body.immersive .app{padding:6px;gap:6px;grid-template-columns:minmax(170px,24vw) minmax(0,1fr) minmax(170px,24vw)}
+  body.immersive #score .tsub,body.immersive #score .cant,body.immersive #score .bar{display:none}
+  body.immersive #score .team{padding:2px 6px;border-radius:10px}
+  body.immersive #score .tname{font-size:.78rem}
+  body.immersive #score .pts b{font-size:1.1rem}
+  body.immersive #score .stake{font-size:.7rem}
+  body.immersive #score .tm{width:16px;height:16px}
+  body.immersive .signs h2{font-size:.75rem}
+  body.immersive #signBox h2 label{display:none}
+  body.immersive .sbtn small{display:none}
+  body.immersive .tgrid{grid-template-columns:repeat(3,1fr)}
+  body.immersive .tgrid .sbtn,body.immersive .sgrid .sbtn{min-height:30px;font-size:.7rem;padding:.15rem .2rem}
+  body.immersive #talkBox,body.immersive #signBox{padding:5px 6px}
+  body.immersive #btnFs .lbl{display:none}
+  body.immersive .bigbtns .btn{min-height:44px;font-size:.98rem}
+  body.immersive .respond .q,body.immersive .turnbox .status{font-size:.8rem;line-height:1.25}
+}
+/* mòbil vertical: taula a dalt i botons a davall; per veure senyes, posar el mòbil horitzontal */
+@media (orientation:portrait) and (max-width:760px){
+  body.immersive .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto;
+    grid-template-areas:"top" "score" "stage" "actions"}
+  body.immersive #talkBox,body.immersive #signBox{display:none}
+  body.immersive .bigbtns{grid-auto-flow:column;grid-auto-columns:1fr}
+}
 .bigbtns .btn{min-height:56px;font-size:1.08rem;border-radius:14px;padding:.4rem .5rem;line-height:1.15}
 .bigbtns .btn.ok{background:#2f8a4e;color:#fff}
 .stage.calling{box-shadow:inset 0 0 0 4px var(--gold)}
@@ -254,7 +302,7 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
     <div class="nogl" id="nogl" hidden><p>El teu navegador no pot mostrar el 3D.<br>Prova amb un altre navegador o dispositiu.</p></div>
   </section>
   <section class="actions" id="actions" aria-live="polite"></section>
-  <section class="signs talk" aria-label="Parlar amb Catalina">
+  <section class="signs talk" id="talkBox" aria-label="Parlar amb Catalina">
     <h2 id="talkTitle">Parlar amb el teu company</h2>
     <div class="tgrid">
       <button class="sbtn" data-talk="tu">Vaig a tu<small>tira tu la bona</small></button>
@@ -262,7 +310,7 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
       <button class="sbtn" data-talk="envit">Demana envit<small>que el canti ella</small></button>
     </div>
   </section>
-  <section class="signs" aria-label="Senyes a Catalina">
+  <section class="signs" id="signBox" aria-label="Senyes a Catalina">
     <h2><span id="signTitle">Fer una seña al teu company</span>
       <label><input type="checkbox" id="help" checked> Ajuda: mostra què vol dir cada seña</label></h2>
     <div class="sgrid" id="sgrid"></div>
@@ -1584,6 +1632,12 @@ function onEvent(e){
     case 'debate':
       say(P(e.p),'Ho parlam…');setTimeout(()=>say(P(e.q),'Mmm…'),800);
       log(`${nm(P(e.p))} i ${nm(P(e.q))} ho parlen`);break;
+    case 'teamAns':{
+      const w=P(e.p),t=e.a==='no'?'No vull':e.a==='vull'?'Vull':'Puj';
+      say(w,t+'…');log(`${nm(w)} diu «${t.toLowerCase()}»`);
+      if(w===0)setStatus(`Has dit «${t.toLowerCase()}». Esperant què diu ${esc(NAMES[2])}…`);
+      else if(w===2&&UI.mode==='respond')View.toast(`${NAMES[2]} diu «${t.toLowerCase()}». Si tu vols, mana el que vol!`,3200);
+      break;}
     case 'ans':
       say(P(e.p),e.a==='vull'?'Vull!':'No vull');log(`${nm(P(e.p))}: ${e.a==='vull'?'vull':'no vull'}`);break;
     case 'envitOk':{const m=`Envit acceptat (${ptsText(ENVIT_VALUE[e.level])}). Es diran en acabar la mà.`;setStatus(m);log(m);break;}
@@ -1709,23 +1763,31 @@ render();
 if(!View.ready)$('#nogl').hidden=false;
 routeScreen();
 Net.connect();
-// ---------- Pantalla completa ----------
+// ---------- Pantalla completa / mode joc ----------
 (function(){
   const btn=$('#btnFs');if(!btn)return;
   const de=document.documentElement;
   const req=de.requestFullscreen||de.webkitRequestFullscreen;
   const exit=document.exitFullscreen||document.webkitExitFullscreen;
-  if(!req)return; // p. ex. Safari d'iPhone no ho permet
   const isFs=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
-  const upd=()=>{btn.innerHTML=isFs()?'✕<span class="lbl"> Sortir de pantalla completa</span>':'⛶<span class="lbl"> Pantalla completa</span>';btn.title=isFs()?'Sortir de pantalla completa':'Pantalla completa';};
+  const on=()=>document.body.classList.contains('immersive');
+  const upd=()=>{btn.innerHTML=on()?'✕<span class="lbl"> Sortir de pantalla completa</span>':'⛶<span class="lbl"> Pantalla completa</span>';btn.title=on()?'Sortir de pantalla completa':'Pantalla completa';};
+  const relayout=()=>{window.dispatchEvent(new Event('resize'));};
+  function enter(){
+    document.body.classList.add('immersive');upd();relayout();
+    if(req){try{const r=req.call(de);if(r&&r.catch)r.catch(()=>{});}catch(_){}}
+    // al mòbil vertical, suggerir girar-lo per veure també les senyes
+    if(matchMedia('(orientation:portrait) and (max-width:760px)').matches)setTimeout(()=>View.toast('Gira el mòbil per veure també les senyes',2600),400);
+  }
+  function leave(){
+    document.body.classList.remove('immersive');upd();relayout();
+    if(isFs()&&exit){try{const r=exit.call(document);if(r&&r.catch)r.catch(()=>{});}catch(_){}}
+  }
   btn.hidden=false;upd();
-  btn.addEventListener('click',()=>{
-    try{
-      if(isFs())exit.call(document);
-      else{const r=req.call(de);if(r&&r.catch)r.catch(()=>{});}
-    }catch(_){}
-  });
-  document.addEventListener('fullscreenchange',upd);document.addEventListener('webkitfullscreenchange',upd);
+  btn.addEventListener('click',()=>on()?leave():enter());
+  // si surt de pantalla completa amb Esc, tornar al disseny normal
+  const fsChange=()=>{if(!isFs()&&on())leave();};
+  document.addEventListener('fullscreenchange',fsChange);document.addEventListener('webkitfullscreenchange',fsChange);
 })();
 })();
 </script>
