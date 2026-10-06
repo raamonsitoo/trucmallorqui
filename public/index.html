@@ -173,6 +173,28 @@ button{font:inherit}
 @media (max-width:560px){#btnFs .lbl{display:none}#btnFs{font-size:1.1rem;padding:.2rem .7rem}}
 @media (max-width:440px){.top-actions{gap:5px}.top-actions .btn.sm{padding:.3rem .5rem;font-size:.84rem}#btnFs{padding:.2rem .5rem}.codechip{padding:.25rem .5rem;font-size:.8rem}}
 /* Pantalla completa: més espai per a la taula */
+/* ---- Mode simple 2D (quan el navegador no pot fer 3D) ---- */
+.stage.flat{background:radial-gradient(ellipse at 50% 55%,#2f7a52,#173d2b 75%)}
+.stage.flat .lookbar,.stage.flat .reticle,.stage.flat .you{display:none}
+.stage.flat .t2d{padding-top:12px;padding-bottom:40px}
+.t2d{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:56px 10px 10px;pointer-events:none}
+.t2d[hidden]{display:none}
+.seats2d{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.seat2d{background:rgba(0,0,0,.45);color:#fff;border-radius:12px;padding:6px 8px;text-align:center;font-size:.82rem;min-height:56px;position:relative}
+.seat2d.turn{outline:3px solid var(--gold)}
+.seat2d b{display:block}
+.seat2d .cnt{opacity:.8;font-size:.75rem}
+.seat2d .bub{position:static;display:inline-block;margin-top:4px;font-size:.8rem}
+.flatnote{margin:0;text-align:center;color:rgba(255,255,255,.55);font-size:.72rem}
+.hand2d{display:flex;justify-content:center;gap:10px;pointer-events:auto}
+.hand2d button{border:0;padding:0;background:none;cursor:pointer;border-radius:9px;transition:transform .12s}
+.hand2d button svg{width:clamp(70px,20vw,110px);height:auto;display:block;border-radius:9px;box-shadow:0 4px 12px rgba(0,0,0,.5)}
+.hand2d button:disabled{cursor:default;opacity:.85}
+.hand2d button:not(:disabled):hover,.hand2d button:not(:disabled):focus-visible{transform:translateY(-8px)}
+.hand2d button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.hand2d .k{display:block;text-align:center;color:#fff;font-weight:700;font-size:.75rem;margin-top:3px}
+.keyhint{font-size:.75rem;color:var(--muted);font-weight:400}
+@media (hover:none){.keyhint{display:none}}
 /* ---- Mode joc (pantalla completa): taula al mig, opcions als costats ---- */
 body.immersive{overflow:hidden}
 body.immersive .band,body.immersive .log,body.immersive .top>div:first-child{display:none}
@@ -300,6 +322,7 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
     <div class="banner" id="banner" hidden></div>
     <div class="clock" id="clock" role="timer"></div>
     <div class="nogl" id="nogl" hidden><p>El teu navegador no pot mostrar el 3D.<br>Prova amb un altre navegador o dispositiu.</p></div>
+    <div class="t2d" id="t2d" hidden><div class="seats2d" id="seats2d"></div><p class="flatnote">Mode simple (sense 3D)</p><div class="hand2d" id="hand2d"></div></div>
   </section>
   <section class="actions" id="actions" aria-live="polite"></section>
   <section class="signs talk" id="talkBox" aria-label="Parlar amb Catalina">
@@ -591,7 +614,7 @@ const FIG={10:'SOTA',11:'CAVALL',12:'REI'};
 function cardLabel(c){
   const extra=isAmo(c)?' (amo)':isMadona(c)?' (madona)':'';
   const n=c.n>=10?FIG[c.n].toLowerCase():c.n===1?'as':c.n;
-  return `${n} de ${c.s}${extra}`;
+  return `${n} ${/^[aeiou]/.test(c.s)?'d\'':'de '}${c.s}${extra}`;
 }
 function cardSVG(c){
   const col=SUITCOL[c.s];
@@ -718,7 +741,8 @@ const helpOn=()=>{const e=$('#help');return !!e&&e.checked;};
 
 // ================== VISTA 3D ==================
 const View=(function(){
-  const noop={ready:false,setRoster(){},sync(){},focus(){return -1;},angleTo(){return 9;},emit(){},nod(){},setGaze(){},snap(){},zoom(){},isSigning(){return false;},onSignEnd:null,toast(){},frame:null,debug:{}};
+  const noop={ready:false,setRoster(){},sync(){},focus(){return -1;},angleTo(){return 9;},emit(){},nod(){},setGaze(){},snap(){},zoom(){},isSigning(){return false;},onSignEnd:null,frame:null,debug:{},
+    toast(t,ms){const el=$('#toast');if(!el)return;el.textContent=t;el.classList.add('show');clearTimeout(noop._t);noop._t=setTimeout(()=>el.classList.remove('show'),ms||1800);}};
   if(typeof THREE==='undefined')return noop;
   const stage=$('#stage'),cv=$('#cv');
   let R;
@@ -1238,7 +1262,20 @@ function renderTrick(){
   const el=$('#trickhud');if(!el)return;
   el.innerHTML=H?H.played.map(x=>`<div class="tc ${team(x.p)===0?'us':'them'}${H.winPlayer===x.p?' win':''}">${cardSVG(x.card)}<span>${esc(NAMES[x.p])}</span></div>`).join(''):'';
 }
-function renderTable(){View.sync();renderTrick();}
+function renderTable(){View.sync();renderTrick();if(!View.ready)render2D();}
+// Taula simple en 2D: noms, cartes que queden, torn, bafarades i la teva mà com a botons
+function render2D(){
+  const box=$('#t2d');if(!box)return;
+  if(!H||!Me.code){box.hidden=true;return;}
+  box.hidden=false;$('#nogl').hidden=true;$('#stage').classList.add('flat');
+  const chip=r=>{
+    const n=H.hands[r]?H.hands[r].length:0,b=H.bubbles&&H.bubbles[r];
+    return `<div class="seat2d${H.turn===r?' turn':''}"><b>${esc(NAMES[r])}${H.mano===r?' · mà':''}</b><span class="cnt">${team(r)===0?'company':'rival'} · ${n} ${n===1?'carta':'cartes'}</span>${b?`<br><span class="bub">${esc(b)}</span>`:''}</div>`;
+  };
+  $('#seats2d').innerHTML=chip(3)+chip(2)+chip(1);
+  const mine=H.hands[0]||[],can=UI.mode==='turn';
+  $('#hand2d').innerHTML=mine.map((c,i)=>`<button data-play="${i}" ${can?'':'disabled'} aria-label="Tirar ${cardLabel(c)}">${cardSVG(c)}<span class="k">${i+1}</span></button>`).join('');
+}
 function renderActions(){
   const el=$('#actions');if(!el)return;
   let html=`<p class="status">${G.status||''}</p>`;
@@ -1250,7 +1287,7 @@ function renderActions(){
     const cur=TRUC_VALUE[H.trucLevel];
     b.push(`<button class="btn ghost${UI.foldArm?' armed':''}" data-act="fold">${UI.foldArm?`Segur? Perds ${ptsText(cur)}`:'Me\'n vaig'}</button>`);
     const env=(H.trickNo===0&&H.initial[0])?` <small class="hint">· El teu envit: <b>${envitValue(H.initial[0])}</b></small>`:'';
-    html=`<div class="turnbox"><p class="status">${G.status||''}${env}</p><div class="timerbar" id="timerbar"><i></i></div><div class="bigbtns">${b.join('')}</div></div>`;
+    html=`<div class="turnbox"><p class="status">${G.status||''}${env} <span class="keyhint">· Tecles: 1 2 3 tirar, T truc, E envit</span></p><div class="timerbar" id="timerbar"><i></i></div><div class="bigbtns">${b.join('')}</div></div>`;
   }else if(UI.mode==='respond'&&UI.resp){
     const r=UI.resp,isT=r.kind==='truc';
     const pts=isT?ptsText(TRUC_VALUE[r.level]):ptsText(ENVIT_VALUE[r.level]);
@@ -1259,7 +1296,7 @@ function renderActions(){
     if(r.level<4)b.push(`<button class="btn ${isT?'truc':'envit'}" data-act="raise">${isT?TRUC_BTN[r.level+1]:ENVIT_BTN[r.level+1]}</button>`);
     b.push(`<button class="btn ok" data-act="vull">Vaig!</button>`);
     b.push(`<button class="btn ghost" data-act="no">No hi vaig</button>`);
-    html=`<div class="respond"><p class="q">${esc(NAMES[r.callerP])}: ${callText(r.kind,r.level)} <small>(en joc ${pts}${mine})</small></p><div class="timerbar" id="timerbar"><i></i></div><div class="bigbtns">${b.join('')}</div></div>`;
+    html=`<div class="respond"><p class="q"><span class="keyhint" style="float:right">V vull · N no · P pujar</span>${esc(NAMES[r.callerP])}: ${callText(r.kind,r.level)} <small>(en joc ${pts}${mine})</small></p><div class="timerbar" id="timerbar"><i></i></div><div class="bigbtns">${b.join('')}</div></div>`;
   }
   el.innerHTML=html;
   updateClock();
@@ -1668,7 +1705,11 @@ function onEvent(e){
       if(e.to===Me.seat)View.toast(`${NAMES[P(e.p)]} et demana que cantis envit`,2600);
       break;
     case 'deny':View.toast(e.why==='tirat'?'El teu company ja ha tirat carta':'Ja no es pot cantar envit');break;
-    case 'sign':if(P(e.p)!==0)View.emit(P(e.p),e.id);break;
+    case 'sign':
+      if(P(e.p)===0)break;
+      if(View.ready)View.emit(P(e.p),e.id);
+      else say(P(e.p),helpOn()?`${SIGNS[e.id].tw} = ${SIGNS[e.id].sub}`:'fa una seña');
+      break;
     case 'nod':if(P(e.p)!==0)View.nod(P(e.p));break;
     case 'caught':if(helpOn())View.toast(`${NAMES[P(e.p)]} t'ha vist la seña!`,2000);break;
     case 'canton':{
@@ -1700,7 +1741,8 @@ function humanTalk(kind){
   Net.send({t:'talk',kind});
 }
 setInterval(()=>{
-  if(Me.phase!=='playing'||Me.seat<0||!View.ready)return;
+  if(Me.phase!=='playing'||Me.seat<0)return;
+  if(!View.ready){const abs=absOf(2);if(abs!==Me.lastGaze){Me.lastGaze=abs;Net.send({t:'gaze',target:abs});}return;}
   let best=-1,ba=0.4;
   for(let r=1;r<4;r++){const a=View.angleTo(r);if(a<ba){ba=a;best=r;}}
   const abs=best<0?-1:absOf(best);
@@ -1709,6 +1751,8 @@ setInterval(()=>{
 
 // ---------- Esdeveniments de la pàgina ----------
 document.addEventListener('click',e=>{
+  const pl=e.target.closest('[data-play]');
+  if(pl){if(UI.mode==='turn'&&UI.resolve)UI.resolve({type:'play',idx:Number(pl.dataset.play)});return;}
   const sit=e.target.closest('[data-sit]');
   if(sit){Net.send({t:'sit',seat:+sit.dataset.sit});return;}
   const tk=e.target.closest('[data-talk]');
@@ -1747,6 +1791,21 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&!$('#overlay').hidden)hideOverlay();
+  // Dreceres de teclat durant la partida: 1·2·3 tirar carta, T truc, E envit, F me'n vaig; V vull, N no vull, P pujar
+  const tg=e.target;
+  if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&$('#overlay').hidden&&$('#lobby').hidden&&!(tg&&/INPUT|TEXTAREA|SELECT/.test(tg.tagName))&&UI.resolve&&H){
+    const k=e.key.toLowerCase();
+    if(UI.mode==='turn'){
+      if(/^[1-3]$/.test(k)){const i=Number(k)-1;if(i<(H.hands[0]||[]).length){e.preventDefault();UI.resolve({type:'play',idx:i});return;}}
+      if(k==='t'&&canCallTruc(0)){UI.resolve({type:'truc'});return;}
+      if(k==='e'&&canCallEnvit(0)){UI.resolve({type:'envit'});return;}
+      if(k==='f'){if(UI.foldArm){UI.foldArm=false;UI.resolve({type:'fold'});}else{UI.foldArm=true;renderActions();}return;}
+    }else if(UI.mode==='respond'&&UI.resp){
+      if(k==='v'){UI.resolve('vull');return;}
+      if(k==='n'){UI.resolve('no');return;}
+      if(k==='p'&&UI.resp.level<4){UI.resolve('raise');return;}
+    }
+  }
   const d=View.debug&&View.debug.V;
   if(!d||!$('#overlay').hidden||!$('#lobby').hidden)return;
   if(e.key==='ArrowLeft')d.tyaw=clamp(d.tyaw+0.3,-1.2,1.2);

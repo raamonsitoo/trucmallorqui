@@ -10,6 +10,12 @@ const PORT = Number(process.env.PORT) || 3000;
 const SPEED = process.env.TRUC_SPEED ? Number(process.env.TRUC_SPEED) : 1;
 const TIMER_MS = process.env.TRUC_TIMER_MS ? Number(process.env.TRUC_TIMER_MS) : 40000;
 const MAX_ROOMS = 300;
+// Límits per IP perquè una sola persona no pugui omplir el servidor
+const MAX_CONN_PER_IP = 30;        // pestanyes/dispositius d'una mateixa casa o escola
+const MAX_ROOMS_PER_IP = 8;        // sales vives creades des d'una mateixa IP
+const MAX_CREATES_PER_MIN = 10;    // sales creades per minut i IP
+const ipConns = new Map();         // ip -> connexions obertes
+const ipCreates = new Map();       // ip -> [marques de temps]
 // Domini propi: posa CANONICAL_HOST=trucmallorqui.com a Render quan el domini ja funcioni.
 // Llavors qui entri per *.onrender.com serà redirigit al domini (bo per a Google).
 const CANONICAL_HOST = (process.env.CANONICAL_HOST || '').trim().toLowerCase();
@@ -26,6 +32,31 @@ const clean = (s, def) => {
   s = String(s == null ? '' : s).replace(/[\u0000-\u001f<>&"'`]/g, '').trim().slice(0, 16);
   return s || def;
 };
+
+// ---------- Filtre de noms ofensius (català, castellà, anglès) ----------
+// Paraules curtes: han de començar una paraula. Llargues/distintives: es cerquen a tot el nom (també «joanfilldeputa»).
+const BAD_START = ['puta', 'puto', 'putes', 'puti', 'polla', 'pollon', 'cony', 'cono', 'conyo', 'cabron', 'cabro', 'collons', 'collon',
+  'joder', 'jodete', 'follar', 'folla', 'marica', 'maricon', 'marieta', 'bujarra', 'zorra', 'guarra', 'mamon', 'capullo', 'idiota',
+  'imbecil', 'gilipolla', 'subnormal', 'retrasad', 'mongol', 'negrat', 'sudaca', 'nazi', 'hitler', 'polvo', 'pajillero', 'pajero',
+  'verga', 'chupa', 'xupa', 'mierda', 'merda', 'cagon', 'fuck', 'fuk', 'shit', 'bitch', 'cunt', 'dick', 'cock', 'nigg', 'nigga',
+  'whore', 'slut', 'porn', 'rape', 'violad', 'pederast', 'pedofil', 'sexo', 'penis', 'vagina', 'tetas', 'culo', 'ojete'];
+const BAD_ANY = ['fillputa', 'filldeputa', 'fillsdeputa', 'hijoputa', 'hijodeputa', 'hdp', 'deputa', 'gilipoll', 'maricon', 'subnormal',
+  'retrasad', 'motherfuck', 'fuck', 'nigger', 'nigga', 'hitler', 'pederast', 'pedofil', 'mecagu', 'mecago', 'mecachen', 'cagonde',
+  'cabron', 'putamare', 'tumare', 'tumadre', 'puteta', 'polla', 'follar'];
+function normName(s) {
+  return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e').replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't').replace(/@/g, 'a').replace(/\$/g, 's')
+    .replace(/[·.\-_]/g, ' ').replace(/(.)\1+/g, '$1');
+}
+function isBadName(s) {
+  const n = normName(s), joined = n.replace(/[^a-z]/g, '');
+  const words = n.split(/[^a-z]+/).filter(Boolean);
+  const starts = BAD_START.map(b => b.replace(/(.)\1+/g, '$1'));
+  if (words.some(w => starts.some(b => w.startsWith(b)))) return true;
+  if (words.length > 2 && starts.some(b => joined.startsWith(b))) return true; // «p u t a»
+  return BAD_ANY.some(b => joined.includes(b.replace(/(.)\1+/g, '$1')));
+}
+const cleanName = (s, def) => { const n = clean(s, def); return isBadName(n) ? def : n; };
 const cleanLook = l => (LOOKS.includes(l) ? l : 'palla');
 // Aspectes («El meu aspecte»): capell i revers de cartes. Llista blanca: el servidor no accepta res més.
 const HATS = ['palla', 'pallaAmple', 'pallaNegre', 'gorra', 'barretina', 'mocador', 'res'];
@@ -266,8 +297,18 @@ const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
 const send = (ws, o) => { if (ws.readyState === 1) ws.send(JSON.stringify(o)); };
 const err = (ws, m) => send(ws, { t: 'err', m });
 
-wss.on('connection', ws => {
-  ws.ctx = { token: null, code: null, seat: -1, count: 0, windowStart: Date.now() };
+function clientIp(req) {
+  // Render és darrere un proxy: la IP real és la primera de x-forwarded-for
+  const xf = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return xf || (req.socket && req.socket.remoteAddress) || '?';
+}
+wss.on('connection', (ws, req) => {
+  const ip = clientIp(req);
+  const n = (ipConns.get(ip) || 0) + 1;
+  if (n > MAX_CONN_PER_IP) { try { ws.close(1008, 'Massa connexions'); } catch (e) { /* res */ } return; }
+  ipConns.set(ip, n);
+  ws.once('close', () => { const k = (ipConns.get(ip) || 1) - 1; if (k <= 0) ipConns.delete(ip); else ipConns.set(ip, k); });
+  ws.ctx = { token: null, code: null, seat: -1, count: 0, windowStart: Date.now(), ip };
   ws.isAlive = true;
   ws.on('pong', () => { ws.isAlive = true; });
   ws.on('message', raw => {
@@ -321,11 +362,16 @@ function handle(ws, m) {
   if (m.t === 'create') {
     if (ctxRoom(ws)) return err(ws, 'Ja ets en una sala');
     if (rooms.size >= MAX_ROOMS) return err(ws, 'Ara mateix hi ha massa sales. Torna-ho a provar més tard.');
+    const now = Date.now(), recent = (ipCreates.get(c.ip) || []).filter(t => now - t < 60000);
+    let mine = 0; for (const r of rooms.values()) if (r.ownerIp === c.ip) mine++;
+    if (recent.length >= MAX_CREATES_PER_MIN || mine >= MAX_ROOMS_PER_IP) return err(ws, 'Has creat massa sales seguides. Espera un moment.');
+    recent.push(now); ipCreates.set(c.ip, recent);
     const code = newCode();
     if (!code) return err(ws, 'No s\'ha pogut crear la sala');
     const room = new Room(code);
+    room.ownerIp = c.ip;
     rooms.set(code, room);
-    room.attach(0, ws, c.token, clean(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look)));
+    room.attach(0, ws, c.token, cleanName(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look)));
     room.hostSeat = 0;
     if (m.quick) { room.broadcastRoom(); room.startGame(); }
     else if (m.solo) { room.setSearching(true); room.broadcastRoom(); tryMatch(); }
@@ -340,7 +386,7 @@ function handle(ws, m) {
     if (room.phase !== 'lobby') return err(ws, 'La partida ja ha començat');
     const seat = room.freeSeat([2, 1, 3, 0]);
     if (seat < 0) return err(ws, 'La sala està plena');
-    room.attach(seat, ws, c.token, clean(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look)));
+    room.attach(seat, ws, c.token, cleanName(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look)));
     room.broadcastRoom();
     // Sala oberta que s'omple: comença sola
     if (room.searching && room.humans() === 4) room.startGame();
@@ -373,7 +419,7 @@ function handle(ws, m) {
         room.broadcastRoom();
         return;
       }
-      room.seats[seat].name = clean(m.name, room.seats[seat].name || 'Jugador');
+      room.seats[seat].name = cleanName(m.name, 'Jugador');
       room.seats[seat].look = cleanLook(m.look);
       Object.assign(room.seats[seat], cleanStyle(m, room.seats[seat].look));
       room.broadcastRoom();
@@ -416,6 +462,7 @@ setInterval(() => {
   });
   const now = Date.now();
   try { tryMatch(); } catch (e) { console.error('match', e); }
+  for (const [ip, arr] of ipCreates) { const k = arr.filter(t => now - t < 60000); if (k.length) ipCreates.set(ip, k); else ipCreates.delete(ip); }
   for (const room of Array.from(rooms.values())) {
     if (room.humans() === 0 && now - room.lastActive > 10 * 60 * 1000) room.destroy();
   }
