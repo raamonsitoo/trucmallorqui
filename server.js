@@ -23,6 +23,13 @@ const clean = (s, def) => {
   return s || def;
 };
 const cleanLook = l => (LOOKS.includes(l) ? l : 'palla');
+// Aspectes («El meu aspecte»): capell i revers de cartes. Llista blanca: el servidor no accepta res més.
+const HATS = ['palla', 'pallaAmple', 'pallaNegre', 'gorra', 'barretina', 'mocador', 'res'];
+const BACKS = ['llenguesBlau', 'llenguesVermell', 'llenguesVerd', 'rajola', 'siurell', 'tramuntana'];
+const DEF_HAT = { palla: 'palla', barretina: 'barretina', mocador: 'mocador' };
+const cleanHat = (h, look) => (HATS.includes(h) ? h : DEF_HAT[look] || 'palla');
+const cleanBack = b => (BACKS.includes(b) ? b : 'llenguesBlau');
+const cleanStyle = (m, look) => ({ hat: cleanHat(m && m.hat, look), back: cleanBack(m && m.back) });
 const newToken = () => crypto.randomBytes(16).toString('hex');
 function newCode() {
   for (let k = 0; k < 50; k++) {
@@ -42,7 +49,7 @@ class Room {
     this.lastActive = Date.now();
     this.searching = false;   // cercant rivals: surt a la llista de sales obertes i s'emparella sola
     this.searchSince = 0;
-    this.seats = [0, 1, 2, 3].map(() => ({ human: false, name: '', look: 'palla', connected: false, ws: null, token: null, freeTimer: null }));
+    this.seats = [0, 1, 2, 3].map(() => ({ human: false, name: '', look: 'palla', hat: 'palla', back: 'llenguesBlau', connected: false, ws: null, token: null, freeTimer: null }));
   }
   sendSeat(s, msg) {
     const x = this.seats[s];
@@ -57,7 +64,8 @@ class Room {
       t: 'room', code: this.code, phase: this.phase, host: this.hostSeat, you: s,
       searching: this.searching, searchMs: this.searching ? Date.now() - this.searchSince : 0,
       seats: this.seats.map((x, i) => ({
-        human: x.human, name: x.human ? x.name : DEF_NAMES[i], look: x.human ? x.look : DEF_LOOKS[i], connected: x.human ? x.connected : true
+        human: x.human, name: x.human ? x.name : DEF_NAMES[i], look: x.human ? x.look : DEF_LOOKS[i],
+        hat: x.human ? x.hat : DEF_HAT[DEF_LOOKS[i]], back: x.human ? x.back : 'llenguesBlau', connected: x.human ? x.connected : true
       }))
     };
   }
@@ -67,13 +75,14 @@ class Room {
     for (const s of prefer) if (!this.seats[s].human) return s;
     return -1;
   }
-  attach(seat, ws, token, name, look) {
+  attach(seat, ws, token, name, look, style) {
     const x = this.seats[seat];
     if (x.freeTimer) { clearTimeout(x.freeTimer); x.freeTimer = null; }
     if (x.ws && x.ws !== ws) { try { x.ws.ctx = null; x.ws.close(); } catch (e) { /* res */ } }
     x.human = true; x.connected = true; x.ws = ws; x.token = token;
     if (name) x.name = name;
     if (look) x.look = look;
+    if (style) { x.hat = style.hat; x.back = style.back; }
     ws.ctx.code = this.code; ws.ctx.seat = seat;
     sessions.set(token, { code: this.code, seat });
     this.lastActive = Date.now();
@@ -154,7 +163,7 @@ function mergeInto(A, B, rot) {
     const x = B.seats[s];
     if (!x.human) continue;
     const t = (s + rot) % 4, y = A.seats[t];
-    Object.assign(y, { human: true, name: x.name, look: x.look, connected: true, ws: x.ws, token: x.token, freeTimer: null });
+    Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null });
     if (x.ws && x.ws.ctx) { x.ws.ctx.code = A.code; x.ws.ctx.seat = t; }
     sessions.set(x.token, { code: A.code, seat: t });
     Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null });
@@ -290,7 +299,7 @@ function handle(ws, m) {
     if (!code) return err(ws, 'No s\'ha pogut crear la sala');
     const room = new Room(code);
     rooms.set(code, room);
-    room.attach(0, ws, c.token, clean(m.name, 'Jugador'), cleanLook(m.look));
+    room.attach(0, ws, c.token, clean(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look)));
     room.hostSeat = 0;
     if (m.quick) { room.broadcastRoom(); room.startGame(); }
     else if (m.solo) { room.setSearching(true); room.broadcastRoom(); tryMatch(); }
@@ -305,7 +314,7 @@ function handle(ws, m) {
     if (room.phase !== 'lobby') return err(ws, 'La partida ja ha començat');
     const seat = room.freeSeat([2, 1, 3, 0]);
     if (seat < 0) return err(ws, 'La sala està plena');
-    room.attach(seat, ws, c.token, clean(m.name, 'Jugador'), cleanLook(m.look));
+    room.attach(seat, ws, c.token, clean(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look)));
     room.broadcastRoom();
     // Sala oberta que s'omple: comença sola
     if (room.searching && room.humans() === 4) room.startGame();
@@ -324,7 +333,7 @@ function handle(ws, m) {
       const to = m.seat;
       if (!Number.isInteger(to) || to < 0 || to > 3 || room.seats[to].human) return;
       const x = room.seats[seat], y = room.seats[to];
-      Object.assign(y, { human: true, name: x.name, look: x.look, connected: true, ws: x.ws, token: x.token, freeTimer: null });
+      Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null });
       Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null });
       c.seat = to;
       sessions.set(y.token, { code: room.code, seat: to });
@@ -333,9 +342,14 @@ function handle(ws, m) {
       return;
     }
     case 'profile': {
-      if (room.phase !== 'lobby') return;
+      if (room.phase !== 'lobby') {
+        Object.assign(room.seats[seat], cleanStyle(m, room.seats[seat].look));
+        room.broadcastRoom();
+        return;
+      }
       room.seats[seat].name = clean(m.name, room.seats[seat].name || 'Jugador');
       room.seats[seat].look = cleanLook(m.look);
+      Object.assign(room.seats[seat], cleanStyle(m, room.seats[seat].look));
       room.broadcastRoom();
       return;
     }
