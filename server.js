@@ -3,6 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const zlib = require('zlib');
 const { WebSocketServer } = require('ws');
 const { Game } = require('./game');
 
@@ -274,8 +275,17 @@ const server = http.createServer((req, res) => {
   if (PAGES[url]) {
     fs.readFile(path.join(__dirname, 'public', PAGES[url]), 'utf8', (err, data) => {
       if (err) { res.writeHead(500); return res.end('Falta public/' + PAGES[url]); }
-      res.writeHead(200, HTML_HEADERS);
-      res.end(data.split('__SITE__').join(SITE_URL).replace('<!--ANALYTICS-->', ANALYTICS_TAG));
+      const body = data.split('__SITE__').join(SITE_URL).replace('<!--ANALYTICS-->', ANALYTICS_TAG);
+      // Pàgines comprimides (gzip): la web carrega molt més aviat, sobretot al mòbil
+      if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
+        return zlib.gzip(body, (e, buf) => {
+          if (e) { res.writeHead(200, HTML_HEADERS); return res.end(body); }
+          res.writeHead(200, Object.assign({}, HTML_HEADERS, { 'Content-Encoding': 'gzip', 'Vary': 'Accept-Encoding' }));
+          res.end(buf);
+        });
+      }
+      res.writeHead(200, Object.assign({}, HTML_HEADERS, { 'Vary': 'Accept-Encoding' }));
+      res.end(body);
     });
     return;
   }

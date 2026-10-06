@@ -8,7 +8,8 @@ Web per jugar al Truc mallorquí per internet, en 3D i amb senyes: **https://tru
 - **Sales mixtes**: «Buscar rivals» dins una sala, «Jugar amb desconeguts» per anar sol i llista de **sales obertes**. Si en 60 s no hi ha ningú, s'ofereix jugar contra bots.
 - **Senyes amb la cara** i frases al company («Vaig a tu», «Vina a mi», «Demana envit»).
 - **Resposta en parella**: als cants contesten els dos de la parella i mana el que més vol (pujar > vull > no vull).
-- **Baralla espanyola** dibuixada (36 cartes, sense 2, 8 ni 9) i **aspectes** per jugador: personatge, capell i revers de les cartes.
+- **Baralla espanyola clàssica** dibuixada (36 cartes, sense 2, 8 ni 9, amb els talls al marc i l'índex a les cantonades) i **aspectes** per jugador: personatge, capell i revers de les cartes.
+- **Partida en una casa de poble mallorquina** (parets de calç i marès, bigues, rajoles hidràuliques, finestra a la Serra amb el sol de l'horabaixa) i sala d'espera de color fosc.
 - **Mode joc a pantalla completa**, **mode simple 2D** si el navegador no pot fer 3D i **dreceres de teclat** (1·2·3 tirar, T truc, E envit, F me'n vaig; V vull, N no vull, P pujar).
 - **Partida guiada** («Aprendre a jugar») amb consells mentre jugues.
 - **Revenja** en acabar la partida.

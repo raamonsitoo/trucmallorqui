@@ -4,11 +4,15 @@ const fs=require('fs');
 const path=require('path');
 const PUB=path.join(__dirname,'..','public');
 const html=fs.readFileSync(path.join(PUB,'index.html'),'utf8');
-const a=html.indexOf('// ---------- Dibuix de cartes: baraja española (SVG) ----------'),b=html.indexOf('// ---------- Aspectes: capells i reversos');
+const a=html.indexOf('// ---------- Dibuix de cartes'),b=html.indexOf('// ---------- Aspectes: capells i reversos');
+if(a<0||b<0)throw new Error('No trob la secció de les cartes a index.html');
 const isAmo=c=>c.n===11&&c.s==='bastos',isMadona=c=>c.n===10&&c.s==='oros';
 eval(html.slice(a,b)+';global.cardSVG=cardSVG;');
 const SUITS=['oros','copes','espases','bastos'];
-const card=c=>cardSVG(c).replace('<svg ','<svg xmlns="http://www.w3.org/2000/svg" ');
+// Els degradats de les cartes es posen una sola vegada a la pàgina (SHARED_DEFS) i cada carta hi fa referència
+const normIds=s=>s.replace(/(id="|url\(#)c[0-9a-z]+?(?=[A-Z])/g,'$1tm');
+const SHARED_DEFS=normIds(cardSVG({n:1,s:'oros'}).match(/<defs>[\s\S]*?<\/defs>/)[0]);
+const card=c=>normIds(cardSVG(c).replace(/<defs>[\s\S]*?<\/defs>/,'')).replace('<svg ','<svg xmlns="http://www.w3.org/2000/svg" ');
 const S4=n=>SUITS.map(s=>({n,s}));
 const TIER_CARDS=[[{n:11,s:'bastos'}],[{n:10,s:'oros'}],[{n:1,s:'espases'}],[{n:1,s:'bastos'}],[{n:7,s:'espases'}],[{n:7,s:'oros'}],S4(3),[{n:1,s:'copes'},{n:1,s:'oros'}],S4(12),
  [{n:11,s:'espases'},{n:11,s:'copes'},{n:11,s:'oros'}],[{n:10,s:'espases'},{n:10,s:'copes'},{n:10,s:'bastos'}],[{n:7,s:'copes'},{n:7,s:'bastos'}],S4(6),S4(5),S4(4)];
@@ -191,6 +195,7 @@ footer{margin-top:40px;font-size:.9rem;color:var(--muted)}
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">${SHARED_DEFS}</svg>
 <div class="band" aria-hidden="true"></div>
 <main>
 <nav><a class="brand" href="/">${T.brand}</a><span class="right"><a href="${T.other.path}" hreflang="${T.other.lang}" lang="${T.other.lang}">${T.other.label}</a><a class="cta" href="/">${T.play}</a></span></nav>
