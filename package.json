@@ -1,12 +1,16 @@
 {
   "name": "truc-mallorqui-online",
   "version": "1.0.0",
-  "description": "Truc mallorquí en línia: servidor de sales i partides",
+  "description": "Truc mallorquí en línia: servidor de sales i partides (trucmallorqui.com)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test/sim.js"
+    "test": "node sim.js"
   },
-  "engines": { "node": ">=18" },
-  "dependencies": { "ws": "^8.18.0" }
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
 }

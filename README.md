@@ -1,70 +1,49 @@
-# Truc mallorquí en línea
+# Truc mallorquí en línia
 
-Servidor y página para jugar al Truc mallorquí por internet con amigos, en 3D y con señas.
+Web per jugar al Truc mallorquí per internet, en 3D i amb senyes: **https://trucmallorqui.com**
 
-- **Salas con código de 4 letras.** Uno crea la sala y los demás entran con el código o con el enlace.
-- **Hasta 4 personas.** Los asientos libres los juegan bots. Si alguien se desconecta, un bot juega por él hasta que vuelva.
-- **Las reglas viven en el servidor.** Cada jugador solo recibe sus propias cartas.
-- **Cronómetro de 40 segundos** por decisión. Si se acaba, se tira la carta más baja o se dice "no vull".
-- **Señas con la cara, mirada y frases** ("Vaig a tu", "Vina a mi", "Demana envit") entre jugadores reales.
+## Què té
 
-## Contenido
+- **Partides de 4 en 2 parelles**, amb amics (sala amb codi de 4 lletres o enllaç), amb desconeguts o contra bots.
+- **Sales mixtes**: «Buscar rivals» dins una sala, «Jugar amb desconeguts» per anar sol i llista de **sales obertes**. Si en 60 s no hi ha ningú, s'ofereix jugar contra bots.
+- **Senyes amb la cara** i frases al company («Vaig a tu», «Vina a mi», «Demana envit»).
+- **Resposta en parella**: als cants contesten els dos de la parella i mana el que més vol (pujar > vull > no vull).
+- **Baralla espanyola** dibuixada (36 cartes, sense 2, 8 ni 9) i **aspectes** per jugador: personatge, capell i revers de les cartes.
+- **Mode joc a pantalla completa**, **mode simple 2D** si el navegador no pot fer 3D i **dreceres de teclat** (1·2·3 tirar, T truc, E envit, F me'n vaig; V vull, N no vull, P pujar).
+- **Partida guiada** («Aprendre a jugar») amb consells mentre jugues.
+- **Revenja** en acabar la partida.
+- **Instal·lable com una app** al mòbil (PWA) i pàgina **/regles** amb la guia completa.
+- **Protecció**: límits per IP i filtre de noms ofensius.
+
+## Fitxers
 
 ```
-server.js        servidor web + WebSocket (salas, asientos, reconexión)
-game.js          reglas del juego, bots, señas y mirada
-public/index.html  la página del juego (3D, sala, mensajes)
-test/sim.js      pruebas automáticas con jugadores simulados
-render.yaml      configuración opcional para Render
+server.js              servidor web + WebSocket (sales, emparellament, límits, pàgines)
+game.js                regles del joc, bots, senyes i mirada (tot passa al servidor)
+public/index.html      el joc (3D amb Three.js, sala, menú)
+public/regles.html     guia «Com es juga al truc mallorquí»
+public/manifest.webmanifest, public/sw.js, public/icon-*.png   app instal·lable
+public/og.png, public/favicon.svg   imatge per compartir i icona
+sim.js                 proves automàtiques amb jugadors simulats (npm test)
+render.yaml            configuració per a Render
 ```
 
-## Probarlo en tu ordenador
-
-Necesitas Node.js 18 o superior.
+## Provar-ho a l'ordinador
 
 ```
 npm install
-npm start
+npm start          # http://localhost:3000
+npm test           # 4 partides simulades: han d'acabar amb «TOT OK»
 ```
 
-Abre `http://localhost:3000`. Para jugar con otros móviles de tu misma wifi, usa la dirección de tu ordenador en la red, por ejemplo `http://192.168.1.20:3000`.
+## Publicació (Render)
 
-Pruebas automáticas (simulan 4 jugadores, un jugador con bots, un jugador que no responde y una reconexión):
+Cada `git push` a `main` desplega automàticament. Variables d'entorn:
 
-```
-npm test
-```
+| Variable | Per a què | Valor |
+|---|---|---|
+| `CANONICAL_HOST` | Redirigeix `*.onrender.com` al domini propi | `trucmallorqui.com` |
+| `GOATCOUNTER` | (opcional) Activa les estadístiques de visites sense galetes | codi del compte de goatcounter.com |
+| `STATS_KEY` | (opcional) Activa `/stats?key=...` amb dades en directe | una clau secreta |
 
-## Publicarlo en internet con Render (plan gratuito)
-
-Los precios y límites de los servicios cambian, así que comprueba las condiciones actuales en su web.
-
-1. Crea una cuenta en GitHub y un repositorio nuevo. Sube el contenido de esta carpeta (sin la carpeta `node_modules`).
-2. Crea una cuenta en Render (render.com) y conecta tu cuenta de GitHub.
-3. En Render: **New** > **Web Service** y elige tu repositorio.
-4. Ajustes:
-   - Runtime: **Node**
-   - Build command: `npm install`
-   - Start command: `npm start`
-   - Plan: **Free**
-5. Pulsa **Create Web Service**. Al acabar te da una dirección tipo `https://tu-nombre.onrender.com`. Esa es la del juego.
-
-Si prefieres, el archivo `render.yaml` hace estos pasos solo: en Render elige **New** > **Blueprint**.
-
-HTTPS ya viene incluido, y la página usa conexión segura (`wss`) automáticamente.
-
-### Cosas que conviene saber
-
-- **El plan gratuito se duerme** tras un rato sin visitas. La primera persona que entre después puede esperar cerca de un minuto. Para partidas con amigos, abre la dirección unos minutos antes de empezar.
-- **Las partidas viven en la memoria del servidor.** Si el servidor se reinicia o se despliega una versión nueva, las partidas en curso se pierden.
-- **No se guardan datos.** Los nombres solo existen mientras dura la sala.
-- **Otros alojamientos:** Railway, Fly.io o cualquier servidor con Node.js sirven igual. Hace falta que permita conexiones WebSocket.
-
-## Qué no se ha podido probar
-
-Se ha probado con jugadores simulados y con navegadores automáticos en un solo ordenador. Falta probar con móviles reales en redes distintas (datos móviles, wifi de casa) y con la latencia real. Las primeras partidas con amigos darán la información que falta.
-
-## Variables opcionales
-
-- `PORT`: puerto del servidor (lo pone el alojamiento).
-- `TRUC_TIMER_MS`: milisegundos por decisión (por defecto 40000).
+El domini és a Namecheap (registre A `@` → `216.24.57.1` i CNAME `www` → `trucmallorqui.onrender.com`).

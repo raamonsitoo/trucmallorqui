@@ -149,6 +149,24 @@ button{font:inherit}
 .backbtn.on{border-color:var(--gold);background:rgba(224,162,31,.14)}
 .backbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .xlink{display:block;margin-top:6px;color:var(--ink);font-size:.9rem}
+.learn{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border:2px solid var(--blue);background:rgba(42,74,154,.08);border-radius:14px;padding:10px 12px;margin-top:12px}
+.learn.done{border-color:var(--line);background:none}
+.learn.done div{display:none}
+.coach{margin-top:10px;background:#fff6dc;color:#2b1c00;border:2px solid var(--gold);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.coach[hidden]{display:none}
+.coach h4{margin:0;font-size:1rem}
+.coach p{margin:0;font-size:.95rem;line-height:1.4}
+.coach .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+.coach .btn{min-height:38px;padding:.3rem .8rem;font-size:.9rem}
+.coach .step{font-size:.75rem;opacity:.7}
+body.immersive .coach{grid-area:actions;align-self:start;margin:0;font-size:.85rem}
+@media (max-width:600px){
+  .coach{padding:7px 10px;gap:4px;margin-top:8px}
+  .coach h4{font-size:.88rem}
+  .coach p{font-size:.84rem;line-height:1.3}
+  .coach .btn{min-height:32px;padding:.15rem .7rem;font-size:.82rem}
+  .coach .btn.ghost{border:0;text-decoration:underline;padding:0 .3rem}
+}
 .openrooms{display:flex;flex-direction:column;gap:6px}
 .oroom{display:flex;align-items:center;justify-content:space-between;gap:8px;border:2px solid var(--line);border-radius:12px;padding:6px 6px 6px 12px}
 .oroom span{font-size:.92rem}
@@ -331,6 +349,7 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
     <div class="nogl" id="nogl" hidden><p>El teu navegador no pot mostrar el 3D.<br>Prova amb un altre navegador o dispositiu.</p></div>
     <div class="t2d" id="t2d" hidden><div class="seats2d" id="seats2d"></div><p class="flatnote">Mode simple (sense 3D)</p><div class="hand2d" id="hand2d"></div></div>
   </section>
+  <section class="coach" id="coach" aria-live="polite" hidden></section>
   <section class="actions" id="actions" aria-live="polite"></section>
   <section class="signs talk" id="talkBox" aria-label="Parlar amb Catalina">
     <h2 id="talkTitle">Parlar amb el teu company</h2>
@@ -361,6 +380,7 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
     <div class="fld"><span>Capell</span><div class="chips" id="hats"></div></div>
     <div class="fld"><span>Revers de les teves cartes</span><div class="backs" id="backs"></div></div>
     <div id="lobbyMenu">
+      <div class="learn" id="learnBox"><div><b>Primera vegada?</b> Aprèn a jugar amb una partida guiada contra bots.</div><button class="btn envit" id="btnLearn">🎓 Aprendre a jugar</button></div>
       <div class="row"><button class="btn ok" id="btnCreate">Crear una sala</button><button class="btn ghost" id="btnQuick">Jugar contra bots</button></div>
       <div class="row"><button class="btn envit" id="btnSolo">Jugar amb desconeguts</button></div>
       <div class="row"><input id="codeIn" maxlength="4" placeholder="CODI" autocapitalize="characters" aria-label="Codi de la sala"><button class="btn truc" id="btnJoin">Entrar a una sala</button></div>
@@ -731,6 +751,63 @@ const SIGNS={
   tres:{short:'Mossegar llavi',sub:'un 3',tw:"es mossega el llavi",gesture:"Mossegar-se el llavi",card:"Un 3 (qualsevol)",power:2,dur:1.4},
   buit:{short:'Dos ulls',sub:'vaig buit',tw:"guinya els dos ulls",gesture:"Guinyar els dos ulls",card:"Va buit (cap carta bona)",power:0,dur:1.1}
 };
+
+// ---------- Partida guiada («Aprendre a jugar») ----------
+const Coach=(function(){
+  let on=false,seen={},hands=0,queue=[],cur=null;
+  const box=()=>document.getElementById('coach');
+  function show(){
+    const el=box();if(!el)return;
+    if(!on||!cur){el.hidden=true;el.innerHTML='';return;}
+    el.hidden=false;
+    el.innerHTML=`<h4>🎓 ${cur.t}</h4><p>${cur.x}</p><div class="row"><button class="btn ok" data-coach="ok">D'acord</button><button class="btn ghost" data-coach="stop">Acabar el tutorial</button></div>`;
+  }
+  function tip(key,title,text){
+    if(!on||seen[key])return;seen[key]=1;
+    const t={t:title,x:text};
+    if(cur)queue.push(t);else{cur=t;show();}
+  }
+  function next(){cur=queue.shift()||null;show();}
+  function stop(){on=false;cur=null;queue=[];show();try{localStorage.setItem('truc_tuto','1');}catch(_){}}
+  const best=h=>h.slice().sort((a,b)=>cardRank(b)-cardRank(a))[0];
+  function onSnap(){
+    if(!on||!H)return;
+    const mine=H.hands[0]||[];
+    if(H.dealt&&mine.length===3&&!seen.hand){
+      const b=best(mine),special=isAmo(b)?' És <b>l\'amo</b>, la carta més alta de totes!':isMadona(b)?' És <b>la madona</b>, la segona més alta!':'';
+      tip('hand','Les teves cartes',`Tens 3 cartes. La més forta és el <b>${cardLabel(b)}</b>.${special} Guanya cada ronda la carta més alta, i qui guanya 2 rondes s'endú la mà. Pots veure l'ordre de les cartes a «Regles».`);
+    }
+    if(UI.mode==='turn'){
+      tip('turn','És el teu torn',`Toca una carta per tirar-la${View.ready?' (o pitja 1, 2 o 3)':''}. Si la teva parella ja guanya la ronda, tira una carta baixa i guarda les bones.`);
+      if(H.trickNo===0&&canCallEnvit(0)&&H.initial[0]){
+        const v=envitValue(H.initial[0]);
+        tip('envit','L\'envit',`El teu envit és <b>${v}</b>. Es compta amb dues cartes del mateix pal: 20 + el valor de cada una (sota, cavall i rei valen 0). ${v>=28?'És molt bo: prova de cantar <b>Envit</b>!':v>=25?'No està malament: si et sents valent, canta <b>Envit</b>.':'És baix: millor no cantar-lo.'}`);
+      }
+      if(H.trickNo>=1)tip('truc','El truc',`Si creus que guanyaràs la mà, canta <b>Truc</b>: la mà passa a valer 3 punts. Si els rivals no volen, en guanyes 1. Compte, que te poden tornar el <b>Retruc</b>!`);
+    }
+    if(UI.mode==='respond'&&UI.resp){
+      const r=UI.resp;
+      tip('respond-'+r.kind,r.kind==='truc'?'T\'han cantat truc':'T\'han cantat envit',
+        r.kind==='truc'?`Pitja <b>Vaig!</b> si creus que guanyareu la mà, o <b>No hi vaig</b> per regalar-los els punts d'abans. Amb cartes molt bones pots <b>pujar</b>.`
+          :`Mira el teu envit${H.initial[0]?' (<b>'+envitValue(H.initial[0])+'</b>)':''}: amb 27 o més, normalment val la pena dir <b>Vaig!</b>. Els envits es diuen en acabar la mà.`);
+    }
+  }
+  function onEvent(e){
+    if(!on)return;
+    const P=a=>rel(a);
+    if(e.e==='sign'&&P(e.p)===2)tip('sign','Una seña de la teva companya',`${NAMES[2]} t'ha fet una seña: <b>${SIGNS[e.id].tw}</b> vol dir <b>${SIGNS[e.id].sub}</b>. Les senyes només les veus si mires qui les fa. Tu també pots fer-ne amb els botons de «Fer una seña» de davall.`);
+    if(e.e==='trick'&&!seen.trick)tip('trick','Ronda acabada',e.tie?'Les dues cartes més altes eren iguals: ronda empatada.':`La ronda ha estat per a <b>${tl(vteam(e.team))}</b>, perquè hi havia la carta més alta. Ara surt qui l'ha guanyada.`);
+    if(e.e==='result'){hands++;
+      if(hands===1)tip('result','Mà acabada',`Els punts es van sumant al marcador de dalt. Qui arriba a <b>24</b> guanya un <b>cantó</b>, i qui guanya 2 cantons guanya la partida. També pots parlar amb ${NAMES[2]}: «Vaig a tu» vol dir que tiri ella la bona.`);
+      if(hands===2){tip('end','Ja en saps prou!','Ja coneixes el més important. Continua aquesta partida tant com vulguis, o torna al menú per jugar amb amics o desconeguts. Sort!');try{localStorage.setItem('truc_tuto','1');}catch(_){}}
+    }
+  }
+  return {
+    start(){on=true;seen={};hands=0;queue=[];cur=null;show();},
+    stop,onSnap,onEvent,next,get on(){return on;},
+    reset(){if(on){on=false;cur=null;queue=[];show();}}
+  };
+})();
 
 // ---------- Estat ----------
 const G={cantons:[0,0],scores:[0,0],dealer:0,log:[],status:''};
@@ -1178,12 +1255,13 @@ const View=(function(){
   // Ajusta l'alçada de la taula perquè taula + botons de davall càpiguen sense haver de baixar
   function fitStage(){
     const vh=window.innerHeight,top=stage.getBoundingClientRect().top+window.scrollY;
-    const h=Math.round(Math.max(300,Math.min(640,vh-top-118-22)));
+    const co=document.getElementById('coach'),coH=co&&!co.hidden?co.offsetHeight+10:0;
+    const h=Math.round(Math.max(230,Math.min(640,vh-top-124-22-coH)));
     stage.style.height=h+'px';
   }
   window.addEventListener('resize',fitStage);window.addEventListener('orientationchange',()=>setTimeout(fitStage,250));
   // el marcador i la capçalera canvien d'alçada quan comença la partida: tornar a ajustar
-  if(typeof ResizeObserver!=='undefined'){const ro=new ResizeObserver(fitStage);for(const el of [$('.top'),$('#score')])if(el)ro.observe(el);}
+  if(typeof ResizeObserver!=='undefined'){const ro=new ResizeObserver(fitStage);for(const el of [$('.top'),$('#score'),$('#coach')])if(el)ro.observe(el);}
   fitStage();
   resize();
 
@@ -1467,6 +1545,7 @@ function onMsg(m){
   }
 }
 function resetToMenu(msg){
+  Coach.reset();
   Me.code='';Me.phase='menu';Me.seat=-1;Me.players=[];Me.holdGame=false;Me.searching=false;
   H=null;UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();
   G.cantons=[0,0];G.scores=[0,0];G.status='';G.log=[];
@@ -1605,6 +1684,8 @@ function setupLobby(){
     Net.send(Object.assign({t:'join',code},p));
   });
   $('#btnStart').addEventListener('click',()=>Net.send({t:'start'}));
+  $('#btnLearn').addEventListener('click',()=>{lobbyError('');track('tutorial');const p=readProfile();Coach.start();Net.send(Object.assign({t:'create',quick:true},p));});
+  if(store.get('truc_tuto'))$('#learnBox').classList.add('done');
   $('#btnSolo').addEventListener('click',()=>{lobbyError('');track('jugar-desconeguts');const p=readProfile();Net.send(Object.assign({t:'create',solo:true},p));});
   $('#searchBox').addEventListener('click',e=>{
     const b=e.target.closest('[data-search]');if(!b)return;
@@ -1651,6 +1732,7 @@ function applySnap(s){
     if(was!==UI.mode)UI.foldArm=false;
     clockSet(pd.left);
   }else{UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();}
+  try{Coach.onSnap();}catch(_){}
   updateStatus();
   render();
 }
@@ -1668,6 +1750,7 @@ function showBanner(html,ms){
 
 // ---------- Esdeveniments del servidor ----------
 function onEvent(e){
+  try{Coach.onEvent(e);}catch(_){}
   const P=a=>rel(a);
   switch(e.e){
     case 'deal':
@@ -1766,6 +1849,8 @@ setInterval(()=>{
 
 // ---------- Esdeveniments de la pàgina ----------
 document.addEventListener('click',e=>{
+  const co=e.target.closest('[data-coach]');
+  if(co){if(co.dataset.coach==='stop')Coach.stop();else Coach.next();return;}
   const pl=e.target.closest('[data-play]');
   if(pl){if(UI.mode==='turn'&&UI.resolve)UI.resolve({type:'play',idx:Number(pl.dataset.play)});return;}
   const sit=e.target.closest('[data-sit]');

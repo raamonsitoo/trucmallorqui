@@ -2,7 +2,7 @@ process.env.TRUC_SPEED='0.01';
 process.env.TRUC_TIMER_MS='400';
 process.env.PORT='0';
 const WebSocket=require('ws');
-const {server,rooms}=require('../server.js');
+const {server,rooms}=require('./server.js');
 const assert=require('assert');
 let port;
 class Bot{
