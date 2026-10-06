@@ -103,6 +103,7 @@ class Game {
     this.G = { cantons: [0, 0], scores: [0, 0], dealer: Math.floor(Math.random() * 4) };
     this.H = null;
     this.pending = null;
+    this.lastBy = null;
     this.gaze = [-1, -1, -1, -1];
     this.gzT = [0, 0, 0, 0];
     this.signNext = [0, 0, 0, 0];
@@ -129,7 +130,7 @@ class Game {
     const H = this.H, G = this.G;
     const out = { t: 'snap', phase: this.room.phase, g: { cantons: G.cantons, scores: G.scores, dealer: G.dealer }, h: null };
     if (H) {
-      const p = this.pending && this.pending.seat === s ? this.pending : null;
+      const p = this.pending && this.pending.seats.includes(s) ? this.pending : null;
       out.h = {
         mano: H.mano, turn: H.turn, over: H.over, trickNo: H.trickNo, tricks: H.tricks, played: H.played,
         trucLevel: H.trucLevel, trucOwner: H.trucOwner, envitLevel: H.envitLevel, envitDone: H.envitDone,
@@ -163,7 +164,11 @@ class Game {
   onDisconnect(s) {
     this.gaze[s] = -1; this.gazeDirty = true;
     const p = this.pending;
-    if (p && p.seat === s) { clearTimeout(p.timer); this.pending = null; p.resolve(this.fallback(p.kind, s, p.data)); }
+    if (p && p.seats.includes(s)) {
+      p.seats = p.seats.filter(x => x !== s);
+      // Si encara hi ha un altre humà que pot respondre, l'esperam a ell.
+      if (!p.seats.length) { clearTimeout(p.timer); this.pending = null; p.by = s; p.resolve(this.fallback(p.kind, s, p.data)); }
+    }
     this.snap();
   }
   onReconnect(s) {
@@ -172,14 +177,18 @@ class Game {
   }
 
   // ---------- Preguntar a una persona ----------
-  ask(seat, kind, data) {
+  // `seats` pot ser un seient o una llista: el primer que contesta decideix.
+  // Resol amb la resposta; el seient que ha contestat queda a `this.lastBy`.
+  ask(seats, kind, data) {
+    seats = Array.isArray(seats) ? seats.slice() : [seats];
     return new Promise((resolve, reject) => {
-      const p = { seat, kind, data, deadline: Date.now() + this.timerMs, resolve, reject, timer: null };
+      const p = { seats, kind, data, deadline: Date.now() + this.timerMs, resolve: v => { this.lastBy = p.by; resolve(v); }, reject, timer: null, by: seats[0] };
       p.timer = setTimeout(() => {
         if (this.pending !== p) return;
         this.pending = null; this.stats.timeouts++;
-        this.emit({ e: 'timeout', p: seat, a: kind === 'turn' ? 'play' : 'no' });
-        resolve(kind === 'turn' ? this.timeoutPlay(seat) : 'no');
+        for (const s of p.seats) this.emit({ e: 'timeout', p: s, a: kind === 'turn' ? 'play' : 'no' });
+        p.by = p.seats[0];
+        p.resolve(kind === 'turn' ? this.timeoutPlay(p.seats[0]) : 'no');
       }, this.timerMs);
       this.pending = p;
       this.snap();
@@ -196,7 +205,7 @@ class Game {
   }
   handleAct(seat, a) {
     const p = this.pending, H = this.H;
-    if (!p || p.seat !== seat || !H) return;
+    if (!p || !p.seats.includes(seat) || !H) return;
     if (p.kind === 'turn') {
       if (!a || typeof a !== 'object') return;
       if (a.type === 'play') {
@@ -209,7 +218,7 @@ class Game {
       if (a !== 'vull' && a !== 'no' && a !== 'raise') return;
       if (a === 'raise' && p.data.level >= 4) return;
     }
-    clearTimeout(p.timer); this.pending = null; p.resolve(a);
+    clearTimeout(p.timer); this.pending = null; p.by = seat; p.resolve(a);
   }
 
   // ---------- Regles de crida ----------
@@ -453,17 +462,20 @@ class Game {
   }
 
   // ---------- Cants ----------
-  pickResponder(callerP) {
+  // Retorna { d, by }: la resposta i el seient que l'ha donada.
+  // Si a la parella que respon hi ha humans, tots ells poden contestar; el primer decideix.
+  async respond(callerP, kind, level) {
     const c = [(callerP + 1) % 4, (callerP + 3) % 4];
     const humans = c.filter(s => this.isHuman(s));
-    return humans.length ? humans[0] : c[0];
-  }
-  async respond(r, kind, level, callerP) {
-    if (this.isHuman(r)) return this.ask(r, 'respond', { kind, level, callerP });
+    if (humans.length) {
+      const d = await this.ask(humans, 'respond', { kind, level, callerP });
+      return { d, by: this.lastBy };
+    }
+    const r = c[0];
     this.emit({ e: 'debate', p: r, q: (r + 2) % 4 });
     this.snap();
     await this.sleep(1600);
-    return kind === 'truc' ? this.botRespondTruc(r, level) : this.botRespondEnvit(r, level);
+    return { d: kind === 'truc' ? this.botRespondTruc(r, level) : this.botRespondEnvit(r, level), by: r };
   }
   async negotiate(kind, caller) {
     const H = this.H, isTruc = kind === 'truc';
@@ -474,8 +486,7 @@ class Game {
       this.snap();
       await this.sleep(900);
       const respTeam = 1 - callerTeam;
-      const responder = this.pickResponder(callerP);
-      const d = await this.respond(responder, kind, level, callerP);
+      const { d, by: responder } = await this.respond(callerP, kind, level);
       if (d === 'no') {
         this.emit({ e: 'ans', p: responder, a: 'no' });
         await this.sleep(800);
