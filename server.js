@@ -20,6 +20,15 @@ const ipCreates = new Map();       // ip -> [marques de temps]
 // Llavors qui entri per *.onrender.com serà redirigit al domini (bo per a Google).
 const CANONICAL_HOST = (process.env.CANONICAL_HOST || '').trim().toLowerCase();
 const SITE_URL = CANONICAL_HOST ? 'https://' + CANONICAL_HOST : 'https://trucmallorqui.onrender.com';
+// Estadístiques: GOATCOUNTER=codi (p. ex. «trucmallorqui») activa el comptador de visites sense galetes.
+// STATS_KEY=una-clau-secreta activa /stats?key=... amb les dades en directe del servidor.
+const GOATCOUNTER = (process.env.GOATCOUNTER || '').trim().replace(/[^a-z0-9-]/gi, '');
+const STATS_KEY = (process.env.STATS_KEY || '').trim();
+const ANALYTICS_TAG = GOATCOUNTER
+  ? `<script data-goatcounter="https://${GOATCOUNTER}.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>`
+  : '';
+const STARTED_AT = Date.now();
+const counters = { gamesStarted: 0, gamesFinished: 0, quick: 0, matched: 0 };
 const LOOKS = ['palla', 'barretina', 'mocador'];
 const DEF_NAMES = ['Biel', 'Toni', 'Catalina', 'Miquel'];
 const DEF_LOOKS = ['palla', 'palla', 'mocador', 'barretina'];
@@ -152,6 +161,7 @@ class Room {
     this.searchSince = on ? Date.now() : 0;
   }
   startGame() {
+    counters.gamesStarted++;
     this.searching = false;
     this.phase = 'playing';
     this.game = new Game(this, { speed: SPEED, timerMs: TIMER_MS });
@@ -159,6 +169,7 @@ class Room {
     this.game.start();
   }
   onGameOver() {
+    counters.gamesFinished++;
     this.phase = 'lobby';
     this.game = null;
     for (let s = 0; s < 4; s++) if (this.seats[s].human && !this.seats[s].connected) this.freeSeatNow(s);
@@ -224,6 +235,7 @@ function tryMatch() {
       if (A.humans() === 4) break;
     }
     if (!changed) continue;
+    counters.matched++;
     for (let s = 0; s < 4; s++) A.sendSeat(s, { t: 'info', m: 'Hem trobat jugadors!' });
     if (A.humans() === 4) { A.broadcastRoom(); A.startGame(); }
     else A.broadcastRoom();
@@ -241,7 +253,16 @@ function openRooms() {
 
 // ---------- HTTP ----------
 const INDEX = path.join(__dirname, 'public', 'index.html');
-const STATIC = { '/og.png': 'image/png', '/favicon.svg': 'image/svg+xml' };
+const STATIC = {
+  '/og.png': 'image/png', '/favicon.svg': 'image/svg+xml',
+  '/icon-192.png': 'image/png', '/icon-512.png': 'image/png', '/icon-maskable.png': 'image/png', '/apple-touch-icon.png': 'image/png',
+  '/manifest.webmanifest': 'application/manifest+json', '/sw.js': 'text/javascript; charset=utf-8'
+};
+const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/regles': 'regles.html', '/regles.html': 'regles.html' };
+const HTML_HEADERS = {
+  'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache',
+  'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin'
+};
 const server = http.createServer((req, res) => {
   const url = (req.url || '/').split('?')[0];
   if (url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
@@ -250,18 +271,25 @@ const server = http.createServer((req, res) => {
     res.writeHead(301, { Location: SITE_URL + (req.url || '/') });
     return res.end();
   }
-  if (url === '/' || url === '/index.html') {
-    fs.readFile(INDEX, 'utf8', (err, data) => {
-      if (err) { res.writeHead(500); return res.end('Falta public/index.html'); }
-      res.writeHead(200, {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-cache',
-        'X-Content-Type-Options': 'nosniff',
-        'Referrer-Policy': 'strict-origin-when-cross-origin'
-      });
-      res.end(data.split('__SITE__').join(SITE_URL));
+  if (PAGES[url]) {
+    fs.readFile(path.join(__dirname, 'public', PAGES[url]), 'utf8', (err, data) => {
+      if (err) { res.writeHead(500); return res.end('Falta public/' + PAGES[url]); }
+      res.writeHead(200, HTML_HEADERS);
+      res.end(data.split('__SITE__').join(SITE_URL).replace('<!--ANALYTICS-->', ANALYTICS_TAG));
     });
     return;
+  }
+  if (url === '/stats') {
+    const key = new URL(req.url, 'http://x').searchParams.get('key');
+    if (!STATS_KEY || key !== STATS_KEY) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('No trobat'); }
+    let humans = 0, playing = 0, searching = 0;
+    for (const r of rooms.values()) { humans += r.humans(); if (r.phase === 'playing') playing++; if (r.searching) searching++; }
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(JSON.stringify({
+      connexions: wss.clients.size, jugadorsEnSales: humans, sales: rooms.size, partidesEnJoc: playing, salesCercantRivals: searching,
+      desDeReinici: { partidesComencades: counters.gamesStarted, partidesAcabades: counters.gamesFinished, contraBots: counters.quick, emparellamentsAmbDesconeguts: counters.matched },
+      encesDesDe: new Date(STARTED_AT).toISOString(), minutsEnces: Math.round((Date.now() - STARTED_AT) / 60000)
+    }, null, 2));
   }
   if (url === '/robots.txt') {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -269,12 +297,12 @@ const server = http.createServer((req, res) => {
   }
   if (url === '/sitemap.xml') {
     res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8' });
-    return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${SITE_URL}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url></urlset>\n`);
+    return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${SITE_URL}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url><url><loc>${SITE_URL}/regles</loc><changefreq>monthly</changefreq><priority>0.8</priority></url></urlset>\n`);
   }
   if (STATIC[url]) {
     fs.readFile(path.join(__dirname, 'public', url.slice(1)), (e, data) => {
       if (e) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('No trobat'); }
-      res.writeHead(200, { 'Content-Type': STATIC[url], 'Cache-Control': 'public, max-age=86400' });
+      res.writeHead(200, { 'Content-Type': STATIC[url], 'Cache-Control': url === '/sw.js' || url === '/manifest.webmanifest' ? 'no-cache' : 'public, max-age=86400' });
       res.end(data);
     });
     return;
@@ -373,7 +401,7 @@ function handle(ws, m) {
     rooms.set(code, room);
     room.attach(0, ws, c.token, cleanName(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look)));
     room.hostSeat = 0;
-    if (m.quick) { room.broadcastRoom(); room.startGame(); }
+    if (m.quick) { counters.quick++; room.broadcastRoom(); room.startGame(); }
     else if (m.solo) { room.setSearching(true); room.broadcastRoom(); tryMatch(); }
     else room.broadcastRoom();
     return;

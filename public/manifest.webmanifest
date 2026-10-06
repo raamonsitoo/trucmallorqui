@@ -1,0 +1,18 @@
+{
+  "name": "Truc mallorquí en línia",
+  "short_name": "Truc",
+  "description": "Juga al Truc mallorquí amb amics, amb desconeguts o contra bots.",
+  "lang": "ca",
+  "start_url": "/?app=1",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#10302e",
+  "theme_color": "#10302e",
+  "categories": ["games"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
