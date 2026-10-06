@@ -178,7 +178,7 @@ button{font:inherit}
 .turnbox .status{font-size:1.02rem}
 .bigbtns .btn.ghost.armed{background:var(--gold);border-color:var(--gold);color:#2b1c00}
 @media (max-width:560px){#btnFs .lbl{display:none}#btnFs{font-size:1.1rem;padding:.2rem .7rem}}
-@media (max-width:440px){.top-actions [data-ov="signs"]{display:none}.top-actions{gap:5px}.top-actions .btn.sm{padding:.3rem .5rem;font-size:.84rem}#btnFs{padding:.2rem .5rem}.codechip{padding:.25rem .5rem;font-size:.8rem}}
+@media (max-width:440px){.top-actions{gap:5px}.top-actions .btn.sm{padding:.3rem .5rem;font-size:.84rem}#btnFs{padding:.2rem .5rem}.codechip{padding:.25rem .5rem;font-size:.8rem}}
 /* Pantalla completa: més espai per a la taula */
 /* ---- Mode simple 2D (quan el navegador no pot fer 3D) ---- */
 .stage.flat{background:radial-gradient(ellipse at 50% 55%,#2f7a52,#173d2b 75%)}
@@ -305,7 +305,6 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
     </div>
     <div class="top-actions">
       <span class="codechip" id="codeChip" hidden></span>
-      <button class="btn ghost sm" id="btnSnd" aria-label="So">🔊</button>
       <button class="btn ghost sm" id="btnFs" hidden aria-label="Pantalla completa">⛶ Pantalla completa</button>
       <button class="btn ghost sm" data-ov="signs">Senyes</button>
       <button class="btn ghost sm" data-ov="rules">Regles</button>
@@ -732,63 +731,6 @@ const SIGNS={
   tres:{short:'Mossegar llavi',sub:'un 3',tw:"es mossega el llavi",gesture:"Mossegar-se el llavi",card:"Un 3 (qualsevol)",power:2,dur:1.4},
   buit:{short:'Dos ulls',sub:'vaig buit',tw:"guinya els dos ulls",gesture:"Guinyar els dos ulls",card:"Va buit (cap carta bona)",power:0,dur:1.1}
 };
-
-// ---------- So: efectes sintetitzats (sense fitxers) i veus del navegador ----------
-const Sfx=(function(){
-  const MODES=['tot','efectes','silenci'];
-  let mode='tot';try{mode=localStorage.getItem('truc_so')||'tot';}catch(_){}
-  if(!MODES.includes(mode))mode='tot';
-  let ctx=null,master=null,noiseBuf=null,voice=null;
-  function unlock(){
-    if(ctx){if(ctx.state==='suspended')ctx.resume().catch(()=>{});return;}
-    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-    try{ctx=new AC();master=ctx.createGain();master.gain.value=0.55;master.connect(ctx.destination);
-      noiseBuf=ctx.createBuffer(1,ctx.sampleRate*0.5,ctx.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;}catch(_){ctx=null;}
-  }
-  ['pointerdown','keydown','touchstart'].forEach(ev=>window.addEventListener(ev,unlock,{passive:true}));
-  const on=()=>mode!=='silenci'&&ctx&&ctx.state==='running';
-  function noise(t,dur,freq,q,gain){
-    const src=ctx.createBufferSource();src.buffer=noiseBuf;
-    const f=ctx.createBiquadFilter();f.type='bandpass';f.frequency.value=freq;f.Q.value=q;
-    const g=ctx.createGain();g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(0.001,t+dur);
-    src.connect(f);f.connect(g);g.connect(master);src.start(t);src.stop(t+dur+0.02);
-  }
-  function tone(t,freq,dur,gain,type,endFreq){
-    const o=ctx.createOscillator();o.type=type||'sine';o.frequency.setValueAtTime(freq,t);
-    if(endFreq)o.frequency.exponentialRampToValueAtTime(endFreq,t+dur);
-    const g=ctx.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(gain,t+0.008);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-    o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+0.02);
-  }
-  const FX={
-    card:t=>{noise(t,0.07,2600,0.8,0.5);tone(t,180,0.06,0.25,'sine',90);},
-    shuffle:t=>{for(let i=0;i<7;i++)noise(t+i*0.05+Math.random()*0.02,0.05,2000+Math.random()*1500,0.7,0.3);},
-    knock:t=>{for(const d of [0,0.14]){tone(t+d,140,0.12,0.7,'sine',60);noise(t+d,0.05,900,1.5,0.35);}},
-    turn:t=>{tone(t,880,0.35,0.16);tone(t+0.09,1320,0.3,0.1);},
-    tick:t=>tone(t,1500,0.03,0.12,'square'),
-    good:t=>[523,659,784].forEach((f,i)=>tone(t+i*0.08,f,0.25,0.18,'triangle')),
-    bad:t=>[392,311].forEach((f,i)=>tone(t+i*0.12,f,0.3,0.15,'triangle')),
-    win:t=>[523,659,784,1047].forEach((f,i)=>tone(t+i*0.12,f,i===3?0.7:0.3,0.22,'triangle')),
-    lose:t=>[523,466,415,349].forEach((f,i)=>tone(t+i*0.16,f,i===3?0.6:0.3,0.16,'triangle'))
-  };
-  function play(name,delay){if(!on()||!FX[name])return;try{FX[name](ctx.currentTime+(delay||0));}catch(_){}}
-  function pickVoice(){
-    if(voice||!window.speechSynthesis)return voice;
-    const vs=speechSynthesis.getVoices();
-    voice=vs.find(v=>/^ca/i.test(v.lang))||vs.find(v=>/^es/i.test(v.lang))||null;return voice;
-  }
-  if(window.speechSynthesis)speechSynthesis.onvoiceschanged=()=>{voice=null;pickVoice();};
-  function speak(text){
-    if(mode!=='tot'||!window.speechSynthesis)return;
-    try{const u=new SpeechSynthesisUtterance(text);const v=pickVoice();if(v){u.voice=v;u.lang=v.lang;}else u.lang='ca-ES';
-      u.rate=1.05;u.pitch=1;u.volume=0.9;speechSynthesis.cancel();speechSynthesis.speak(u);}catch(_){}
-  }
-  const SPOKEN={'Val 9!':'Val nou!','2 més!':'Dos més!'};
-  function setMode(m){mode=m;try{localStorage.setItem('truc_so',m);}catch(_){}updBtn();if(m==='silenci'&&window.speechSynthesis)speechSynthesis.cancel();}
-  function updBtn(){const b=document.getElementById('btnSnd');if(!b)return;b.textContent=mode==='tot'?'🔊':mode==='efectes'?'🔉':'🔇';
-    b.title=mode==='tot'?'So: efectes i veus':mode==='efectes'?'So: només efectes':'So: silenci';b.setAttribute('aria-label',b.title);}
-  function cycle(){const m=MODES[(MODES.indexOf(mode)+1)%MODES.length];setMode(m);unlock();return m;}
-  return {play,speak:t=>speak(SPOKEN[t]||t),cycle,updBtn,get mode(){return mode;}};
-})();
 
 // ---------- Estat ----------
 const G={cantons:[0,0],scores:[0,0],dealer:0,log:[],status:''};
@@ -1470,10 +1412,7 @@ function clockStop(){Clock.active=false;updateClock();}
 setInterval(()=>{
   if(!Clock.active)return;
   const now=performance.now();
-  const prevS=Math.ceil(Clock.left);
   Clock.left=Math.max(0,Clock.left-(now-Clock.last)/1000);Clock.last=now;
-  const curS=Math.ceil(Clock.left);
-  if(curS<prevS&&curS<=5&&curS>0&&(UI.mode==='turn'||UI.mode==='respond'))Sfx.play('tick');
   updateClock();
 },200);
 
@@ -1709,7 +1648,7 @@ function applySnap(s){
     UI.mode=pd.kind==='turn'?'turn':'respond';
     UI.resp=pd.kind==='respond'?{kind:pd.data.kind,level:pd.data.level,callerP:rel(pd.data.callerP)}:null;
     UI.resolve=a=>{UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();Net.send({t:'act',a});renderActions();renderTable();};
-    if(was!==UI.mode){UI.foldArm=false;Sfx.play('turn');}
+    if(was!==UI.mode)UI.foldArm=false;
     clockSet(pd.left);
   }else{UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();}
   updateStatus();
@@ -1728,20 +1667,7 @@ function showBanner(html,ms){
 }
 
 // ---------- Esdeveniments del servidor ----------
-function soundFor(e){
-  const P=a=>rel(a);
-  switch(e.e){
-    case 'deal':Sfx.play('shuffle');break;
-    case 'play':Sfx.play('card');break;
-    case 'call':Sfx.play('knock');setTimeout(()=>Sfx.speak(callText(e.kind,e.level)),250);break;
-    case 'ans':Sfx.speak(e.a==='vull'?'Vull!':'No vull!');break;
-    case 'trick':if(!e.tie)Sfx.play(vteam(e.team)===0?'good':'bad',0.1);break;
-    case 'canton':Sfx.play(vteam(e.w)===0?'win':'lose');break;
-    case 'game':Sfx.play(vteam(e.w)===0?'win':'lose');break;
-  }
-}
 function onEvent(e){
-  try{soundFor(e);}catch(_){}
   const P=a=>rel(a);
   switch(e.e){
     case 'deal':
@@ -1958,11 +1884,6 @@ if('serviceWorker' in navigator&&location.protocol==='https:'){window.addEventLi
     if(deferred){deferred.prompt();try{await deferred.userChoice;}catch(_){}deferred=null;btn.hidden=true;return;}
     if(ios)showOverlay(`<h2>Instal·la el Truc al teu iPhone</h2><ol><li>Pitja el botó <b>Compartir</b> del Safari (el quadrat amb una fletxa cap amunt).</li><li>Tria <b>Afegir a la pantalla d'inici</b>.</li><li>Pitja <b>Afegir</b>. Ja tendràs el Truc com una app!</li></ol><div class="row"><button class="btn ok" data-ov="close">D'acord</button></div>`);
   });
-})();
-// ---------- Botó de so ----------
-(function(){
-  const b=$('#btnSnd');if(!b)return;Sfx.updBtn();
-  b.addEventListener('click',()=>{const m=Sfx.cycle();View.toast(m==='tot'?'So: efectes i veus':m==='efectes'?'So: només efectes':'So: silenci',1400);if(m!=='silenci')Sfx.play('card');});
 })();
 })();
 </script>
