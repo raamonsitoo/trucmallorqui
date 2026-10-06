@@ -398,41 +398,143 @@ const TILE_SVG="<svg xmlns='http://www.w3.org/2000/svg' width='36' height='24' v
  +"<path d='M12 24C12 18 15 15 18 12C21 15 24 18 24 24Z' fill='#2a4a9a'/></svg>";
 document.documentElement.style.setProperty('--tile','url("data:image/svg+xml,'+encodeURIComponent(TILE_SVG)+'")');
 
-// ---------- Dibuix de cartes (SVG) ----------
+// ---------- Dibuix de cartes: baraja española (SVG) ----------
+// Marc amb "pintes": oros sense talls, copes 1, espases 2, bastos 3.
+const PAL={
+  gold:'#e9b31c',goldD:'#8a5a00',red:'#c4302b',redD:'#6e1512',blue:'#2f5fa8',blueL:'#a9cbe9',blueD:'#16305a',
+  green:'#4f8a35',greenD:'#24451a',brown:'#8a5a2b',ink:'#222',skin:'#f3cba4',skinD:'#a8704a'
+};
 const GLYPH={
-  oros:'<circle r="9" fill="#e2a823" stroke="#7a4b0a" stroke-width="1.3"/><circle r="5.5" fill="none" stroke="#7a4b0a" stroke-width="1"/><circle r="2" fill="#7a4b0a"/>',
-  copes:'<path d="M-8-9H8C8-1 4 3 1.2 4.4V8H5.5V10H-5.5V8H-1.2V4.4C-4 3-8-1-8-9Z" fill="#c0392b" stroke="#5b1612" stroke-width="1.2" stroke-linejoin="round"/>',
-  espases:'<path d="M0-10L2.4-6.5V2.5H-2.4V-6.5Z" fill="#8fb3d9" stroke="#1c3556" stroke-width="1.1" stroke-linejoin="round"/><rect x="-6.5" y="2.5" width="13" height="2.4" rx="1" fill="#3b6aa0" stroke="#1c3556" stroke-width="1"/><rect x="-1.2" y="4.9" width="2.4" height="4" fill="#3b6aa0" stroke="#1c3556" stroke-width="1"/><circle cy="9.3" r="1.5" fill="#1c3556"/>',
-  bastos:'<g transform="rotate(30)"><rect x="-2.8" y="-10" width="5.6" height="20" rx="2.8" fill="#5a9a46" stroke="#26471e" stroke-width="1.2"/><circle cx="-2.6" cy="-3" r="1.6" fill="#5a9a46" stroke="#26471e" stroke-width="1"/><circle cx="2.6" cy="3" r="1.6" fill="#5a9a46" stroke="#26471e" stroke-width="1"/></g>'
+  oros:`<circle r="10" fill="${PAL.gold}" stroke="${PAL.goldD}" stroke-width="1.2"/>`
+    +`<circle r="7.2" fill="none" stroke="${PAL.red}" stroke-width="1.6"/>`
+    +`<circle r="4.6" fill="${PAL.gold}" stroke="${PAL.goldD}" stroke-width=".8"/>`
+    +`<path d="M0-3.2L.9-.9 3.2 0 .9.9 0 3.2-.9.9-3.2 0-.9-.9Z" fill="${PAL.red}"/>`,
+  copes:`<path d="M-8.5-11H8.5C8.5-2 4.5 1.5 1.6 2.6V6.5C4 7.2 6 8.6 6.5 11H-6.5C-6 8.6-4 7.2-1.6 6.5V2.6C-4.5 1.5-8.5-2-8.5-11Z" fill="${PAL.gold}" stroke="${PAL.goldD}" stroke-width="1.1" stroke-linejoin="round"/>`
+    +`<path d="M-8.2-7.5H8.2" stroke="${PAL.red}" stroke-width="2.2"/>`
+    +`<ellipse cy="-11" rx="8.5" ry="1.6" fill="${PAL.redD}"/>`
+    +`<circle cy="4.4" r="1.6" fill="${PAL.red}"/>`,
+  espases:`<path d="M0-16L2.1-12.5V5H-2.1V-12.5Z" fill="${PAL.blueL}" stroke="${PAL.blueD}" stroke-width=".9" stroke-linejoin="round"/>`
+    +`<path d="M0-12V4" stroke="${PAL.blueD}" stroke-width=".5"/>`
+    +`<path d="M-7 5.2Q-7 3.6-5.4 3.6H5.4Q7 3.6 7 5.2Q7 6.8 5.4 6.8H-5.4Q-7 6.8-7 5.2Z" fill="${PAL.gold}" stroke="${PAL.goldD}" stroke-width=".8"/>`
+    +`<rect x="-1.4" y="6.8" width="2.8" height="6" fill="${PAL.red}" stroke="${PAL.redD}" stroke-width=".7"/>`
+    +`<circle cy="14.3" r="2" fill="${PAL.gold}" stroke="${PAL.goldD}" stroke-width=".8"/>`,
+  bastos:`<path d="M-1.6 15Q-2.6 0-4.2-13.5Q-1-16.5 3.6-14.2Q2.4 0 2 15Q.2 16.2-1.6 15Z" fill="${PAL.green}" stroke="${PAL.greenD}" stroke-width="1" stroke-linejoin="round"/>`
+    +`<path d="M-3.4-7L-6-8.6M2.6-3L5-4.2M-2.7 3L-5 2M2.2 8.5L4.3 7.6" stroke="${PAL.greenD}" stroke-width="1.6" stroke-linecap="round"/>`
+    +`<path d="M-2.9-11.5Q0-13 2.6-11.6" stroke="${PAL.red}" stroke-width="1.4" fill="none"/>`
+    +`<path d="M-.4-9V11" stroke="#7fb562" stroke-width=".8"/>`
 };
-const SUITCOL={oros:'#7a4b0a',copes:'#7a1d16',espases:'#1c3556',bastos:'#26471e'};
+const SUITCOL={oros:PAL.goldD,copes:PAL.redD,espases:PAL.blueD,bastos:PAL.greenD};
+const TALL={oros:false,copes:false,espases:true,bastos:true};
+const glyph=(s,x,y,k,r)=>`<g transform="translate(${x} ${y})${r?` rotate(${r})`:''} scale(${k})">${GLYPH[s]}</g>`;
+// Posicions [x,y,escala,rotació]
+const PIPS_ROUND={
+  1:[[50,75,3.1]],
+  3:[[50,40,1.45],[50,75,1.45],[50,110,1.45]],
+  4:[[33,45,1.45],[67,45,1.45],[33,105,1.45],[67,105,1.45]],
+  5:[[33,42,1.4],[67,42,1.4],[50,75,1.4],[33,108,1.4],[67,108,1.4]],
+  6:[[33,40,1.35],[67,40,1.35],[33,75,1.35],[67,75,1.35],[33,110,1.35],[67,110,1.35]],
+  7:[[33,36,1.15],[67,36,1.15],[50,58,1.15],[33,82,1.15],[67,82,1.15],[33,112,1.15],[67,112,1.15]]
+};
+const PIPS_TALL={
+  1:[[50,75,3.4]],
+  3:[[29,75,1.9,-10],[50,75,1.9],[71,75,1.9,10]],
+  4:[[32,48,1.3,-14],[68,48,1.3,14],[32,103,1.3,-14],[68,103,1.3,14]],
+  5:[[30,48,1.25,-14],[70,48,1.25,14],[50,75,1.25],[30,103,1.25,-14],[70,103,1.25,14]],
+  6:[[28,47,1.15,-12],[50,47,1.15],[72,47,1.15,12],[28,104,1.15,-12],[50,104,1.15],[72,104,1.15,12]],
+  7:[[28,44,1.05,-12],[50,44,1.05],[72,44,1.05,12],[50,75,1.05,90],[28,107,1.05,-12],[50,107,1.05],[72,107,1.05,12]]
+};
+const GAPS={oros:0,copes:1,espases:2,bastos:3};
+function frameSVG(s){
+  let g=`<rect x="7" y="9" width="86" height="132" rx="3" fill="none" stroke="${PAL.ink}" stroke-width="1.3"/>`;
+  const n=GAPS[s];
+  for(let i=0;i<n;i++){
+    const x=50-(n-1)*4+i*8-2;
+    g+=`<rect x="${x}" y="7" width="4" height="4" fill="#fbf8ef"/><rect x="${x}" y="139" width="4" height="4" fill="#fbf8ef"/>`;
+  }
+  return g;
+}
+// ---- Figures: sota (10), cavall (11), rei (12) ----
+const ROBE={oros:[PAL.red,PAL.blue],copes:[PAL.blue,PAL.red],espases:[PAL.red,PAL.gold],bastos:[PAL.green,PAL.red]};
+function held(s,x,y,k){ // l'emblema que porta la figura
+  return TALL[s]?glyph(s,x,y,k*1.25,s==='espases'?0:8):glyph(s,x,y,k);
+}
+function figSota(s){
+  const [a,b]=ROBE[s];
+  return `<g stroke="${PAL.ink}" stroke-width="1" stroke-linejoin="round">`
+   +`<rect x="41" y="110" width="7" height="22" fill="${b}"/><rect x="52" y="110" width="7" height="22" fill="${b}"/>`
+   +`<ellipse cx="44" cy="133" rx="6" ry="2.6" fill="${PAL.ink}"/><ellipse cx="56" cy="133" rx="6" ry="2.6" fill="${PAL.ink}"/>`
+   +`<path d="M37 64H63L67 113H33Z" fill="${a}"/>`
+   +`<path d="M35 88H65" stroke="${PAL.gold}" stroke-width="3"/>`
+   +`<path d="M44 64L50 80L56 64" fill="${PAL.gold}"/>`
+   +`<path d="M37 66L28 92L33 94L40 74" fill="${b}"/>`
+   +`<path d="M63 66L70 84L65 87L60 74" fill="${b}"/>`
+   +`<circle cx="50" cy="52" r="9" fill="${PAL.skin}"/>`
+   +`<path d="M41 50Q41 41 50 41Q59 41 59 50Q55 45 50 46Q45 45 41 50Z" fill="${PAL.brown}"/>`
+   +`<path d="M39 43Q50 33 62 42L60 45Q50 39 41 46Z" fill="${b}"/>`
+   +`<circle cx="46.5" cy="53" r=".9" fill="${PAL.ink}" stroke="none"/><circle cx="53.5" cy="53" r=".9" fill="${PAL.ink}" stroke="none"/>`
+   +`<path d="M47 57Q50 59 53 57" fill="none" stroke-width=".8"/>`
+   +`</g>`+held(s,72,s==='espases'||s==='bastos'?70:82,1.1);
+}
+function figRei(s){
+  const [a,b]=ROBE[s];
+  return `<g stroke="${PAL.ink}" stroke-width="1" stroke-linejoin="round">`
+   +`<path d="M36 66H64L70 133H30Z" fill="${a}"/>`
+   +`<path d="M36 66L30 133H42L46 70Z" fill="${b}"/><path d="M64 66L70 133H58L54 70Z" fill="${b}"/>`
+   +`<path d="M30 130H70" stroke="#fff" stroke-width="3"/>`
+   +`<path d="M44 66H56V133H44Z" fill="${PAL.gold}" opacity=".9"/>`
+   +`<path d="M37 70L29 96L34 98L42 78" fill="${b}"/>`
+   +`<path d="M63 70L70 88L65 91L58 78" fill="${b}"/>`
+   +`<circle cx="50" cy="52" r="9" fill="${PAL.skin}"/>`
+   +`<path d="M41 53Q41 68 50 70Q59 68 59 53Q55 60 50 59Q45 60 41 53Z" fill="#7a5a3a"/>`
+   +`<path d="M41 45L41 36L45 41L50 33L55 41L59 36L59 45Z" fill="${PAL.gold}"/>`
+   +`<circle cx="50" cy="38" r="1.3" fill="${PAL.red}"/>`
+   +`<circle cx="46.5" cy="51" r=".9" fill="${PAL.ink}" stroke="none"/><circle cx="53.5" cy="51" r=".9" fill="${PAL.ink}" stroke="none"/>`
+   +`</g>`+held(s,72,s==='espases'||s==='bastos'?72:84,1.15);
+}
+function figCavall(s){
+  const [a,b]=ROBE[s];
+  const horse=s==='oros'?'#f1ece2':s==='copes'?'#c89a62':s==='espases'?'#8a8f99':'#a9714a';
+  return `<g stroke="${PAL.ink}" stroke-width="1" stroke-linejoin="round">`
+   +`<path d="M22 92Q12 100 16 118Q20 106 25 100Z" fill="${PAL.brown}"/>`
+   +`<rect x="26" y="104" width="5" height="28" fill="${horse}"/><rect x="34" y="106" width="5" height="26" fill="${horse}"/>`
+   +`<rect x="58" y="106" width="5" height="26" fill="${horse}"/><rect x="66" y="104" width="5" height="28" fill="${horse}"/>`
+   +`<path d="M24 134H32M33 134H40M57 134H64M65 134H72" stroke-width="2.4"/>`
+   +`<ellipse cx="48" cy="98" rx="26" ry="13" fill="${horse}"/>`
+   +`<path d="M64 92Q70 80 72 66L82 70Q80 84 74 100Z" fill="${horse}"/>`
+   +`<path d="M72 64Q78 58 86 66L89 76Q85 80 80 75Z" fill="${horse}"/>`
+   +`<path d="M72 64Q68 74 66 88" fill="none" stroke="${PAL.brown}" stroke-width="3"/>`
+   +`<circle cx="81" cy="67" r=".9" fill="${PAL.ink}" stroke="none"/>`
+   +`<path d="M36 90H60L58 104H38Z" fill="${b}"/>`
+   +`<path d="M40 62H56L58 92H38Z" fill="${a}"/>`
+   +`<path d="M46 88L44 112L50 112L52 90" fill="${b}"/><ellipse cx="47" cy="113" rx="5" ry="2" fill="${PAL.ink}"/>`
+   +`<path d="M40 64L30 54L33 50L44 60" fill="${b}"/>`
+   +`<circle cx="48" cy="52" r="7.5" fill="${PAL.skin}"/>`
+   +`<path d="M39 47Q48 37 58 46L56 48Q48 42 41 49Z" fill="${b}"/>`
+   +`<circle cx="45.5" cy="53" r=".8" fill="${PAL.ink}" stroke="none"/><circle cx="51" cy="53" r=".8" fill="${PAL.ink}" stroke="none"/>`
+   +`</g>`+held(s,28,40,1.05);
+}
+const FIGS={10:figSota,11:figCavall,12:figRei};
 const FIG={10:'SOTA',11:'CAVALL',12:'REI'};
-const PIPS={
-  1:[[50,75,2.6]],
-  3:[[50,46,1.35],[50,75,1.35],[50,104,1.35]],
-  4:[[35,52,1.5],[65,52,1.5],[35,98,1.5],[65,98,1.5]],
-  5:[[35,50,1.4],[65,50,1.4],[50,75,1.4],[35,100,1.4],[65,100,1.4]],
-  6:[[35,48,1.35],[65,48,1.35],[35,75,1.35],[65,75,1.35],[35,102,1.35],[65,102,1.35]],
-  7:[[35,48,1.3],[65,48,1.3],[35,75,1.3],[65,75,1.3],[35,102,1.3],[65,102,1.3],[50,61,1.3]]
-};
-const glyph=(s,x,y,k)=>`<g transform="translate(${x} ${y}) scale(${k})">${GLYPH[s]}</g>`;
 function cardLabel(c){
   const extra=isAmo(c)?' (amo)':isMadona(c)?' (madona)':'';
-  return `${c.n} de ${c.s}${extra}`;
+  const n=c.n>=10?FIG[c.n].toLowerCase():c.n===1?'as':c.n;
+  return `${n} de ${c.s}${extra}`;
 }
 function cardSVG(c){
   const col=SUITCOL[c.s];
-  let body='';
-  if(c.n>=10){
-    body=`<rect x="24" y="30" width="52" height="90" rx="5" fill="none" stroke="${col}" stroke-width="2"/>`
-      +`<rect x="29" y="35" width="42" height="80" rx="3" fill="none" stroke="${col}" stroke-width=".8"/>`
-      +glyph(c.s,50,68,2.2)
-      +`<text x="50" y="106" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="9" letter-spacing="1" fill="${col}">${FIG[c.n]}</text>`;
-  }else body=PIPS[c.n].map(a=>glyph(c.s,a[0],a[1],a[2])).join('');
-  const corner=`<text x="11" y="23" font-family="Georgia,serif" font-weight="700" font-size="19" fill="${col}" text-anchor="middle">${c.n}</text>${glyph(c.s,11,36,.55)}`;
+  let body;
+  if(c.n>=10)body=FIGS[c.n](c.s);
+  else{
+    const L=(TALL[c.s]?PIPS_TALL:PIPS_ROUND)[c.n];
+    body=L.map(a=>glyph(c.s,a[0],a[1],a[2],a[3])).join('');
+  }
+  const idx=`<text x="15" y="25" font-family="Georgia,'Times New Roman',serif" font-weight="700" font-size="15" fill="${col}" text-anchor="middle">${c.n}</text>`;
   return `<svg class="card" viewBox="0 0 100 150" role="img" aria-label="${cardLabel(c)}">`
-    +`<rect x="1" y="1" width="98" height="148" rx="9" fill="#fbf6e9" stroke="#3a3a3a" stroke-width="1.5"/>`
-    +corner+`<g transform="rotate(180 50 75)">${corner}</g>`+body+`</svg>`;
+    +`<rect x="1" y="1" width="98" height="148" rx="8" fill="#fbf8ef" stroke="#3a3a3a" stroke-width="1.5"/>`
+    +frameSVG(c.s)+body
+    +`<rect x="8" y="12" width="14" height="17" fill="#fbf8ef"/>`+idx
+    +`<g transform="rotate(180 50 75)"><rect x="8" y="12" width="14" height="17" fill="#fbf8ef"/>${idx}</g>`
+    +`</svg>`;
 }
 function svgImage(svg,w,h){
   const img=new Image();
@@ -569,10 +671,6 @@ const View=(function(){
   tableTop.position.y=0.73;scene.add(tableTop);
   scene.add(mesh(new THREE.CylinderGeometry(0.13,0.16,0.7,12),M(0x4a2c16),0,0.35,0));
   scene.add(mesh(new THREE.CylinderGeometry(0.5,0.55,0.05,20),M(0x3a2415),0,0.025,0));
-  // ensaïmada
-  const plate=mesh(new THREE.CylinderGeometry(0.11,0.1,0.015,18),M(0xf2f2ee),0.62,0.768,0.5);scene.add(plate);
-  const ens=mesh(new THREE.TorusGeometry(0.055,0.03,10,20),M(0xe5c48a),0,0.03,0);ens.rotation.x=Math.PI/2;ens.scale.z=0.7;plate.add(ens);
-  const sug=mesh(new THREE.TorusGeometry(0.055,0.018,8,20),M(0xfdfcf6),0,0.052,0);sug.rotation.x=Math.PI/2;plate.add(sug);
 
   // ----- Cartes -----
   const cardGeo=new THREE.BoxGeometry(0.13,0.195,0.003);
