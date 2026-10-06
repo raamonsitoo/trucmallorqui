@@ -130,6 +130,20 @@ button{font:inherit}
 .hint{margin:0;font-size:.88rem;color:var(--muted)}
 .hint b{color:var(--ink)}
 .btns{display:flex;flex-wrap:wrap;gap:8px}
+/* Resposta a un cant: botons grans al mig de la taula */
+.callpad{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:7;width:min(420px,92%);
+  background:rgba(12,8,6,.86);color:#fff;border:2px solid var(--gold);border-radius:20px;padding:14px 14px 16px;text-align:center;
+  box-shadow:0 10px 40px rgba(0,0,0,.6);animation:padin .18s ease-out}
+.callpad[hidden]{display:none}
+.callpad h3{margin:0;font-family:var(--serif);font-weight:400;font-size:1.6rem;line-height:1.15}
+.callpad p{margin:4px 0 12px;font-size:.9rem;color:#e9dcc4}
+.callpad .big{display:grid;gap:10px}
+.callpad .btn{min-height:58px;font-size:1.2rem;border-radius:14px;width:100%}
+.callpad .btn.ok{background:#2f8a4e;color:#fff}
+.callpad .btn.ghost{color:#fff;border-color:rgba(255,255,255,.7)}
+.callpad .btn.envit{background:#3d63c4}
+@keyframes padin{from{opacity:0;transform:translate(-50%,-46%) scale(.96)}}
+@media (min-width:520px){.callpad .big{grid-template-columns:1fr 1fr}.callpad .big .raise{grid-column:1/-1;order:-1}}
 
 .signs{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
 .signs h2{font-size:.95rem;margin:0 0 6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
@@ -198,6 +212,7 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
     <div class="you nm" id="you">Tu</div>
     <div class="toast" id="toast" role="status"></div>
     <div class="banner" id="banner" hidden></div>
+    <div class="callpad" id="callpad" role="dialog" aria-live="assertive" hidden></div>
     <div class="clock" id="clock" role="timer"></div>
     <div class="nogl" id="nogl" hidden><p>El teu navegador no pot mostrar el 3D.<br>Prova amb un altre navegador o dispositiu.</p></div>
   </section>
@@ -947,14 +962,27 @@ function renderActions(){
     if(H.trickNo===0&&H.initial[0])html+=`<p class="hint">El teu envit: <b>${envitValue(H.initial[0])}</b></p>`;
     html+=`<div class="btns">${b.join('')}</div>`;
   }else if(UI.mode==='respond'&&UI.resp){
-    const r=UI.resp;const b=[];
-    b.push(`<button class="btn ok" data-act="vull">Vull</button>`);
-    b.push(`<button class="btn ghost" data-act="no">No vull</button>`);
-    if(r.level<4)b.push(`<button class="btn ${r.kind==='truc'?'truc':'envit'}" data-act="raise">${r.kind==='truc'?TRUC_BTN[r.level+1]:ENVIT_BTN[r.level+1]}</button>`);
-    html+=`<div class="btns">${b.join('')}</div>`;
+    html+=`<p class="hint">Respon amb els botons de la taula.</p>`;
   }
   el.innerHTML=html;
+  renderCallpad();
   updateClock();
+}
+function renderCallpad(){
+  const el=$('#callpad');if(!el)return;
+  if(UI.mode!=='respond'||!UI.resp){el.hidden=true;el.innerHTML='';el.dataset.k='';return;}
+  const r=UI.resp,isT=r.kind==='truc';
+  const k=r.kind+r.level+r.callerP;
+  if(el.dataset.k===k&&!el.hidden)return; // ja es mostra: no el tornis a pintar (evita parpelleig)
+  el.dataset.k=k;
+  const pts=isT?ptsText(TRUC_VALUE[r.level]):ptsText(ENVIT_VALUE[r.level]);
+  const b=[];
+  if(r.level<4)b.push(`<button class="btn ${isT?'truc':'envit'} raise" data-act="raise">${isT?TRUC_BTN[r.level+1]:ENVIT_BTN[r.level+1]}</button>`);
+  b.push(`<button class="btn ok" data-act="vull">Vaig!</button>`);
+  b.push(`<button class="btn ghost" data-act="no">No hi vaig</button>`);
+  const extra=(!isT&&H&&H.initial[0])?` · El teu envit: <b>${envitValue(H.initial[0])}</b>`:'';
+  el.innerHTML=`<h3>${esc(NAMES[r.callerP])}: ${callText(r.kind,r.level)}</h3><p>En joc: ${pts}${extra}</p><div class="big">${b.join('')}</div>`;
+  el.hidden=false;
 }
 function renderLog(){const el=$('#log');if(el)el.innerHTML=G.log.map(t=>`<li>${t}</li>`).join('');}
 function renderSigns(){
