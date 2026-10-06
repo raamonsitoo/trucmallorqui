@@ -120,6 +120,16 @@ button{font:inherit}
 .seat:not(.empty){border-style:solid}
 .seat.me{border-color:var(--gold);background:rgba(224,162,31,.14)}
 .seat span{font-size:.86rem;color:var(--muted);word-break:break-word}
+.openrooms{display:flex;flex-direction:column;gap:6px}
+.oroom{display:flex;align-items:center;justify-content:space-between;gap:8px;border:2px solid var(--line);border-radius:12px;padding:6px 6px 6px 12px}
+.oroom span{font-size:.92rem}
+.oroom small{color:var(--muted)}
+.searchbox{margin-top:12px;border:2px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.searchbox.on{border-color:var(--gold);background:rgba(224,162,31,.12)}
+.searchbox p{margin:0}
+.searchbox .row{margin-top:0}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--gold);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;vertical-align:-1px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
 .lobby-err{color:var(--red);font-weight:700;min-height:1.4em;margin:10px 0 0}
 .linklike{background:none;border:0;color:var(--ink);text-decoration:underline;cursor:pointer;padding:8px 0;font:inherit}
 .conn{position:fixed;left:0;right:0;top:0;z-index:60;background:var(--red);color:#fff;text-align:center;padding:.4rem;font-weight:700}
@@ -250,7 +260,10 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
       </div></div>
     <div id="lobbyMenu">
       <div class="row"><button class="btn ok" id="btnCreate">Crear una sala</button><button class="btn ghost" id="btnQuick">Jugar contra bots</button></div>
+      <div class="row"><button class="btn envit" id="btnSolo">Jugar amb desconeguts</button></div>
       <div class="row"><input id="codeIn" maxlength="4" placeholder="CODI" autocapitalize="characters" aria-label="Codi de la sala"><button class="btn truc" id="btnJoin">Entrar a una sala</button></div>
+      <h3>Sales obertes</h3>
+      <div class="openrooms" id="openRooms"><p class="hint">Cercant sales…</p></div>
     </div>
     <div id="lobbyRoom" hidden>
       <p>Codi de la sala: <b class="bigcode" id="roomCode"></b></p>
@@ -258,6 +271,7 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
       <h3>Parella A</h3><div class="seats" id="seatsA"></div>
       <h3>Parella B</h3><div class="seats" id="seatsB"></div>
       <p class="hint">Cada parella s'asseu enfrontada: el teu company és el del seient de davant. Els seients lliures els jugaran bots.</p>
+      <div class="searchbox" id="searchBox"></div>
       <div class="row"><button class="btn ok" id="btnStart">Començar la partida</button><button class="btn ghost" data-ov="ask-leave">Sortir de la sala</button></div>
       <p class="hint" id="waitMsg">Esperant que l'amfitrió comenci la partida…</p>
     </div>
@@ -1132,6 +1146,7 @@ function onMsg(m){
   switch(m.t){
     case 'hello':
       store.set('truc_token',m.token);
+      setTimeout(pollRooms,200);
       if(!m.resumed&&Me.code)resetToMenu('S\'ha perdut la sessió de la sala.');
       break;
     case 'room':onRoom(m);break;
@@ -1139,11 +1154,13 @@ function onMsg(m){
     case 'ev':if(Me.seat>=0)onEvent(m.e);break;
     case 'gz':if(Me.seat>=0)applyGaze(m.g);break;
     case 'err':lobbyError(m.m);View.toast(m.m);break;
+    case 'info':lobbyError(m.m);break;
+    case 'list':renderOpenRooms(m.rooms);break;
     case 'left':resetToMenu('');break;
   }
 }
 function resetToMenu(msg){
-  Me.code='';Me.phase='menu';Me.seat=-1;Me.players=[];Me.holdGame=false;
+  Me.code='';Me.phase='menu';Me.seat=-1;Me.players=[];Me.holdGame=false;Me.searching=false;
   H=null;UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();
   G.cantons=[0,0];G.scores=[0,0];G.status='';G.log=[];
   NAMES=['Tu','Toni','Catalina','Miquel'];
@@ -1153,6 +1170,8 @@ function resetToMenu(msg){
 // ---------- Sala ----------
 function onRoom(m){
   Me.code=m.code;Me.phase=m.phase;Me.host=m.host;Me.seat=m.you;Me.players=m.seats;
+  const was=Me.searching;Me.searching=!!m.searching;
+  if(Me.searching&&(!was||m.searchMs<1500))Me.searchStart=Date.now()-(m.searchMs||0);
   updateRoster();routeScreen();
 }
 function updateRoster(){
@@ -1199,7 +1218,48 @@ function renderLobby(){
   const host=Me.host===Me.seat;
   $('#btnStart').hidden=!host;
   $('#waitMsg').hidden=host;
+  renderSearch();
 }
+// ---------- Cercar rivals / sales obertes ----------
+const SEARCH_WAIT=60;
+function fmtSecs(t){t=Math.max(0,Math.floor(t));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');}
+function renderSearch(){
+  const el=$('#searchBox');if(!el)return;
+  const host=Me.host===Me.seat,full=Me.players.filter(x=>x.human).length>=4;
+  el.classList.toggle('on',!!Me.searching);
+  if(full){el.hidden=true;return;}
+  el.hidden=false;
+  if(!Me.searching){
+    el.innerHTML=host
+      ?`<p><b>Voleu jugar contra persones?</b> Cercau rivals i la sala sortirà a la llista de sales obertes.</p><div class="row"><button class="btn envit" data-search="on">Buscar rivals</button></div>`
+      :`<p class="hint">L'amfitrió pot cercar rivals perquè s'hi afegeixin desconeguts.</p>`;
+    return;
+  }
+  const secs=(Date.now()-(Me.searchStart||Date.now()))/1000;
+  const late=secs>=SEARCH_WAIT;
+  let h=late?`<p><b>No hi ha ningú ara mateix.</b> Podeu seguir esperant o jugar contra bots.</p>`
+            :`<p><span class="spin" aria-hidden="true"></span><b>Cercant rivals…</b> <span id="searchT">${fmtSecs(secs)}</span></p><p class="hint">Els seients lliures els ocuparan altres jugadors. Si s'omple la sala, la partida comença sola.</p>`;
+  if(host){
+    h+=late?`<div class="row"><button class="btn ghost" data-search="on">Seguir esperant</button><button class="btn ok" data-search="bots">Jugar contra bots</button></div>`
+           :`<div class="row"><button class="btn ghost sm" data-search="off">Cancel·lar la cerca</button></div>`;
+  }else if(late)h+=`<p class="hint">L'amfitrió decideix si seguir esperant o jugar amb bots.</p>`;
+  el.innerHTML=h;
+  el.dataset.late=late?'1':'';
+}
+setInterval(()=>{
+  if(!Me.code||Me.phase!=='lobby'||!Me.searching)return;
+  const secs=(Date.now()-(Me.searchStart||Date.now()))/1000;
+  const late=secs>=SEARCH_WAIT;
+  if(late!==!!($('#searchBox').dataset.late))renderSearch();
+  else{const t=$('#searchT');if(t)t.textContent=fmtSecs(secs);}
+},1000);
+function renderOpenRooms(list){
+  const el=$('#openRooms');if(!el)return;
+  if(!list||!list.length){el.innerHTML='<p class="hint">Ara mateix no hi ha cap sala oberta. Pots crear-ne una amb «Jugar amb desconeguts».</p>';return;}
+  el.innerHTML=list.map(r=>{const f=4-r.humans;return `<div class="oroom"><span>Sala de <b>${esc(r.host)}</b> <small>· ${r.humans} ${r.humans===1?'jugador':'jugadors'}, ${f===1?'falta 1':'falten '+f}</small></span><button class="btn sm ok" data-joincode="${esc(r.code)}">Entrar</button></div>`;}).join('');
+}
+function pollRooms(){if(!Me.code&&!$('#lobby').hidden)Net.send({t:'list'});}
+setInterval(pollRooms,4000);
 function readProfile(){
   const n=($('#nameIn').value||'').replace(/[<>&"'`]/g,'').trim().slice(0,16)||'Jugador';
   Me.name=n;store.set('truc_name',n);store.set('truc_look',Me.look);
@@ -1221,6 +1281,18 @@ function setupLobby(){
     Net.send({t:'join',code,name:p.name,look:p.look});
   });
   $('#btnStart').addEventListener('click',()=>Net.send({t:'start'}));
+  $('#btnSolo').addEventListener('click',()=>{lobbyError('');const p=readProfile();Net.send({t:'create',name:p.name,look:p.look,solo:true});});
+  $('#searchBox').addEventListener('click',e=>{
+    const b=e.target.closest('[data-search]');if(!b)return;
+    const a=b.dataset.search;
+    if(a==='bots')Net.send({t:'start'});
+    else Net.send({t:'search',on:a==='on'});
+  });
+  $('#openRooms').addEventListener('click',e=>{
+    const b=e.target.closest('[data-joincode]');if(!b)return;
+    lobbyError('');const p=readProfile();
+    Net.send({t:'join',code:b.dataset.joincode,name:p.name,look:p.look});
+  });
   $('#btnCopy').addEventListener('click',()=>{
     const u=$('#shareUrl');u.select();
     if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(u.value).then(()=>lobbyError('Enllaç copiat.')).catch(()=>lobbyError('Copia l\'enllaç del requadre.'));}

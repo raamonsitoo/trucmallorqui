@@ -40,6 +40,8 @@ class Room {
     this.hostSeat = -1;
     this.game = null;
     this.lastActive = Date.now();
+    this.searching = false;   // cercant rivals: surt a la llista de sales obertes i s'emparella sola
+    this.searchSince = 0;
     this.seats = [0, 1, 2, 3].map(() => ({ human: false, name: '', look: 'palla', connected: false, ws: null, token: null, freeTimer: null }));
   }
   sendSeat(s, msg) {
@@ -53,6 +55,7 @@ class Room {
   roster(s) {
     return {
       t: 'room', code: this.code, phase: this.phase, host: this.hostSeat, you: s,
+      searching: this.searching, searchMs: this.searching ? Date.now() - this.searchSince : 0,
       seats: this.seats.map((x, i) => ({
         human: x.human, name: x.human ? x.name : DEF_NAMES[i], look: x.human ? x.look : DEF_LOOKS[i], connected: x.human ? x.connected : true
       }))
@@ -99,7 +102,13 @@ class Room {
     this.hostSeat = -1;
     for (let s = 0; s < 4; s++) if (this.seats[s].human && this.seats[s].connected) { this.hostSeat = s; break; }
   }
+  allConnected() { return this.seats.every(x => !x.human || x.connected); }
+  setSearching(on) {
+    this.searching = !!on;
+    this.searchSince = on ? Date.now() : 0;
+  }
   startGame() {
+    this.searching = false;
     this.phase = 'playing';
     this.game = new Game(this, { speed: SPEED, timerMs: TIMER_MS });
     this.broadcastRoom();
@@ -117,6 +126,73 @@ class Room {
     for (const x of this.seats) { if (x.freeTimer) clearTimeout(x.freeTimer); if (x.token) sessions.delete(x.token); }
     rooms.delete(this.code);
   }
+}
+
+// ---------- Emparellament (sales mixtes) ----------
+// Les sales que cerquen rivals s'ajunten: els jugadors d'una sala B passen a la sala A
+// girant els seus seients (rot) perquè els companys segueixin essent companys.
+const TEAMS = [[0, 2], [1, 3]];
+function bestRotation(A, B) {
+  let best = -1, bestScore = -1;
+  for (const rot of [0, 1, 2, 3]) {
+    const taken = A.seats.map(x => x.human);
+    let ok = true;
+    for (let s = 0; s < 4 && ok; s++) {
+      if (!B.seats[s].human) continue;
+      const t = (s + rot) % 4;
+      if (taken[t]) ok = false; else taken[t] = true;
+    }
+    if (!ok) continue;
+    // Preferim que quedin parelles completes d'humans (així hi cap una altra parella després)
+    const score = TEAMS.filter(([a, b]) => taken[a] && taken[b]).length;
+    if (score > bestScore) { bestScore = score; best = rot; }
+  }
+  return best;
+}
+function mergeInto(A, B, rot) {
+  for (let s = 0; s < 4; s++) {
+    const x = B.seats[s];
+    if (!x.human) continue;
+    const t = (s + rot) % 4, y = A.seats[t];
+    Object.assign(y, { human: true, name: x.name, look: x.look, connected: true, ws: x.ws, token: x.token, freeTimer: null });
+    if (x.ws && x.ws.ctx) { x.ws.ctx.code = A.code; x.ws.ctx.seat = t; }
+    sessions.set(x.token, { code: A.code, seat: t });
+    Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null });
+  }
+  B.searching = false;
+  B.destroy();
+  A.lastActive = Date.now();
+}
+function tryMatch() {
+  const list = Array.from(rooms.values())
+    .filter(r => r.searching && r.phase === 'lobby' && r.humans() > 0 && r.humans() < 4 && r.allConnected())
+    .sort((a, b) => a.searchSince - b.searchSince);
+  for (const A of list) {
+    if (!rooms.has(A.code) || !A.searching) continue;
+    let changed = false;
+    for (const B of list) {
+      if (B === A || !rooms.has(B.code) || !B.searching) continue;
+      if (A.humans() + B.humans() > 4) continue;
+      const rot = bestRotation(A, B);
+      if (rot < 0) continue;
+      mergeInto(A, B, rot);
+      changed = true;
+      if (A.humans() === 4) break;
+    }
+    if (!changed) continue;
+    for (let s = 0; s < 4; s++) A.sendSeat(s, { t: 'info', m: 'Hem trobat jugadors!' });
+    if (A.humans() === 4) { A.broadcastRoom(); A.startGame(); }
+    else A.broadcastRoom();
+  }
+}
+function openRooms() {
+  const out = [];
+  for (const r of rooms.values()) {
+    if (!r.searching || r.phase !== 'lobby' || r.humans() === 0 || r.humans() >= 4) continue;
+    const h = r.seats[r.hostSeat];
+    out.push({ code: r.code, host: h && h.human ? h.name : 'Jugador', humans: r.humans(), since: r.searchSince });
+  }
+  return out.sort((a, b) => a.since - b.since).slice(0, 30).map(({ since, ...x }) => x);
 }
 
 // ---------- HTTP ----------
@@ -217,6 +293,7 @@ function handle(ws, m) {
     room.attach(0, ws, c.token, clean(m.name, 'Jugador'), cleanLook(m.look));
     room.hostSeat = 0;
     if (m.quick) { room.broadcastRoom(); room.startGame(); }
+    else if (m.solo) { room.setSearching(true); room.broadcastRoom(); tryMatch(); }
     else room.broadcastRoom();
     return;
   }
@@ -230,8 +307,11 @@ function handle(ws, m) {
     if (seat < 0) return err(ws, 'La sala està plena');
     room.attach(seat, ws, c.token, clean(m.name, 'Jugador'), cleanLook(m.look));
     room.broadcastRoom();
+    // Sala oberta que s'omple: comença sola
+    if (room.searching && room.humans() === 4) room.startGame();
     return;
   }
+  if (m.t === 'list') { send(ws, { t: 'list', rooms: openRooms() }); return; }
 
   const room = ctxRoom(ws);
   if (!room) return;
@@ -264,6 +344,13 @@ function handle(ws, m) {
       room.startGame();
       return;
     }
+    case 'search': {
+      if (room.phase !== 'lobby' || room.hostSeat !== seat) return;
+      room.setSearching(!!m.on);
+      room.broadcastRoom();
+      if (room.searching) tryMatch();
+      return;
+    }
     case 'leave': {
       room.detach(seat, true);
       c.code = null; c.seat = -1;
@@ -288,6 +375,7 @@ setInterval(() => {
     try { ws.ping(); } catch (e) { /* res */ }
   });
   const now = Date.now();
+  try { tryMatch(); } catch (e) { console.error('match', e); }
   for (const room of Array.from(rooms.values())) {
     if (room.humans() === 0 && now - room.lastActive > 10 * 60 * 1000) room.destroy();
   }
@@ -296,4 +384,4 @@ setInterval(() => {
 if (require.main === module) {
   server.listen(PORT, () => console.log(`Truc mallorquí en línia escoltant al port ${PORT}`));
 }
-module.exports = { server, rooms };
+module.exports = { server, rooms, tryMatch };
