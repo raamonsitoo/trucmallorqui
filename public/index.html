@@ -125,25 +125,30 @@ button{font:inherit}
 .conn{position:fixed;left:0;right:0;top:0;z-index:60;background:var(--red);color:#fff;text-align:center;padding:.4rem;font-weight:700}
 .banner{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;padding:.8rem 1.2rem;border-radius:16px;font-weight:700;text-align:center;z-index:6;max-width:92%}
 .codechip{font-weight:700;font-size:.85rem;border:2px solid var(--line);border-radius:999px;padding:.25rem .7rem}
-.actions{margin-top:12px;min-height:96px;display:flex;flex-direction:column;gap:8px}
+.actions{margin-top:10px;min-height:118px;display:flex;flex-direction:column;gap:8px}
 .status{margin:0;font-weight:700}
 .hint{margin:0;font-size:.88rem;color:var(--muted)}
 .hint b{color:var(--ink)}
 .btns{display:flex;flex-wrap:wrap;gap:8px}
-/* Resposta a un cant: botons grans al mig de la taula */
-.callpad{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:7;width:min(420px,92%);
-  background:rgba(12,8,6,.86);color:#fff;border:2px solid var(--gold);border-radius:20px;padding:14px 14px 16px;text-align:center;
-  box-shadow:0 10px 40px rgba(0,0,0,.6);animation:padin .18s ease-out}
-.callpad[hidden]{display:none}
-.callpad h3{margin:0;font-family:var(--serif);font-weight:400;font-size:1.6rem;line-height:1.15}
-.callpad p{margin:4px 0 12px;font-size:.9rem;color:#e9dcc4}
-.callpad .big{display:grid;gap:10px}
-.callpad .btn{min-height:58px;font-size:1.2rem;border-radius:14px;width:100%}
-.callpad .btn.ok{background:#2f8a4e;color:#fff}
-.callpad .btn.ghost{color:#fff;border-color:rgba(255,255,255,.7)}
-.callpad .btn.envit{background:#3d63c4}
-@keyframes padin{from{opacity:0;transform:translate(-50%,-46%) scale(.96)}}
-@media (min-width:520px){.callpad .big{grid-template-columns:1fr 1fr}.callpad .big .raise{grid-column:1/-1;order:-1}}
+/* Resposta a un cant: franja de botons grans just davall la taula */
+.respond{display:flex;flex-direction:column;gap:8px}
+.respond .q{margin:0;font-weight:700;font-size:1.05rem}
+.respond .q small{font-weight:400;color:var(--muted)}
+.bigbtns{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px}
+.turnbox{display:flex;flex-direction:column;gap:8px}
+.turnbox .status{font-size:1.02rem}
+.bigbtns .btn.ghost.armed{background:var(--gold);border-color:var(--gold);color:#2b1c00}
+@media (max-width:560px){#btnFs .lbl{display:none}#btnFs{font-size:1.1rem;padding:.2rem .7rem}}
+@media (max-width:440px){.top-actions{gap:5px}.top-actions .btn.sm{padding:.3rem .5rem;font-size:.84rem}#btnFs{padding:.2rem .5rem}.codechip{padding:.25rem .5rem;font-size:.8rem}}
+/* Pantalla completa: més espai per a la taula */
+:fullscreen .band{display:none}
+:fullscreen .app{padding-top:6px}
+:fullscreen .top{margin:0 0 6px}
+:fullscreen .top p{display:none}
+:fullscreen .top h1{font-size:1.4rem}
+.bigbtns .btn{min-height:56px;font-size:1.08rem;border-radius:14px;padding:.4rem .5rem;line-height:1.15}
+.bigbtns .btn.ok{background:#2f8a4e;color:#fff}
+.stage.calling{box-shadow:inset 0 0 0 4px var(--gold)}
 
 .signs{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
 .signs h2{font-size:.95rem;margin:0 0 6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
@@ -191,6 +196,7 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
     </div>
     <div class="top-actions">
       <span class="codechip" id="codeChip" hidden></span>
+      <button class="btn ghost sm" id="btnFs" hidden aria-label="Pantalla completa">⛶ Pantalla completa</button>
       <button class="btn ghost sm" data-ov="signs">Senyes</button>
       <button class="btn ghost sm" data-ov="rules">Regles</button>
       <button class="btn ghost sm" data-ov="ask-leave">Sortir</button>
@@ -212,7 +218,6 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
     <div class="you nm" id="you">Tu</div>
     <div class="toast" id="toast" role="status"></div>
     <div class="banner" id="banner" hidden></div>
-    <div class="callpad" id="callpad" role="dialog" aria-live="assertive" hidden></div>
     <div class="clock" id="clock" role="timer"></div>
     <div class="nogl" id="nogl" hidden><p>El teu navegador no pot mostrar el 3D.<br>Prova amb un altre navegador o dispositiu.</p></div>
   </section>
@@ -862,6 +867,16 @@ const View=(function(){
     R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();layoutHand();
   }
   if(typeof ResizeObserver!=='undefined')new ResizeObserver(resize).observe(stage);else window.addEventListener('resize',resize);
+  // Ajusta l'alçada de la taula perquè taula + botons de davall càpiguen sense haver de baixar
+  function fitStage(){
+    const vh=window.innerHeight,top=stage.getBoundingClientRect().top+window.scrollY;
+    const h=Math.round(Math.max(300,Math.min(640,vh-top-118-22)));
+    stage.style.height=h+'px';
+  }
+  window.addEventListener('resize',fitStage);window.addEventListener('orientationchange',()=>setTimeout(fitStage,250));
+  // el marcador i la capçalera canvien d'alçada quan comença la partida: tornar a ajustar
+  if(typeof ResizeObserver!=='undefined'){const ro=new ResizeObserver(fitStage);for(const el of [$('.top'),$('#score')])if(el)ro.observe(el);}
+  fitStage();
   resize();
 
   let last=performance.now();
@@ -952,37 +967,27 @@ function renderTable(){View.sync();renderTrick();}
 function renderActions(){
   const el=$('#actions');if(!el)return;
   let html=`<p class="status">${G.status||''}</p>`;
-  if(UI.mode==='turn'||UI.mode==='respond')html+='<div class="timerbar" id="timerbar"><i></i></div>';
+  if(UI.mode==='turn')html+='<div class="timerbar" id="timerbar"><i></i></div>';
   if(UI.mode==='turn'&&H){
     const b=[];
     if(canCallTruc(0))b.push(`<button class="btn truc" data-act="truc">${TRUC_BTN[H.trucLevel+1]}</button>`);
     if(canCallEnvit(0))b.push(`<button class="btn envit" data-act="envit">${ENVIT_BTN[H.envitLevel+1]}</button>`);
     const cur=TRUC_VALUE[H.trucLevel];
-    b.push(`<button class="btn ghost" data-act="fold">${UI.foldArm?`Segur? Perds ${ptsText(cur)}`:'Me\'n vaig'}</button>`);
-    if(H.trickNo===0&&H.initial[0])html+=`<p class="hint">El teu envit: <b>${envitValue(H.initial[0])}</b></p>`;
-    html+=`<div class="btns">${b.join('')}</div>`;
+    b.push(`<button class="btn ghost${UI.foldArm?' armed':''}" data-act="fold">${UI.foldArm?`Segur? Perds ${ptsText(cur)}`:'Me\'n vaig'}</button>`);
+    const env=(H.trickNo===0&&H.initial[0])?` <small class="hint">· El teu envit: <b>${envitValue(H.initial[0])}</b></small>`:'';
+    html=`<div class="turnbox"><p class="status">${G.status||''}${env}</p><div class="timerbar" id="timerbar"><i></i></div><div class="bigbtns">${b.join('')}</div></div>`;
   }else if(UI.mode==='respond'&&UI.resp){
-    html+=`<p class="hint">Respon amb els botons de la taula.</p>`;
+    const r=UI.resp,isT=r.kind==='truc';
+    const pts=isT?ptsText(TRUC_VALUE[r.level]):ptsText(ENVIT_VALUE[r.level]);
+    const mine=(!isT&&H&&H.initial[0])?` · El teu envit: <b>${envitValue(H.initial[0])}</b>`:'';
+    const b=[];
+    if(r.level<4)b.push(`<button class="btn ${isT?'truc':'envit'}" data-act="raise">${isT?TRUC_BTN[r.level+1]:ENVIT_BTN[r.level+1]}</button>`);
+    b.push(`<button class="btn ok" data-act="vull">Vaig!</button>`);
+    b.push(`<button class="btn ghost" data-act="no">No hi vaig</button>`);
+    html=`<div class="respond"><p class="q">${esc(NAMES[r.callerP])}: ${callText(r.kind,r.level)} <small>(en joc ${pts}${mine})</small></p><div class="timerbar" id="timerbar"><i></i></div><div class="bigbtns">${b.join('')}</div></div>`;
   }
   el.innerHTML=html;
-  renderCallpad();
   updateClock();
-}
-function renderCallpad(){
-  const el=$('#callpad');if(!el)return;
-  if(UI.mode!=='respond'||!UI.resp){el.hidden=true;el.innerHTML='';el.dataset.k='';return;}
-  const r=UI.resp,isT=r.kind==='truc';
-  const k=r.kind+r.level+r.callerP;
-  if(el.dataset.k===k&&!el.hidden)return; // ja es mostra: no el tornis a pintar (evita parpelleig)
-  el.dataset.k=k;
-  const pts=isT?ptsText(TRUC_VALUE[r.level]):ptsText(ENVIT_VALUE[r.level]);
-  const b=[];
-  if(r.level<4)b.push(`<button class="btn ${isT?'truc':'envit'} raise" data-act="raise">${isT?TRUC_BTN[r.level+1]:ENVIT_BTN[r.level+1]}</button>`);
-  b.push(`<button class="btn ok" data-act="vull">Vaig!</button>`);
-  b.push(`<button class="btn ghost" data-act="no">No hi vaig</button>`);
-  const extra=(!isT&&H&&H.initial[0])?` · El teu envit: <b>${envitValue(H.initial[0])}</b>`:'';
-  el.innerHTML=`<h3>${esc(NAMES[r.callerP])}: ${callText(r.kind,r.level)}</h3><p>En joc: ${pts}${extra}</p><div class="big">${b.join('')}</div>`;
-  el.hidden=false;
 }
 function renderLog(){const el=$('#log');if(el)el.innerHTML=G.log.map(t=>`<li>${t}</li>`).join('');}
 function renderSigns(){
@@ -1405,6 +1410,24 @@ render();
 if(!View.ready)$('#nogl').hidden=false;
 routeScreen();
 Net.connect();
+// ---------- Pantalla completa ----------
+(function(){
+  const btn=$('#btnFs');if(!btn)return;
+  const de=document.documentElement;
+  const req=de.requestFullscreen||de.webkitRequestFullscreen;
+  const exit=document.exitFullscreen||document.webkitExitFullscreen;
+  if(!req)return; // p. ex. Safari d'iPhone no ho permet
+  const isFs=()=>!!(document.fullscreenElement||document.webkitFullscreenElement);
+  const upd=()=>{btn.innerHTML=isFs()?'✕<span class="lbl"> Sortir de pantalla completa</span>':'⛶<span class="lbl"> Pantalla completa</span>';btn.title=isFs()?'Sortir de pantalla completa':'Pantalla completa';};
+  btn.hidden=false;upd();
+  btn.addEventListener('click',()=>{
+    try{
+      if(isFs())exit.call(document);
+      else{const r=req.call(de);if(r&&r.catch)r.catch(()=>{});}
+    }catch(_){}
+  });
+  document.addEventListener('fullscreenchange',upd);document.addEventListener('webkitfullscreenchange',upd);
+})();
 })();
 </script>
 </body>
