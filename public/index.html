@@ -2092,6 +2092,24 @@ const View=(function(){
     for(const k in playedMap)if(!keys[k]){scene.remove(playedMap[k].m);delete playedMap[k];}
   }
 
+  // ----- La baralla damunt la taula, al costat de qui és mà -----
+  const deckEdgeTex=canvasTex(64,64,(x,w,h)=>{x.fillStyle='#efe6d0';x.fillRect(0,0,w,h);for(let i=0;i<h;i+=3){x.fillStyle='rgba(120,100,70,.35)';x.fillRect(0,i,w,1);}});
+  const deckEdge=MB(0xffffff,{map:deckEdgeTex}),DECK_H=0.016;
+  const deck=new THREE.Mesh(new THREE.BoxGeometry(0.169,DECK_H,0.2535),[deckEdge,deckEdge,backMat,deckEdge,deckEdge,deckEdge]);
+  deck.castShadow=true;deck.visible=false;scene.add(deck);
+  const deckTo=new THREE.Vector3();let deckYaw=0,deckMano=-1;
+  function placeDeck(p){ // a la vora de la taula de qui és mà, a la seva esquerra
+    const P=SEAT[p],L=Math.hypot(P[0],P[1]),ox=P[0]/L,oz=P[1]/L;
+    deckTo.set(ox*0.5-oz*0.45,0.768+DECK_H/2,oz*0.5+ox*0.45);
+    deckYaw=Math.atan2(P[0],P[1])-0.18;
+  }
+  function syncDeck(){
+    const m=H&&H.mano!=null?H.mano:-1;
+    if(m<0){deck.visible=false;deckMano=-1;return;}
+    if(m!==deckMano){placeDeck(m);if(deckMano<0){deck.position.copy(deckTo);deck.rotation.y=deckYaw;}deckMano=m;}
+    deck.visible=true;
+  }
+
   // ----- Etiquetes HTML -----
   const labsEl=$('#labels'),labs={};
   for(let p=1;p<4;p++){
@@ -2111,7 +2129,7 @@ const View=(function(){
     you.className='you nm'+(t0?' turn':'');
     you.innerHTML=esc(NAMES[0])+(H&&H.mano===0?'<span class="tag">mà</span>':'');
     stage.classList.toggle('myturn',UI.mode==='turn'||UI.mode==='respond');
-    syncHands();syncPlayed();
+    syncHands();syncPlayed();syncDeck();
   }
 
   // ----- Cara: animacions de les senyes -----
@@ -2246,6 +2264,9 @@ const View=(function(){
     handGroup.scale.setScalar(Math.tan(cam.fov*Math.PI/360)/Math.tan(25*Math.PI/180)*0.9);
     arms.scale.copy(handGroup.scale);
     cam.updateMatrixWorld(true);
+    if(deck.visible){const k=Math.min(1,dt*5);deck.position.lerp(deckTo,k);
+      let dy=deckYaw-deck.rotation.y;dy=Math.atan2(Math.sin(dy),Math.cos(dy));deck.rotation.y+=dy*k;
+      deck.position.y=deckTo.y+Math.sin(Math.min(1,deck.position.distanceTo(deckTo)*3)*Math.PI/2)*0.12;}
     // mans i cartes
     const ready=UI.mode==='turn';
     handMeshes.forEach((m,i)=>{
