@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>Truc mallorquí en línia · Juga gratis amb amics o contra bots</title>
-<meta name="description" content="Juga al Truc mallorquí en línia: partides amb amics, amb desconeguts o contra bots, en 3D, amb senyes, envits i trucs. Gratis i sense instal·lar res.">
+<title>Truc mallorquí online · Juga gratis en línia amb amics o contra bots</title>
+<meta name="description" content="Juga al Truc mallorquí online i gratis: partides en línia amb amics, amb desconeguts o contra bots, en 3D, amb senyes, envits i trucs. Sense instal·lar res, des del mòbil o l'ordinador.">
 <link rel="canonical" href="__SITE__/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -19,7 +19,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Truc mallorquí">
 <meta property="og:locale" content="ca_ES">
-<meta property="og:title" content="Truc mallorquí en línia">
+<meta property="og:title" content="Truc mallorquí online · Juga gratis">
 <meta property="og:description" content="Juga al Truc mallorquí amb amics o contra bots, en 3D i amb senyes. Gratis, des del mòbil o l'ordinador.">
 <meta property="og:url" content="__SITE__/">
 <meta property="og:image" content="__SITE__/og.png">
@@ -27,7 +27,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="@trucmallorqui">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"Truc mallorquí en línia","url":"__SITE__/","inLanguage":"ca","genre":"Joc de cartes","gamePlatform":"Navegador web","applicationCategory":"Game","operatingSystem":"Qualsevol","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"sameAs":["https://x.com/trucmallorqui"]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoGame","name":"Truc mallorquí online","alternateName":["Truc mallorquí en línia","Truc mallorquín online"],"url":"__SITE__/","inLanguage":"ca","genre":"Joc de cartes","gamePlatform":"Navegador web","applicationCategory":"Game","operatingSystem":"Qualsevol","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"},"sameAs":["https://x.com/trucmallorqui"]}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Young+Serif&display=swap" rel="stylesheet">
@@ -127,6 +127,7 @@ button{font:inherit}
 .lobby{position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto;display:grid;place-items:start center;padding:16px}
 .lobby[hidden]{display:none}
 .lobby-card{width:min(560px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px 18px 20px;margin-top:3vh}
+.lobby-card h1.lobby-title{font-family:var(--serif);font-weight:400;font-size:1.7rem;margin:0 0 6px;line-height:1.2}
 .lobby-card h2{font-family:var(--serif);font-weight:400;font-size:1.7rem;margin:0 0 6px}
 .lobby-card h3{font-size:.95rem;margin:14px 0 6px}
 .fld{display:flex;flex-direction:column;gap:6px;margin:10px 0;font-weight:700;font-size:.9rem}
@@ -369,7 +370,7 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
 <div class="conn" id="conn" hidden>Connexió perduda. Tornant a connectar…</div>
 <div class="lobby" id="lobby" hidden>
   <div class="lobby-card">
-    <h2>Truc mallorquí en línia</h2>
+    <h1 class="lobby-title">Truc mallorquí online</h1>
     <label class="fld">El teu nom <input id="nameIn" maxlength="16" autocomplete="nickname" placeholder="Nom"></label>
     <div class="fld"><span>El teu personatge</span>
       <div class="chips" id="looks">
@@ -399,7 +400,7 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
     </div>
     <p class="lobby-err" id="lobbyErr" role="alert"></p>
     <button class="linklike" data-ov="rules">Regles i senyes</button>
-    <a class="xlink" href="/regles">Com es juga al truc mallorquí (guia completa)</a>
+    <a class="xlink" href="/regles">Com es juga al truc mallorquí (guia completa)</a> <a class="xlink" href="/reglas" lang="es">Reglas del truc mallorquín en castellano</a>
     <button class="btn ghost sm" id="btnInstall" hidden>📲 Instal·la l'app</button>
     <a class="xlink" href="https://x.com/trucmallorqui" target="_blank" rel="noopener">Segueix-nos a X: <b>@trucmallorqui</b></a>
   </div>

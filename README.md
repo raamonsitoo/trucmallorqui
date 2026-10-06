@@ -21,7 +21,8 @@ Web per jugar al Truc mallorquí per internet, en 3D i amb senyes: **https://tru
 server.js              servidor web + WebSocket (sales, emparellament, límits, pàgines)
 game.js                regles del joc, bots, senyes i mirada (tot passa al servidor)
 public/index.html      el joc (3D amb Three.js, sala, menú)
-public/regles.html     guia «Com es juga al truc mallorquí»
+public/regles.html     guia «Com es juga al truc mallorquí» (i public/reglas.html, en castellà)
+tools/genera-regles.js torna a generar les dues guies (node tools/genera-regles.js)
 public/manifest.webmanifest, public/sw.js, public/icon-*.png   app instal·lable
 public/og.png, public/favicon.svg   imatge per compartir i icona
 sim.js                 proves automàtiques amb jugadors simulats (npm test)

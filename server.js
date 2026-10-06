@@ -258,7 +258,7 @@ const STATIC = {
   '/icon-192.png': 'image/png', '/icon-512.png': 'image/png', '/icon-maskable.png': 'image/png', '/apple-touch-icon.png': 'image/png',
   '/manifest.webmanifest': 'application/manifest+json', '/sw.js': 'text/javascript; charset=utf-8'
 };
-const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/regles': 'regles.html', '/regles.html': 'regles.html' };
+const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/regles': 'regles.html', '/regles.html': 'regles.html', '/reglas': 'reglas.html', '/reglas.html': 'reglas.html' };
 const HTML_HEADERS = {
   'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache',
   'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin'
@@ -297,7 +297,7 @@ const server = http.createServer((req, res) => {
   }
   if (url === '/sitemap.xml') {
     res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8' });
-    return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${SITE_URL}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url><url><loc>${SITE_URL}/regles</loc><changefreq>monthly</changefreq><priority>0.8</priority></url></urlset>\n`);
+    return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${SITE_URL}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url><url><loc>${SITE_URL}/regles</loc><changefreq>monthly</changefreq><priority>0.8</priority></url><url><loc>${SITE_URL}/reglas</loc><changefreq>monthly</changefreq><priority>0.7</priority></url></urlset>\n`);
   }
   if (STATIC[url]) {
     fs.readFile(path.join(__dirname, 'public', url.slice(1)), (e, data) => {
