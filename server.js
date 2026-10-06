@@ -10,6 +10,10 @@ const PORT = Number(process.env.PORT) || 3000;
 const SPEED = process.env.TRUC_SPEED ? Number(process.env.TRUC_SPEED) : 1;
 const TIMER_MS = process.env.TRUC_TIMER_MS ? Number(process.env.TRUC_TIMER_MS) : 40000;
 const MAX_ROOMS = 300;
+// Domini propi: posa CANONICAL_HOST=trucmallorqui.com a Render quan el domini ja funcioni.
+// Llavors qui entri per *.onrender.com serà redirigit al domini (bo per a Google).
+const CANONICAL_HOST = (process.env.CANONICAL_HOST || '').trim().toLowerCase();
+const SITE_URL = CANONICAL_HOST ? 'https://' + CANONICAL_HOST : 'https://trucmallorqui.onrender.com';
 const LOOKS = ['palla', 'barretina', 'mocador'];
 const DEF_NAMES = ['Biel', 'Toni', 'Catalina', 'Miquel'];
 const DEF_LOOKS = ['palla', 'palla', 'mocador', 'barretina'];
@@ -206,18 +210,40 @@ function openRooms() {
 
 // ---------- HTTP ----------
 const INDEX = path.join(__dirname, 'public', 'index.html');
+const STATIC = { '/og.png': 'image/png', '/favicon.svg': 'image/svg+xml' };
 const server = http.createServer((req, res) => {
   const url = (req.url || '/').split('?')[0];
   if (url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
+  const host = String(req.headers.host || '').toLowerCase().split(':')[0];
+  if (CANONICAL_HOST && host.endsWith('.onrender.com')) {
+    res.writeHead(301, { Location: SITE_URL + (req.url || '/') });
+    return res.end();
+  }
   if (url === '/' || url === '/index.html') {
-    fs.readFile(INDEX, (err, data) => {
+    fs.readFile(INDEX, 'utf8', (err, data) => {
       if (err) { res.writeHead(500); return res.end('Falta public/index.html'); }
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-cache',
         'X-Content-Type-Options': 'nosniff',
-        'Referrer-Policy': 'no-referrer'
+        'Referrer-Policy': 'strict-origin-when-cross-origin'
       });
+      res.end(data.split('__SITE__').join(SITE_URL));
+    });
+    return;
+  }
+  if (url === '/robots.txt') {
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end(`User-agent: *\nAllow: /\nSitemap: ${SITE_URL}/sitemap.xml\n`);
+  }
+  if (url === '/sitemap.xml') {
+    res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8' });
+    return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${SITE_URL}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url></urlset>\n`);
+  }
+  if (STATIC[url]) {
+    fs.readFile(path.join(__dirname, 'public', url.slice(1)), (e, data) => {
+      if (e) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('No trobat'); }
+      res.writeHead(200, { 'Content-Type': STATIC[url], 'Cache-Control': 'public, max-age=86400' });
       res.end(data);
     });
     return;
