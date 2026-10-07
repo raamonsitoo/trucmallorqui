@@ -5,7 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const zlib = require('zlib');
 const { WebSocketServer } = require('ws');
-const { Game } = require('./game');
+const { Game, LEVEL_IDS } = require('./game');
 const acc = require('./accounts');
 const fb = require('./feedback');
 
@@ -102,6 +102,7 @@ class Room {
     this.lastActive = Date.now();
     this.searching = false;   // cercant rivals: surt a la llista de sales obertes i s'emparella sola
     this.searchSince = 0;
+    this.botLevel = 'normal'; // nivell dels bots (facil, normal, dificil, mestre); el tria l'amfitrió
     this.seats = [0, 1, 2, 3].map(() => ({ human: false, name: '', look: 'palla', hat: 'palla', back: 'llenguesBlau', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0 }));
   }
   sendSeat(s, msg) {
@@ -115,7 +116,7 @@ class Room {
   roster(s) {
     return {
       t: 'room', code: this.code, phase: this.phase, host: this.hostSeat, you: s,
-      searching: this.searching, searchMs: this.searching ? Date.now() - this.searchSince : 0,
+      searching: this.searching, searchMs: this.searching ? Date.now() - this.searchSince : 0, botLevel: this.botLevel,
       seats: this.seats.map((x, i) => ({
         human: x.human, name: x.human ? x.name : DEF_NAMES[i], look: x.human ? x.look : DEF_LOOKS[i],
         hat: x.human ? x.hat : DEF_HAT[DEF_LOOKS[i]], back: x.human ? x.back : 'llenguesBlau', connected: x.human ? x.connected : true,
@@ -176,7 +177,7 @@ class Room {
     this.searching = false;
     this.phase = 'playing';
     this.humansAtStart = this.seats.filter(x => x.human).length;
-    this.game = new Game(this, { speed: SPEED, timerMs: TIMER_MS });
+    this.game = new Game(this, { speed: SPEED, timerMs: TIMER_MS, level: this.botLevel });
     this.broadcastRoom();
     this.game.start();
   }
@@ -434,6 +435,7 @@ function handle(ws, m) {
     rooms.set(code, room);
     room.attach(0, ws, c.token, cleanName(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look)));
     room.hostSeat = 0;
+    if (LEVEL_IDS.includes(m.level)) room.botLevel = m.level;
     if (m.quick) { counters.quick++; room.broadcastRoom(); room.startGame(); }
     else if (m.solo) { room.setSearching(true); room.broadcastRoom(); tryMatch(); }
     else room.broadcastRoom();
@@ -491,6 +493,12 @@ function handle(ws, m) {
     case 'start': {
       if (room.phase !== 'lobby' || room.hostSeat !== seat) return;
       room.startGame();
+      return;
+    }
+    case 'botlevel': {
+      if (room.phase !== 'lobby' || room.hostSeat !== seat || !LEVEL_IDS.includes(m.level)) return;
+      room.botLevel = m.level;
+      room.broadcastRoom();
       return;
     }
     case 'search': {

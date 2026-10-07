@@ -17,7 +17,11 @@ const TEAM_WINDOW_MS = 7000;
 const ANS_RANK = { no: 0, vull: 1, raise: 2 };
 
 function makeDeck() { const d = []; for (const s of SUITS) for (const n of NUMS) d.push({ n, s }); return d; }
-function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function shuffle(a, rnd = Math.random) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+// Atzar amb llavor: l'entrenament dels bots repeteix exactament les mateixes mans.
+function mulberry32(a) {
+  return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
 function cardRank(c) {
   const n = c.n, s = c.s;
   if (n === 11 && s === 'bastos') return 100;
@@ -94,7 +98,83 @@ function signOf(c) {
   return null;
 }
 const infoPower = ids => ids.reduce((a, id) => a + (SIGN_POWER[id] || 0), 0);
-const trucThr = level => 3.4 + 1.15 * (level - 1);
+const handPower = h => h.reduce((a, c) => a + cardPower(c), 0);
+
+// ---------- Nivells dels bots ----------
+// «normal» és el bot de sempre. «dificil» i «mestre» surten de l'entrenament
+// (node tools/entrena-bots.js), que desa els valors a bots-entrenats.json.
+const BASE = {
+  noise: 1, trickWon: 1.5, trickLost: 1.2, wMax: 0.65, caughtPen: 0.4, behind: 0,
+  trucBase: 3.4, trucStep: 1.15, raiseM: 1.8, accRand: 0.1, callM: 1.0, callP: 0.6, bluff: 0.04,
+  envNoise: 1, envAcc: [0, 25, 27, 29, 33], envRai: [0, 30, 32, 34, 99], envAccRand: 0.08,
+  envCall: 27, envCallP: 0.65, envBluff: 0.05,
+  lead0: 1, secure: 0, mistake: 0, mc: 0
+};
+let TRAINED = {};
+try { TRAINED = require('./bots-entrenats.json'); } catch (e) { /* encara no s'han entrenat */ }
+// El fàcil és poruc: diu «no vull» massa sovint, decideix molt a l'atzar i s'equivoca de carta.
+// (Equivocar-se de carta fa poc mal; el que més pesa al truc és saber quan voler i quan cantar.)
+const FACIL = Object.assign({}, BASE, {
+  noise: 6, trucBase: 5.5, raiseM: 3, accRand: 0.25, callM: 2, callP: 0.3, bluff: 0.01,
+  envNoise: 8, envAccRand: 0.35, envCall: 29, envCallP: 0.4, envBluff: 0.02, lead0: 2, mistake: 0.4
+});
+const DIFICIL = Object.assign({}, BASE, TRAINED.dificil);
+// El mestre juga les cartes i decideix els cants mirant moltes mans possibles dels altres (mc = quantes).
+const MESTRE = Object.assign({}, DIFICIL, {
+  mc: 40, infer: 1, mCall: 0.01, mAcc: 0, mRai: 0.01, mEnvCall: 0, bluffMc: 0.06, envBluffMc: 0.04
+}, TRAINED.mestre);
+const LEVELS = { facil: FACIL, normal: BASE, dificil: DIFICIL, mestre: MESTRE };
+const LEVEL_IDS = Object.keys(LEVELS);
+
+// Probabilitat de guanyar el cantó amb el marcador a–b, suposant que cada mà la pot guanyar
+// qualsevol parella i dóna uns punts típics. El mestre la fa servir per decidir segons el marcador.
+const HAND_PTS = [[1, 0.3], [2, 0.12], [3, 0.26], [4, 0.1], [5, 0.07], [6, 0.07], [7, 0.03], [9, 0.05]];
+const WIN_P = (() => {
+  const T = Array.from({ length: 25 }, () => new Float64Array(25));
+  for (let a = 24; a >= 0; a--) for (let b = 24; b >= 0; b--) {
+    if (a >= 24) { T[a][b] = 1; continue; }
+    if (b >= 24) { T[a][b] = 0; continue; }
+    let v = 0;
+    for (const [k, pr] of HAND_PTS) v += pr * 0.5 * (T[Math.min(24, a + k)][b] + T[a][Math.min(24, b + k)]);
+    T[a][b] = v;
+  }
+  return T;
+})();
+const winP = (a, b) => (a >= 24 ? 1 : b >= 24 ? 0 : WIN_P[a][b]);
+
+// Qui guanya la mà si tothom juga perfecte amb les cartes que té (cerca alfa-beta).
+// Torna 1 si la guanya `team`, 0 si no. Modifica i restaura `hands`, `tricks` i `played`.
+function solveHand(hands, tricks, played, leader, manoTeam, team) {
+  const rec = (pl, ld, alpha, beta) => {
+    if (pl.length === 4) {
+      const w = trickWinner(pl);
+      tricks.push(w.team);
+      const d = handDecision(tricks, manoTeam);
+      const v = d !== undefined ? (d === team ? 1 : 0) : rec([], w.player, alpha, beta);
+      tricks.pop();
+      return v;
+    }
+    const s = (ld + pl.length) % 4, h = hands[s], maxer = s % 2 === team;
+    let best = maxer ? 0 : 1;
+    const seen = [];
+    for (let i = 0; i < h.length; i++) {
+      const c = h[i], r = cardRank(c);
+      if (seen.includes(r)) continue; // dues cartes iguals fan el mateix
+      seen.push(r);
+      h.splice(i, 1); pl.push({ p: s, card: c });
+      const v = rec(pl, ld, alpha, beta);
+      pl.pop(); h.splice(i, 0, c);
+      if (maxer) { if (v > best) best = v; if (best > alpha) alpha = best; }
+      else { if (v < best) best = v; if (best < beta) beta = best; }
+      if (alpha >= beta) break;
+    }
+    return best;
+  };
+  return rec(played, leader, 0, 1);
+}
+const sig = x => 1 / (1 + Math.exp(-x));
+const FULL_DECK = makeDeck();
+const cardKey = c => c.n + c.s;
 
 class Abort extends Error {}
 
@@ -103,8 +183,13 @@ class Game {
     this.room = room;
     this.speed = opts.speed == null ? 1 : opts.speed;
     this.timerMs = opts.timerMs == null ? 40000 : opts.timerMs;
+    // Nivell dels bots rivals; `params` (un per seient) només el fa servir l'entrenament.
+    this.level = LEVELS[opts.level] ? opts.level : 'normal';
+    this.seatParams = opts.params || null;
+    this.rnd = opts.rng || Math.random;
+    this.dealRnd = opts.dealRng || Math.random;
     this.token = 0;
-    this.G = { cantons: [0, 0], scores: [0, 0], dealer: Math.floor(Math.random() * 4) };
+    this.G = { cantons: [0, 0], scores: [0, 0], dealer: Math.floor(this.dealRnd() * 4) };
     this.H = null;
     this.pending = null;
     this.lastBy = null;
@@ -127,6 +212,8 @@ class Game {
   isBot(s) { return !this.isHuman(s); }
   sleep(ms) {
     const t = this.token;
+    // A velocitat 0 (entrenament) no s'espera gens.
+    if (this.speed === 0) return Promise.resolve().then(() => { if (t !== this.token) throw new Abort(); });
     return new Promise((res, rej) => setTimeout(() => (t === this.token ? res() : rej(new Abort())), ms * this.speed));
   }
   emit(e) { this.room.sendAll({ t: 'ev', e }); }
@@ -289,11 +376,18 @@ class Game {
   }
 
   // ---------- IA dels bots ----------
-  botStrength(p, noise = true) {
+  // Paràmetres del bot del seient p: tots els bots de la partida (també el company) juguen al nivell triat.
+  bp(p) { return this.seatParams ? this.seatParams[p] : LEVELS[this.level]; }
+  botStrength(p, P) {
     const H = this.H;
-    let s = H.hands[p].reduce((a, c) => a + cardPower(c), 0);
-    for (const r of H.tricks) { if (r === p % 2) s += 1.5; else if (r !== null) s -= 1.2; }
-    return s + (noise ? Math.random() - 0.5 : 0);
+    let s = handPower(H.hands[p]);
+    for (const r of H.tricks) { if (r === p % 2) s += P.trickWon; else if (r !== null) s -= P.trickLost; }
+    return s + P.noise * (this.rnd() - 0.5);
+  }
+  // Llindar per voler el truc; amb `behind` el bot arrisca més quan va per darrere.
+  trucThr(p, level, P) {
+    const sc = this.G.scores, t = p % 2;
+    return P.trucBase + P.trucStep * (level - 1) - P.behind * (sc[1 - t] - sc[t]) / 12;
   }
   partnerEstimate(q) {
     const H = this.H, n = H.hands[q].length, ids = H.info[q];
@@ -302,10 +396,10 @@ class Game {
     return infoPower(ids) + Math.max(0, n - known) * (ids.includes('buit') ? 0.2 : 0.7);
   }
   teamStrength(p) {
-    const H = this.H, q = (p + 2) % 4, a = this.botStrength(p);
-    const b = this.isBot(q) ? this.botStrength(q) : this.partnerEstimate(q);
-    let s = 0.65 * Math.max(a, b) + 0.35 * Math.min(a, b);
-    s -= 0.4 * infoPower(H.caught[1 - p % 2]);
+    const H = this.H, q = (p + 2) % 4, P = this.bp(p), a = this.botStrength(p, P);
+    const b = this.isBot(q) ? this.botStrength(q, P) : this.partnerEstimate(q);
+    let s = P.wMax * Math.max(a, b) + (1 - P.wMax) * Math.min(a, b);
+    s -= P.caughtPen * infoPower(H.caught[1 - p % 2]);
     return s;
   }
   teamEnvit(p) {
@@ -317,34 +411,153 @@ class Game {
     return e;
   }
   botRespondTruc(p, level) {
-    const s = this.teamStrength(p), thr = trucThr(level);
-    if (level < 4 && s >= thr + 1.8) return 'raise';
+    const P = this.bp(p);
+    if (P.mc) return this.mcRespond(p, 'truc', level);
+    const s = this.teamStrength(p), thr = this.trucThr(p, level, P);
+    if (level < 4 && s >= thr + P.raiseM) return 'raise';
     if (s >= thr) return 'vull';
-    if (Math.random() < 0.1) return 'vull';
+    if (this.rnd() < P.accRand) return 'vull';
     return 'no';
   }
   botWantsTruc(p) {
-    const level = this.H.trucLevel + 1, s = this.teamStrength(p), thr = trucThr(level) + 1.0;
-    if (s >= thr && Math.random() < 0.6) return true;
-    if (level === 1 && s < thr && Math.random() < 0.04) return true;
+    const P = this.bp(p), level = this.H.trucLevel + 1, s = this.teamStrength(p), thr = this.trucThr(p, level, P) + P.callM;
+    if (s >= thr && this.rnd() < P.callP) return true;
+    if (level === 1 && s < thr && this.rnd() < P.bluff) return true;
     return false;
   }
   botRespondEnvit(p, level) {
-    const H = this.H;
-    let e = this.teamEnvit(p) + (Math.random() * 2 - 1);
+    const H = this.H, P = this.bp(p);
+    if (P.mc) return this.mcRespond(p, 'envit', level);
+    let e = this.teamEnvit(p) + P.envNoise * (this.rnd() * 2 - 1);
     const c = H.caught[1 - p % 2];
     if (c.includes('amo') || c.includes('madona')) e -= 2;
-    const acc = [0, 25, 27, 29, 33][level], rai = [0, 30, 32, 34, 99][level];
+    const acc = P.envAcc[level], rai = P.envRai[level];
     if (level < this.maxEnvitLevel() && e >= rai) return 'raise';
     if (e >= acc) return 'vull';
-    if (Math.random() < 0.08) return 'vull';
+    if (this.rnd() < P.envAccRand) return 'vull';
     return 'no';
   }
   botWantsEnvit(p) {
-    const e = this.teamEnvit(p);
-    if (e >= 27 && Math.random() < 0.65) return true;
-    if (e < 24 && Math.random() < 0.05) return true;
+    const P = this.bp(p), e = this.teamEnvit(p);
+    if (e >= P.envCall && this.rnd() < P.envCallP) return true;
+    if (e < 24 && this.rnd() < P.envBluff) return true;
     return false;
+  }
+
+  // ---------- Bot mestre ----------
+  // Reparteix moltes vegades les cartes que el bot no veu (respectant les senyes que sap)
+  // i dóna més pes a les mans que expliquen el que han cantat els rivals.
+  mcWorlds(p) {
+    const H = this.H, P = this.bp(p), q = (p + 2) % 4, me = p % 2;
+    const known = [0, 1, 2, 3].map(s => s === p || (s === q && this.isBot(q)));
+    const out = new Set();
+    for (let s = 0; s < 4; s++) if (known[s]) H.hands[s].forEach(c => out.add(cardKey(c)));
+    H.gone.forEach(x => out.add(cardKey(x.card)));
+    const pool = FULL_DECK.filter(c => !out.has(cardKey(c)));
+    const unk = [0, 1, 2, 3].filter(s => !known[s]);
+    const need = Array.from(new Set(H.caught[1 - me])).map(id => ({ seats: unk.filter(s => s % 2 !== me), id }));
+    if (!known[q]) for (const id of H.info[q]) if (id !== 'buit') need.push({ seats: [q], id });
+    const empty = !known[q] && H.info[q].includes('buit') ? q : -1;
+    const goneBy = [0, 1, 2, 3].map(s => H.gone.filter(x => x.p === s).map(x => x.card));
+    const worlds = [];
+    for (let i = 0; i < P.mc; i++) {
+      const deck = shuffle(pool, this.rnd), hands = H.hands.map((h, s) => (known[s] ? h.slice() : []));
+      for (const nd of need) {
+        const cand = nd.seats.filter(s => hands[s].length < H.hands[s].length), j = deck.findIndex(c => signOf(c) === nd.id);
+        if (!cand.length || j < 0) continue;
+        hands[cand[Math.floor(this.rnd() * cand.length)]].push(deck.splice(j, 1)[0]);
+      }
+      for (const s of unk) while (hands[s].length < H.hands[s].length) {
+        let j = s === empty ? deck.findIndex(c => !signOf(c)) : 0;
+        if (j < 0) j = 0;
+        hands[s].push(deck.splice(j, 1)[0]);
+      }
+      const init = hands.map((h, s) => (known[s] ? H.initial[s] : goneBy[s].concat(h)));
+      worlds.push({ hands, init, w: P.infer ? this.mcWeight(init, 1 - me) : 1 });
+    }
+    return worlds;
+  }
+  mcWeight(init, o) {
+    const env = Math.max(envitValue(init[o]), envitValue(init[o + 2]));
+    const a = handPower(init[o]), b = handPower(init[o + 2]), pow = 0.65 * Math.max(a, b) + 0.35 * Math.min(a, b);
+    let w = 1;
+    for (const x of this.H.acts) {
+      if (x.team !== o) continue;
+      if (x.kind === 'envit') w *= x.a === 'no' ? 0.3 + 0.7 * sig((26 - env) / 2) : 0.3 + 0.7 * sig((env - (x.a === 'vull' ? 25 : 27)) / 2);
+      else if (x.a !== 'no') w *= 0.35 + 0.65 * sig((pow - (x.a === 'vull' ? 3 : 4)) / 1.2);
+    }
+    return w;
+  }
+  // Probabilitat que la parella de p guanyi l'envit.
+  mcEnvit(p, worlds) {
+    const mano = this.H.mano;
+    let tot = 0, win = 0;
+    for (const W of worlds) {
+      let best = -1, bt = 0;
+      for (let i = 0; i < 4; i++) { const s = (mano + i) % 4, v = envitValue(W.init[s]); if (v > best) { best = v; bt = s % 2; } }
+      tot += W.w; if (bt === p % 2) win += W.w;
+    }
+    return tot ? win / tot : 0.5;
+  }
+  // Probabilitat de guanyar la mà des d'ara; si li toca a p, una per cada carta que pot tirar.
+  mcHand(p, worlds) {
+    const H = this.H, me = p % 2, manoTeam = H.mano % 2;
+    const leader = H.played.length ? H.played[0].p : H.turn;
+    const mover = (leader + H.played.length) % 4;
+    const idxs = mover === p ? H.hands[p].map((c, i) => i) : [-1];
+    const sum = idxs.map(() => 0);
+    let tot = 0;
+    for (const W of worlds) {
+      tot += W.w;
+      idxs.forEach((i, k) => {
+        const hands = W.hands.map(h => h.slice()), played = H.played.slice(), tricks = H.tricks.slice();
+        if (i >= 0) played.push({ p, card: hands[p].splice(i, 1)[0] });
+        sum[k] += W.w * solveHand(hands, tricks, played, leader, manoTeam, me);
+      });
+    }
+    return { idxs, vals: sum.map(v => (tot ? v / tot : 0.5)) };
+  }
+  // Valor d'un resultat: probabilitat de guanyar el cantó si la parella de p suma `a` i els rivals `b`.
+  util(p, a, b) { const sc = this.G.scores, t = p % 2; return winP(sc[t] + a, sc[1 - t] + b); }
+  mcRespond(p, kind, level) {
+    const P = this.bp(p), worlds = this.mcWorlds(p);
+    let pw, V, R, V2 = 0;
+    if (kind === 'truc') {
+      pw = this.mcHand(p, worlds).vals[0];
+      V = TRUC_VALUE[level]; R = TRUC_REFUSE[level]; if (level < 4) V2 = TRUC_VALUE[level + 1];
+    } else {
+      pw = this.mcEnvit(p, worlds);
+      V = this.envitPts(level); R = ENVIT_REFUSE[level]; if (level < this.maxEnvitLevel()) V2 = this.envitPts(level + 1);
+    }
+    const uNo = this.util(p, 0, R), uAcc = pw * this.util(p, V, 0) + (1 - pw) * this.util(p, 0, V);
+    // Si pujam, els rivals triaran el que menys ens convé: no voler (ens donen V) o jugar-s'ho a V2.
+    const uRaise = V2 ? Math.min(this.util(p, V, 0), pw * this.util(p, V2, 0) + (1 - pw) * this.util(p, 0, V2)) : -1;
+    if (V2 && uRaise > Math.max(uAcc, uNo) + P.mRai) return 'raise';
+    return uAcc + P.mAcc >= uNo ? 'vull' : 'no';
+  }
+  mcTurn(p) {
+    const H = this.H, P = this.bp(p), worlds = this.mcWorlds(p);
+    if (this.canCallEnvit(p)) {
+      const pe = this.mcEnvit(p, worlds), V = this.envitPts(1);
+      const uCall = Math.min(this.util(p, ENVIT_REFUSE[1], 0), pe * this.util(p, V, 0) + (1 - pe) * this.util(p, 0, V));
+      if (uCall > this.util(p, 0, 0) + P.mEnvCall || (pe < 0.3 && this.rnd() < P.envBluffMc)) return { type: 'envit' };
+    }
+    const { idxs, vals } = this.mcHand(p, worlds), hand = H.hands[p];
+    let k = 0;
+    for (let j = 1; j < idxs.length; j++) {
+      // A igualtat, la carta més baixa: les bones es guarden
+      if (vals[j] > vals[k] + 1e-9 || (Math.abs(vals[j] - vals[k]) <= 1e-9 && cardRank(hand[idxs[j]]) < cardRank(hand[idxs[k]]))) k = j;
+    }
+    const pw = vals[k];
+    if (this.canCallTruc(p)) {
+      const L = H.trucLevel + 1, V0 = TRUC_VALUE[L - 1], V = TRUC_VALUE[L];
+      const uPass = pw * this.util(p, V0, 0) + (1 - pw) * this.util(p, 0, V0);
+      const uCall = Math.min(this.util(p, TRUC_REFUSE[L], 0), pw * this.util(p, V, 0) + (1 - pw) * this.util(p, 0, V));
+      if (uCall > uPass + P.mCall || (L === 1 && pw < 0.35 && this.rnd() < P.bluffMc)) return { type: 'truc' };
+    }
+    // Si el company humà ha dit «vaig a tu» o «vina a mi», li fa cas.
+    if (this.isHuman((p + 2) % 4) && this.intentFor(p)) return { type: 'play', idx: this.botChooseCard(p) };
+    return { type: 'play', idx: idxs[k] };
   }
   intentFor(p) {
     const H = this.H, q = (p + 2) % 4;
@@ -355,7 +568,8 @@ class Game {
     return null;
   }
   botChooseCard(p) {
-    const H = this.H, hand = H.hands[p];
+    const H = this.H, hand = H.hands[p], P = this.bp(p);
+    if (P.mistake && this.rnd() < P.mistake) return Math.floor(this.rnd() * hand.length);
     const sorted = hand.map((c, i) => ({ i, r: cardRank(c) })).sort((a, b) => a.r - b.r);
     const lowest = sorted[0], highest = sorted[sorted.length - 1], trick = H.played;
     const intent = this.intentFor(p);
@@ -368,7 +582,8 @@ class Game {
       return highest.i;
     }
     if (trick.length === 0) {
-      if (H.trickNo === 0) return sorted[Math.floor((sorted.length - 1) / 2)].i;
+      // Per sortir a la primera: lead0 0 = la més baixa, 1 = la del mig, 2 = la més alta
+      if (H.trickNo === 0) return (P.lead0 === 0 ? lowest : P.lead0 === 2 ? highest : sorted[Math.floor((sorted.length - 1) / 2)]).i;
       return highest.i;
     }
     let best = trick[0];
@@ -376,7 +591,8 @@ class Game {
     const bestRank = cardRank(best.card);
     if (best.p % 2 === p % 2) return lowest.i;
     const beating = sorted.filter(x => x.r > bestRank);
-    if (beating.length) return beating[0].i;
+    // Si encara ha de tirar un rival, de vegades assegura amb la més alta en lloc de la justa
+    if (beating.length) return (trick.length < 3 && this.rnd() < P.secure ? beating[beating.length - 1] : beating[0]).i;
     const equal = sorted.find(x => x.r === bestRank);
     if (equal && H.trickNo === 0) return equal.i;
     return lowest.i;
@@ -387,6 +603,7 @@ class Game {
       H.ask[p] = false;
       if (this.canCallEnvit(p)) return { type: 'envit' };
     }
+    if (this.bp(p).mc) return this.mcTurn(p);
     if (this.canCallEnvit(p) && this.botWantsEnvit(p)) return { type: 'envit' };
     if (this.canCallTruc(p) && this.botWantsTruc(p)) return { type: 'truc' };
     return { type: 'play', idx: this.botChooseCard(p) };
@@ -399,7 +616,7 @@ class Game {
       const top = Math.max(...H.hands[p].map(cardRank));
       const w = top >= 90 ? 'mi' : top <= 65 ? 'tu' : null;
       const partnerHuman = this.isHuman((p + 2) % 4);
-      if (w && Math.random() < (partnerHuman ? 0.85 : 0.35)) {
+      if (w && this.rnd() < (partnerHuman ? 0.85 : 0.35)) {
         H.say[p] = w; this.emit({ e: 'talk', p, w }); any = true;
       }
     }
@@ -520,12 +737,15 @@ class Game {
     const H = this.H, isTruc = kind === 'truc';
     let level = (isTruc ? H.trucLevel : H.envitLevel) + 1;
     let callerP = caller, callerTeam = caller % 2;
+    // El mestre recorda qui ha cantat què per endevinar les cartes dels rivals
+    H.acts.push({ team: callerTeam, kind, a: 'call' });
     while (true) {
       this.emit({ e: 'call', p: callerP, kind, level, pts: isTruc ? TRUC_VALUE[level] : this.envitPts(level) });
       this.snap();
       await this.sleep(900);
       const respTeam = 1 - callerTeam;
       const { d, by: responder } = await this.respond(callerP, kind, level);
+      H.acts.push({ team: respTeam, kind, a: d });
       if (d === 'no') {
         this.emit({ e: 'ans', p: responder, a: 'no' });
         await this.sleep(800);
@@ -582,6 +802,7 @@ class Game {
         const card = H.hands[p].splice(act.idx, 1)[0];
         this.forgetSign(p, card);
         H.played.push({ p, card });
+        H.gone.push({ p, card });
         H.turn = null;
         this.snap(); this.emit({ e: 'play', p, card });
         return;
@@ -599,11 +820,11 @@ class Game {
 
   // ---------- Una mà ----------
   async playHand() {
-    const G = this.G, deck = shuffle(makeDeck());
+    const G = this.G, deck = shuffle(makeDeck(), this.dealRnd);
     const H = this.H = {
       hands: [[], [], [], []], initial: [], mano: (G.dealer + 1) % 4, trucLevel: 0, trucOwner: null,
       envitLevel: 0, envitDone: false, envitPending: false, tricks: [], played: [], trickNo: 0, turn: null,
-      over: false, winPlayer: null, dealt: false, result: null,
+      over: false, winPlayer: null, dealt: false, result: null, gone: [], acts: [],
       info: [[], [], [], []], caught: [[], []], say: [null, null, null, null], ask: [false, false, false, false]
     };
     for (let p = 0; p < 4; p++) {
@@ -641,17 +862,22 @@ class Game {
   }
 
   // ---------- Partida ----------
+  // Un cantó a 24; torna la parella que el guanya.
+  async playCanton() {
+    const G = this.G;
+    G.scores = [0, 0];
+    this.snap();
+    while (G.scores[0] < 24 && G.scores[1] < 24) {
+      await this.playHand();
+      G.dealer = (G.dealer + 1) % 4;
+    }
+    return G.scores[0] >= 24 ? 0 : 1;
+  }
   async run() {
     const G = this.G;
     G.cantons = [0, 0];
     while (G.cantons[0] < 2 && G.cantons[1] < 2) {
-      G.scores = [0, 0];
-      this.snap();
-      while (G.scores[0] < 24 && G.scores[1] < 24) {
-        await this.playHand();
-        G.dealer = (G.dealer + 1) % 4;
-      }
-      const w = G.scores[0] >= 24 ? 0 : 1;
+      const w = await this.playCanton();
       G.cantons[w]++;
       this.snap();
       const over = G.cantons[w] >= 2;
@@ -661,4 +887,4 @@ class Game {
   }
 }
 
-module.exports = { Game, makeDeck, cardRank, envitValue, trickWinner, handDecision, signOf, SIGN_DUR };
+module.exports = { Game, makeDeck, cardRank, envitValue, trickWinner, handDecision, signOf, SIGN_DUR, LEVELS, LEVEL_IDS, BASE, mulberry32, solveHand };

@@ -169,10 +169,40 @@ async function scenario7(){
   console.log('7) bústia de suggeriments: valida, talla, escapa i limita');
   a.ws.close();
 }
+// Nivell dels bots: l'amfitrió el tria a la sala i la partida contra el mestre acaba bé
+async function scenario8(){
+  const a=new Bot('A');await a.connect();
+  a.send({t:'create',name:'Aina',look:'palla',level:'dificil'});
+  await a.until(()=>a.room);
+  assert.equal(a.room.botLevel,'dificil','el nivell triat en crear la sala');
+  a.send({t:'botlevel',level:'trampos'});a.send({t:'botlevel',level:'mestre'});
+  await a.until(()=>a.room.botLevel==='mestre',3000);
+  assert.equal(a.room.botLevel,'mestre',"l'amfitrió canvia el nivell (i un nivell inventat no val)");
+  a.send({t:'start'});
+  const ok=await a.until(()=>a.events.some(e=>e.e==='game'),120000);
+  assert(ok,'la partida contra el mestre no ha acabat');
+  console.log('8) nivell dels bots: triat a la sala i partida contra el mestre acabada',JSON.stringify(a.events.find(e=>e.e==='game').cantons));
+  a.ws.close();
+}
+// Els nivells, uns contra els altres, amb repartiments fixos (sempre surt el mateix)
+async function scenario9(){
+  const {Game,LEVELS,mulberry32,solveHand}=require('./game.js');
+  const C=(n,s)=>({n,s});
+  // 3 d'oros contra 1 de copes: amb la mà a la primera ronda, guanya qui té el 3
+  assert.equal(solveHand([[C(3,'oros')],[C(1,'copes')],[C(4,'oros')],[C(5,'copes')]],[0,1],[],0,0,0),1,'cerca: guanya la carta més alta');
+  const room=()=>({seats:[0,1,2,3].map(()=>({human:false})),sendAll(){},sendSeat(){},phase:'playing'});
+  const vs=async(A,B,n)=>{let w=0;for(let i=0;i<n;i++)for(const [x,y,me] of [[A,B,0],[B,A,1]]){
+    const g=new Game(room(),{speed:0,rng:mulberry32(i*31+7),dealRng:mulberry32(i+1),params:[x,y,x,y]});
+    if((await g.playCanton())===me)w++;}return w/(2*n);};
+  const fn=await vs(LEVELS.facil,LEVELS.normal,150),mn=await vs(LEVELS.mestre,LEVELS.normal,60);
+  assert(fn<0.45,'el fàcil ha de perdre contra el normal ('+fn+')');
+  assert(mn>0.55,'el mestre ha de guanyar el normal ('+mn+')');
+  console.log(`9) nivells: fàcil guanya ${(100*fn).toFixed(0)}% contra normal, mestre ${(100*mn).toFixed(0)}%`);
+}
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();
+    scenario5();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });

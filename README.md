@@ -5,6 +5,7 @@ Web per jugar al Truc mallorquí per internet, en 3D i amb senyes: **https://tru
 ## Què té
 
 - **Partides de 4 en 2 parelles**, amb amics (sala amb codi de 4 lletres o enllaç), amb desconeguts o contra bots.
+- **Quatre nivells de bots**: Fàcil, Normal, Difícil (entrenat jugant milers de cantons) i Mestre (s'imagina les cartes dels altres i decideix segons el marcador). Tots els bots d'una partida, també el company, juguen al nivell triat.
 - **Sales mixtes**: «Buscar rivals» dins una sala, «Jugar amb desconeguts» per anar sol i llista de **sales obertes**. Si en 60 s no hi ha ningú, s'ofereix jugar contra bots.
 - **Senyes amb la cara** i frases al company («Vaig a tu», «Vina a mi», «Demana envit»).
 - **Resposta en parella**: als cants contesten els dos de la parella i mana el que més vol (pujar > vull > no vull).
@@ -21,7 +22,9 @@ Web per jugar al Truc mallorquí per internet, en 3D i amb senyes: **https://tru
 
 ```
 server.js              servidor web + WebSocket (sales, emparellament, límits, pàgines)
-game.js                regles del joc, bots, senyes i mirada (tot passa al servidor)
+game.js                regles del joc, bots (i els seus nivells), senyes i mirada (tot passa al servidor)
+bots-entrenats.json    paràmetres dels bots difícil i mestre que surten de l'entrenament
+tools/entrena-bots.js  entrena els bots i fa tornejos entre nivells (vegeu «Entrenar els bots»)
 accounts.js            comptes: entrar amb Google, sessions, nivells i base de dades (PostgreSQL)
 public/index.html      el joc (3D amb Three.js, sala, menú)
 public/regles.html     guia «Com es juga al truc mallorquí» (i public/reglas.html, en castellà)
@@ -40,6 +43,18 @@ npm install
 npm start          # http://localhost:3000
 npm test           # partides simulades, comptes i suggeriments: han d'acabar amb «TOT OK»
 ```
+
+## Entrenar els bots
+
+Els bots juguen entre ells sense esperes (un cantó dura menys d'un mil·lisegon; amb el mestre, uns 25 ms). Cada repartiment es juga dues vegades canviant les parelles de lloc, perquè la sort de les cartes no compti.
+
+```
+node tools/entrena-bots.js torneig 300     # taula: quin percentatge de cantons guanya cada nivell contra els altres
+node tools/entrena-bots.js dificil 400     # entrena el difícil: prova canvis i es queda els que guanyen
+node tools/entrena-bots.js variants '[{"infer":0}]'   # compara variants del mestre contra el difícil
+```
+
+L'entrenament del difícil només accepta un canvi si guanya la versió anterior i, a més, no juga pitjor contra un mestre de sparring. Els resultats es desen a `bots-entrenats.json`, que `game.js` llegeix en arrencar.
 
 ## Publicació (Render)
 

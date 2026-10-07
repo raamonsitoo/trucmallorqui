@@ -1,0 +1,43 @@
+{
+  "dificil": {
+    "noise": 0.819,
+    "trickWon": 2.379,
+    "trickLost": 0.924,
+    "wMax": 0.67,
+    "caughtPen": 0.364,
+    "behind": 2.289,
+    "trucBase": 1.621,
+    "trucStep": 0.3,
+    "raiseM": 2.647,
+    "accRand": 0.175,
+    "callM": -0.171,
+    "callP": 0.1,
+    "bluff": 0.008,
+    "envNoise": 0.152,
+    "envAcc": [
+      0,
+      27.501,
+      26.679,
+      29,
+      32.595
+    ],
+    "envRai": [
+      0,
+      31.196,
+      33.248,
+      34,
+      99
+    ],
+    "envAccRand": 0.089,
+    "envCall": 27.534,
+    "envCallP": 0.789,
+    "envBluff": 0.067,
+    "lead0": 0,
+    "secure": 0,
+    "mistake": 0,
+    "mc": 0
+  },
+  "notes": {
+    "dificil": "57.1% contra normal (4000 cantons), 2026-10-07"
+  }
+}
