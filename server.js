@@ -29,7 +29,7 @@ const STATS_KEY = (process.env.STATS_KEY || '').trim();
 const ANALYTICS_TAG = GOATCOUNTER
   ? `<script data-goatcounter="https://${GOATCOUNTER}.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>`
   : '';
-// Correu de contacte que surt a la política de privacitat (variable d'entorn CONTACT_EMAIL)
+// Correu de contacte que surt a la política de privacitat (per defecte trucmallorqui@gmail.com; es pot canviar amb CONTACT_EMAIL)
 const CONTACT_EMAIL = (process.env.CONTACT_EMAIL || '').trim().replace(/[<>"']/g, '');
 const STARTED_AT = Date.now();
 const counters = { gamesStarted: 0, gamesFinished: 0, quick: 0, matched: 0 };
@@ -284,7 +284,7 @@ const server = http.createServer((req, res) => {
     fs.readFile(path.join(__dirname, 'public', PAGES[url]), 'utf8', (err, data) => {
       if (err) { res.writeHead(500); return res.end('Falta public/' + PAGES[url]); }
       const body = data.split('__SITE__').join(SITE_URL).replace('<!--ANALYTICS-->', ANALYTICS_TAG)
-        .split('__GCLIENT__').join(acc.GOOGLE_CLIENT_ID).split('__CONTACT__').join(CONTACT_EMAIL || 'trucmallorqui@…');
+        .split('__GCLIENT__').join(acc.GOOGLE_CLIENT_ID).split('__CONTACT__').join(CONTACT_EMAIL || 'trucmallorqui@gmail.com');
       // Pàgines comprimides (gzip): la web carrega molt més aviat, sobretot al mòbil
       if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
         return zlib.gzip(body, (e, buf) => {
