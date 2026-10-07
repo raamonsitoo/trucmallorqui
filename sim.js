@@ -145,10 +145,34 @@ async function scenario6(){
   console.log('6) comptes: entrar, +'+me.gained.xp+' XP en acabar, sessió conservada, canvi de nom i esborrat');
   b.ws.close();
 }
+async function scenario7(){
+  const fb=require('./feedback');
+  const a=new Bot('F');await a.connect();
+  const fbs=()=>(a.msgs||[]).filter(m=>m.t==='fb');
+  a.send({t:'feedback',kind:'errada',text:'  ',where:'partida'});
+  await a.until(()=>fbs().length>=1,3000);
+  assert.equal(fbs()[0].ok,false,'un text buit no es desa');
+  a.send({t:'feedback',kind:'errada',text:'Les cartes <b>no</b> es veuen bé al mòbil\nquan giro la pantalla',where:'partida',screen:'390x844'});
+  a.send({t:'feedback',kind:'hack',text:'x'.repeat(1500),where:'?',screen:'<script>'});
+  await a.until(()=>fbs().length>=3,3000);
+  assert(fbs()[1].ok&&fbs()[2].ok,'els suggeriments es desen');
+  const rows=await fb.store.list(10);
+  assert.equal(rows[1].kind,'errada');assert.equal(rows[1].place,'partida');assert.equal(rows[1].screen,'390x844');
+  assert.equal(rows[0].kind,'idea','un tipus desconegut passa a idea');assert.equal(rows[0].text.length,1000,'text tallat a 1000');
+  assert.equal(rows[0].screen,'');assert.equal(rows[0].place,'inici');
+  assert(!fb.page(rows).includes('<b>no</b>'),'la pàgina escapa el text');
+  for(let i=0;i<4;i++)a.send({t:'feedback',kind:'idea',text:'idea número '+i});
+  await a.until(()=>fbs().length>=7,3000);
+  assert.equal(fbs().filter(m=>m.ok).length,5,'màxim 5 per IP cada 10 minuts');
+  assert.equal(fb.device('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36'),'Android · Chrome');
+  assert.equal(fb.device('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'),'iPhone · Safari');
+  console.log('7) bústia de suggeriments: valida, talla, escapa i limita');
+  a.ws.close();
+}
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();
+    scenario5();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });

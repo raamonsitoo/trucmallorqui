@@ -7,6 +7,7 @@ const zlib = require('zlib');
 const { WebSocketServer } = require('ws');
 const { Game } = require('./game');
 const acc = require('./accounts');
+const fb = require('./feedback');
 
 const PORT = Number(process.env.PORT) || 3000;
 const SPEED = process.env.TRUC_SPEED ? Number(process.env.TRUC_SPEED) : 1;
@@ -18,12 +19,16 @@ const MAX_ROOMS_PER_IP = 8;        // sales vives creades des d'una mateixa IP
 const MAX_CREATES_PER_MIN = 10;    // sales creades per minut i IP
 const ipConns = new Map();         // ip -> connexions obertes
 const ipCreates = new Map();       // ip -> [marques de temps]
+// Bústia de suggeriments: com a màxim 5 cada 10 minuts per IP i 120 per hora en total
+const FB_PER_IP = 5, FB_PER_HOUR = 120;
+const ipFeedback = new Map();      // ip -> [marques de temps]
+let fbHour = [];
 // Domini propi: posa CANONICAL_HOST=trucmallorqui.com a Render quan el domini ja funcioni.
 // Llavors qui entri per *.onrender.com serà redirigit al domini (bo per a Google).
 const CANONICAL_HOST = (process.env.CANONICAL_HOST || '').trim().toLowerCase();
 const SITE_URL = CANONICAL_HOST ? 'https://' + CANONICAL_HOST : 'https://trucmallorqui.onrender.com';
 // Estadístiques: GOATCOUNTER=codi (p. ex. «trucmallorqui») activa el comptador de visites sense galetes.
-// STATS_KEY=una-clau-secreta activa /stats?key=... amb les dades en directe del servidor.
+// STATS_KEY=una-clau-secreta activa /stats?key=... (dades en directe) i /suggeriments?key=... (bústia de suggeriments).
 const GOATCOUNTER = (process.env.GOATCOUNTER || '').trim().replace(/[^a-z0-9-]/gi, '');
 const STATS_KEY = (process.env.STATS_KEY || '').trim();
 const ANALYTICS_TAG = GOATCOUNTER
@@ -310,6 +315,15 @@ const server = http.createServer((req, res) => {
       encesDesDe: new Date(STARTED_AT).toISOString(), minutsEnces: Math.round((Date.now() - STARTED_AT) / 60000)
     }, null, 2));
   }
+  if (url === '/suggeriments') {
+    const key = new URL(req.url, 'http://x').searchParams.get('key');
+    if (!STATS_KEY || key !== STATS_KEY) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('No trobat'); }
+    fb.store.list(300).then(rows => {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' });
+      res.end(fb.page(rows));
+    }).catch(e => { console.error('suggeriments', e.message); res.writeHead(500, { 'Content-Type': 'text/plain' }); res.end('Error'); });
+    return;
+  }
   if (url === '/robots.txt') {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
     return res.end(`User-agent: *\nAllow: /\nSitemap: ${SITE_URL}/sitemap.xml\n`);
@@ -355,7 +369,7 @@ wss.on('connection', (ws, req) => {
   if (n > MAX_CONN_PER_IP) { try { ws.close(1008, 'Massa connexions'); } catch (e) { /* res */ } return; }
   ipConns.set(ip, n);
   ws.once('close', () => { const k = (ipConns.get(ip) || 1) - 1; if (k <= 0) ipConns.delete(ip); else ipConns.set(ip, k); });
-  ws.ctx = { token: null, code: null, seat: -1, count: 0, windowStart: Date.now(), ip };
+  ws.ctx = { token: null, code: null, seat: -1, count: 0, windowStart: Date.now(), ip, ua: String(req.headers['user-agent'] || '').slice(0, 300) };
   ws.isAlive = true;
   ws.on('pong', () => { ws.isAlive = true; });
   ws.on('message', raw => {
@@ -441,6 +455,7 @@ function handle(ws, m) {
   }
   if (m.t === 'list') { send(ws, { t: 'list', rooms: openRooms() }); return; }
   if (m.t === 'login' || m.t === 'auth' || m.t === 'logout' || m.t === 'prefs' || m.t === 'delete') { accountMsg(ws, m); return; }
+  if (m.t === 'feedback') { feedbackMsg(ws, m); return; }
 
   const room = ctxRoom(ws);
   if (!room) return;
@@ -549,6 +564,23 @@ async function accountMsg(ws, m) {
     err(ws, 'Ara mateix no podem accedir als comptes. Torna-ho a provar més tard.');
   }
 }
+// ---------- Bústia de suggeriments ----------
+function feedbackMsg(ws, m) {
+  const c = ws.ctx, now = Date.now();
+  const f = fb.clean(m, c.ua);
+  if (!f) return send(ws, { t: 'fb', ok: false, m: 'Escriu una mica més, per favor.' });
+  const mine = (ipFeedback.get(c.ip) || []).filter(t => now - t < 10 * 60000);
+  fbHour = fbHour.filter(t => now - t < 3600e3);
+  if (mine.length >= FB_PER_IP || fbHour.length >= FB_PER_HOUR) return send(ws, { t: 'fb', ok: false, m: "N'has enviat molts seguits. Torna-ho a provar d'aquí a una estona." });
+  mine.push(now); ipFeedback.set(c.ip, mine); fbHour.push(now);
+  fb.store.add(f).then(() => {
+    console.log(`suggeriment (${f.kind}, ${f.place}, ${f.device}): ${f.text.slice(0, 200).replace(/\s+/g, ' ')}`);
+    send(ws, { t: 'fb', ok: true });
+  }).catch(e => {
+    console.error('suggeriment no desat', e.message, '|', f.kind, f.text.slice(0, 300).replace(/\s+/g, ' '));
+    send(ws, { t: 'fb', ok: false, m: "Ara mateix no s'ha pogut enviar. Torna-ho a provar més tard." });
+  });
+}
 // En acabar una partida: experiència per a cada jugador amb compte
 function awardGame(room, g) {
   if (!acc.ENABLED) return;
@@ -581,6 +613,7 @@ setInterval(() => {
   const now = Date.now();
   try { tryMatch(); } catch (e) { console.error('match', e); }
   for (const [ip, arr] of ipCreates) { const k = arr.filter(t => now - t < 60000); if (k.length) ipCreates.set(ip, k); else ipCreates.delete(ip); }
+  for (const [ip, arr] of ipFeedback) { const k = arr.filter(t => now - t < 10 * 60000); if (k.length) ipFeedback.set(ip, k); else ipFeedback.delete(ip); }
   for (const room of Array.from(rooms.values())) {
     if (room.humans() === 0 && now - room.lastActive > 10 * 60 * 1000) room.destroy();
   }

@@ -38,7 +38,7 @@ render.yaml            configuració per a Render
 ```
 npm install
 npm start          # http://localhost:3000
-npm test           # 4 partides simulades: han d'acabar amb «TOT OK»
+npm test           # partides simulades, comptes i suggeriments: han d'acabar amb «TOT OK»
 ```
 
 ## Publicació (Render)
@@ -49,12 +49,14 @@ Cada `git push` a `main` desplega automàticament. Variables d'entorn:
 |---|---|---|
 | `CANONICAL_HOST` | Redirigeix `*.onrender.com` al domini propi | `trucmallorqui.com` |
 | `GOATCOUNTER` | (opcional) Activa les estadístiques de visites sense galetes | codi del compte de goatcounter.com |
-| `STATS_KEY` | (opcional) Activa `/stats?key=...` amb dades en directe | una clau secreta |
+| `STATS_KEY` | (opcional) Activa `/stats?key=...` (dades en directe) i `/suggeriments?key=...` (bústia de suggeriments) | una clau secreta |
 | `GOOGLE_CLIENT_ID` | (comptes) Identificador de client OAuth de Google | `....apps.googleusercontent.com` |
 | `SESSION_SECRET` | (comptes) Clau per signar les sessions; no l'has de canviar mai | una clau secreta llarga |
 | `DATABASE_URL` | (comptes) Base de dades PostgreSQL (p. ex. Neon) | `postgresql://...` |
 | `CONTACT_EMAIL` | Correu de contacte de la política de privacitat | el correu de la web |
 
 Els comptes només s'activen si hi ha `GOOGLE_CLIENT_ID`, `SESSION_SECRET` i `DATABASE_URL`. Sense elles, el joc funciona igual però sense comptes.
+
+La bústia de suggeriments (enllaç «Suggeriments» a baix de tot) guarda els missatges a la taula `feedback` de `DATABASE_URL`; sense base de dades, els guarda en memòria i al registre del servidor. Es llegeixen a `/suggeriments?key=STATS_KEY` o a Neon → Tables → feedback.
 
 El domini és a Namecheap (registre A `@` → `216.24.57.1` i CNAME `www` → `trucmallorqui.onrender.com`).

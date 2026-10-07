@@ -32,6 +32,9 @@ const T = {
 <p>El teu nom de jugador i el teu nivell els veuen els altres jugadors de la teva partida.</p>
 <p>Per mantenir la sessió oberta, el teu navegador guarda un testimoni de sessió a l'emmagatzematge local. És imprescindible perquè funcioni el compte i no s'usa per a res més.</p>
 
+<h2>Si ens envies un suggeriment</h2>
+<p>Des de l'enllaç «Suggeriments» pots enviar-nos idees, millores o errades. És anònim: guardam el text que escrius, el tipus (idea, millora o errada), on eres (inici, sala o partida), la mida de la pantalla i el tipus d'aparell i navegador (per exemple, «Android · Chrome»), que ens ajuden a reproduir les errades. No el vinculam ni al teu compte ni a la teva IP. Per favor, no hi posis dades personals. Els feim servir només per millorar el joc, sobre la base del nostre interès legítim a fer-ho (art. 6.1.f del RGPD), i els esborram automàticament al cap d'un any.</p>
+
 <h2>Per a què les feim servir i amb quina base</h2>
 <p>Les dades del compte serveixen només per oferir-te el servei que demanes: guardar i mostrar el teu progrés i el teu nivell. La base legal és l'execució del servei que sol·licites en crear el compte (art. 6.1.b del RGPD). No feim perfils, no venem dades i no les feim servir per a publicitat.</p>
 
@@ -41,7 +44,7 @@ const T = {
 <h2>Qui ens ajuda a oferir el servei</h2>
 <ul>
 <li><b>Render</b> (Render Services, Inc.): allotjament del servidor del joc.</li>
-<li><b>Neon</b> (Neon, Inc.): base de dades on es guarden els comptes, en servidors de la Unió Europea.</li>
+<li><b>Neon</b> (Neon, Inc.): base de dades on es guarden els comptes i els suggeriments, en servidors de la Unió Europea.</li>
 <li><b>Google</b> (Google Ireland Ltd.): inici de sessió amb Google, si el fas servir. Google tracta les teves dades segons la seva pròpia política de privacitat.</li>
 </ul>
 <p>Alguns d'aquests proveïdors són empreses dels Estats Units i poden accedir a les dades des d'allà. Ho fan amb les garanties que preveu el RGPD (clàusules contractuals tipus o el Marc de privacitat de dades UE-EUA).</p>
@@ -81,6 +84,9 @@ const T = {
 <p>Tu nombre de jugador y tu nivel los ven los demás jugadores de tu partida.</p>
 <p>Para mantener la sesión abierta, tu navegador guarda un testigo de sesión en el almacenamiento local. Es imprescindible para que funcione la cuenta y no se usa para nada más.</p>
 
+<h2>Si nos envías una sugerencia</h2>
+<p>Desde el enlace «Suggeriments» puedes enviarnos ideas, mejoras o errores. Es anónimo: guardamos el texto que escribes, el tipo (idea, mejora o error), dónde estabas (inicio, sala o partida), el tamaño de la pantalla y el tipo de dispositivo y navegador (por ejemplo, «Android · Chrome»), que nos ayudan a reproducir los errores. No lo vinculamos ni a tu cuenta ni a tu IP. Por favor, no incluyas datos personales. Los usamos solo para mejorar el juego, sobre la base de nuestro interés legítimo en hacerlo (art. 6.1.f del RGPD), y los borramos automáticamente al cabo de un año.</p>
+
 <h2>Para qué los usamos y con qué base</h2>
 <p>Los datos de la cuenta sirven solo para ofrecerte el servicio que pides: guardar y mostrar tu progreso y tu nivel. La base legal es la ejecución del servicio que solicitas al crear la cuenta (art. 6.1.b del RGPD). No hacemos perfiles, no vendemos datos y no los usamos para publicidad.</p>
 
@@ -90,7 +96,7 @@ const T = {
 <h2>Quién nos ayuda a ofrecer el servicio</h2>
 <ul>
 <li><b>Render</b> (Render Services, Inc.): alojamiento del servidor del juego.</li>
-<li><b>Neon</b> (Neon, Inc.): base de datos donde se guardan las cuentas, en servidores de la Unión Europea.</li>
+<li><b>Neon</b> (Neon, Inc.): base de datos donde se guardan las cuentas y las sugerencias, en servidores de la Unión Europea.</li>
 <li><b>Google</b> (Google Ireland Ltd.): inicio de sesión con Google, si lo usas. Google trata tus datos según su propia política de privacidad.</li>
 </ul>
 <p>Algunos de estos proveedores son empresas de Estados Unidos y pueden acceder a los datos desde allí. Lo hacen con las garantías que prevé el RGPD (cláusulas contractuales tipo o el Marco de privacidad de datos UE-EE. UU.).</p>
