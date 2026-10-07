@@ -477,6 +477,37 @@ body.ui2 .log{color:var(--muted)}
 body.ui2 .coach{background:rgba(233,179,28,.12);color:var(--ink);border-color:rgba(233,179,28,.6)}
 body.ui2 .coach .btn.ok{background:#e9b31c;color:#2b1c00}
 body.ui2 .coach .btn.ghost{color:var(--ink)}
+/* ---- Compte i nivells ---- */
+.lb-account{display:flex;align-items:center;gap:12px;background:var(--lb-card);border:1px solid var(--lb-line);border-radius:18px;padding:10px 12px;box-shadow:var(--lb-shadow)}
+.lb-account[hidden],#acctOut[hidden],#acctIn[hidden]{display:none}
+#acctOut{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;flex-wrap:wrap}
+/* sense compte: una sola línia discreta, sense targeta */
+.lb-account.out{background:none;border:0;box-shadow:none;padding:0 2px}
+.acc-txt{color:var(--lb-muted);font-size:.82rem}
+#gsiBtn{min-height:32px;display:flex;align-items:center}
+#acctIn{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;color:inherit;font:inherit;text-align:left;padding:0;cursor:pointer}
+.lvl{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe58a,#e0a21f 60%,#a8700a);color:#2b1c00;font-weight:800;font-size:1.15rem;box-shadow:0 2px 8px rgba(0,0,0,.35),inset 0 0 0 2px rgba(255,255,255,.35)}
+.acc-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.acc-meta b{font-size:.95rem}
+.acc-meta small{color:var(--lb-muted);font-size:.75rem}
+.xpbar{display:block;height:7px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden}
+.xpbar i{display:block;height:100%;width:0;border-radius:5px;background:linear-gradient(90deg,#e0a21f,#ffd25a);transition:width .6s}
+.acc-more{flex:none;font-size:.78rem;color:var(--lb-muted)}
+.acc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.acc-stats div{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:8px;text-align:center}
+.acc-stats b{display:block;font-size:1.25rem}
+.acc-stats small{color:var(--muted);font-size:.72rem}
+.acc-levels{list-style:none;padding:0;margin:6px 0 12px;display:grid;gap:4px}
+.acc-levels li{display:flex;justify-content:space-between;font-size:.85rem;padding:5px 10px;border-radius:9px;background:rgba(255,255,255,.04);color:var(--muted)}
+.acc-levels li.on{background:rgba(224,162,31,.18);color:var(--ink);font-weight:700}
+.acc-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px}
+.acc-acts .danger{color:#ff9a8a}
+.ov-xp{margin:10px 0 2px;padding:10px 12px;border-radius:12px;background:rgba(224,162,31,.14);border:1px solid rgba(224,162,31,.35)}
+.ov-xp:empty{display:none}
+.ov-xp b{color:#ffd25a}
+.ov-xp .xpbar{margin-top:6px}
+.lv{display:inline-block;margin-left:4px;font-size:.62rem;font-weight:800;line-height:1.45;padding:0 5px;border-radius:7px;background:#e0a21f;color:#2b1c00;vertical-align:1px}
+.nm2 .lv{margin-left:6px}
 body.ui2 .lb-sheet-card{background:#13302b;color:var(--ink);border:1px solid rgba(255,255,255,.12)}
 body.ui2 .lb-sheet-head p,body.ui2 .lb-x{color:var(--muted)}
 body.ui2 .backbtn{color:var(--ink)}
@@ -537,7 +568,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
   <details class="log"><summary>Registre de la mà</summary><ol id="log"></ol></details>
 </main>
 <div class="conn" id="conn" hidden>Connexió perduda. Tornant a connectar…</div>
-<div class="lobby" id="lobby" hidden>
+<div class="lobby" id="lobby">
  <div class="lb-wrap">
   <header class="lb-head">
     <div class="lb-logo">
@@ -550,6 +581,14 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
     <button class="lb-avatar" id="btnLook" aria-label="Canviar el teu aspecte"><span id="avatar"></span><i>✎</i></button>
     <div class="lb-name"><label for="nameIn">El teu nom</label><input id="nameIn" maxlength="16" autocomplete="nickname" placeholder="Com et dius?"></div>
     <button class="lb-chipbtn" id="btnLook2">Aspecte</button>
+  </section>
+
+  <section class="lb-account" id="acctBox" hidden aria-label="El teu compte">
+    <div id="acctOut">
+      <span class="acc-txt">Guarda el teu progrés</span>
+      <div id="gsiBtn"></div>
+    </div>
+    <button id="acctIn" hidden><span class="lvl" id="accLvl">1</span><span class="acc-meta"><b id="accTitle">Aprenent</b><span class="xpbar"><i id="accBar"></i></span><small id="accXp"></small></span><span class="acc-more">El meu progrés ›</span></button>
   </section>
 
   <div id="lobbyMenu">
@@ -592,7 +631,19 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
     <a href="/reglas" lang="es">En castellano</a>
     <button class="lb-linkbtn" id="btnInstall" hidden>📲 Instal·la l'app</button>
     <a href="https://x.com/trucmallorqui" target="_blank" rel="noopener">X · @trucmallorqui</a>
+    <a href="/privacitat">Privacitat</a>
   </footer>
+ </div>
+
+ <div class="lb-sheet" id="accSheet" hidden role="dialog" aria-modal="true" aria-label="El meu progrés">
+  <div class="lb-sheet-card">
+    <div class="lb-sheet-head"><span class="lvl" id="accLvl2" style="width:64px;height:64px;font-size:1.6rem">1</span><div><h2 id="accTitle2">Aprenent</h2><p id="accName"></p></div><button class="lb-x" data-acc="close" aria-label="Tancar">✕</button></div>
+    <div style="margin-top:12px"><span class="xpbar"><i id="accBar2"></i></span><p class="hint" id="accXp2" style="margin:6px 0 0"></p></div>
+    <div class="acc-stats" id="accStats"></div>
+    <div class="fld"><span>Nivells</span><ul class="acc-levels" id="accLevels"></ul></div>
+    <p class="hint">Guanyes experiència a cada partida que acabes: més si guanyes, per cada cantó i per cada mà. Contra bots en guanyes la meitat.</p>
+    <div class="acc-acts"><button class="lb-chipbtn" data-acc="logout">Tancar sessió</button><button class="lb-linkbtn danger" data-acc="delete" id="accDel">Esborrar el meu compte</button><a class="lb-linkbtn" href="/privacitat">Privacitat</a></div>
+  </div>
  </div>
 
  <div class="lb-sheet" id="lookSheet" hidden role="dialog" aria-modal="true" aria-label="El teu aspecte">
@@ -2121,13 +2172,13 @@ const View=(function(){
     for(let p=1;p<4;p++){
       const L=labs[p],turn=H&&H.turn===p&&!H.over,mano=H&&H.mano===p;
       L.nm.className='nm'+(turn?' turn':'');
-      L.nm.innerHTML=esc(NAMES[p])+(mano?'<span class="tag">mà</span>':'');
+      L.nm.innerHTML=esc(NAMES[p])+lvTag(LVLS[p])+(mano?'<span class="tag">mà</span>':'');
       const b=H&&H.bubbles[p];L.bub.textContent=b||'';L.bub.style.display=b?'block':'none';
     }
     const b0=H&&H.bubbles[0];bub0.textContent=b0||'';bub0.style.display=b0?'block':'none';
     const t0=H&&H.turn===0&&!H.over;
     you.className='you nm'+(t0?' turn':'');
-    you.innerHTML=esc(NAMES[0])+(H&&H.mano===0?'<span class="tag">mà</span>':'');
+    you.innerHTML=esc(NAMES[0])+lvTag(LVLS[0])+(H&&H.mano===0?'<span class="tag">mà</span>':'');
     stage.classList.toggle('myturn',UI.mode==='turn'||UI.mode==='respond');
     syncHands();syncPlayed();syncDeck();
   }
@@ -2461,6 +2512,83 @@ const store={
   set(k,v){try{localStorage.setItem(k,v);}catch(e){/* res */}}
 };
 const Me={seat:-1,code:'',phase:'menu',host:-1,players:[],name:store.get('truc_name')||'',look:store.get('truc_look')||'palla',hat:store.get('truc_hat')||'',back:store.get('truc_back')||'llenguesBlau',holdGame:false,lastGaze:-2,signCd:0};
+// ---------- Compte (entrar amb Google) i nivells ----------
+const GCLIENT='__GCLIENT__'; // el posa el servidor; buit si els comptes no estan activats
+const Acct={profile:null,session:store.get('truc_session')||'',gsi:false,lastPrefs:''};
+const LEVEL_TITLES=[[1,'Aprenent'],[3,'Jugador de cafè'],[6,'Trucador'],[10,"Mestre de l'envit"],[15,'Amo de la taula'],[20,'Llegenda del truc']];
+const xpForLevel=L=>50*L*(L-1);
+function acctInit(){
+  if(!GCLIENT||GCLIENT.charAt(0)==='_')return;
+  $('#acctBox').hidden=false;renderAcct();
+  const sc=document.createElement('script');sc.src='https://accounts.google.com/gsi/client';sc.async=true;
+  sc.onload=()=>{try{
+    google.accounts.id.initialize({client_id:GCLIENT,auto_select:false,cancel_on_tap_outside:true,
+      callback:r=>{lobbyError('');const p=readProfile();Net.send(Object.assign({t:'login',credential:r.credential},p));}});
+    Acct.gsi=true;renderAcct();
+  }catch(e){}};
+  document.head.appendChild(sc);
+  $('#acctIn').addEventListener('click',()=>{renderAcct();$('#accSheet').hidden=false;});
+  $('#accSheet').addEventListener('click',e=>{
+    if(e.target.id==='accSheet'){$('#accSheet').hidden=true;return;}
+    const b=e.target.closest('[data-acc]');if(!b)return;
+    const a=b.dataset.acc;
+    if(a==='close')$('#accSheet').hidden=true;
+    else if(a==='logout'){Net.send({t:'logout'});acctClear('Has tancat la sessió.');}
+    else if(a==='delete'){
+      if(!b.classList.contains('armed')){b.classList.add('armed');b.textContent='Segur? Es perdrà tot el progrés. Torna a pitjar per esborrar-lo';return;}
+      Net.send({t:'delete'});
+    }
+  });
+}
+function acctClear(msg){
+  Acct.profile=null;Acct.session='';store.set('truc_session','');
+  try{if(window.google&&google.accounts)google.accounts.id.disableAutoSelect();}catch(e){}
+  $('#accSheet').hidden=true;const d=$('#accDel');if(d){d.classList.remove('armed');d.textContent='Esborrar el meu compte';}
+  renderAcct();if(msg)View.toast(msg,2500);
+}
+function renderAcct(){
+  const box=$('#acctBox');if(!box||box.hidden)return;
+  const p=Acct.profile;
+  $('#acctOut').hidden=!!p;$('#acctIn').hidden=!p;box.classList.toggle('out',!p);
+  if(!p){
+    const el=$('#gsiBtn');
+    if(Acct.gsi&&el&&!el.dataset.done){el.dataset.done='1';
+      try{google.accounts.id.renderButton(el,{theme:'filled_black',size:'small',shape:'pill',text:'signin',locale:'ca'});}catch(e){}}
+    return;
+  }
+  const pct=Math.max(0,Math.min(100,(p.xp-p.levelXp)/Math.max(1,p.nextXp-p.levelXp)*100));
+  $('#accLvl').textContent=p.level;$('#accTitle').textContent=`Nivell ${p.level} · ${p.title}`;
+  $('#accBar').style.width=pct+'%';$('#accXp').textContent=`${p.xp-p.levelXp} / ${p.nextXp-p.levelXp} per al nivell ${p.level+1}`;
+  $('#accLvl2').textContent=p.level;$('#accTitle2').textContent=`Nivell ${p.level} · ${p.title}`;
+  $('#accName').textContent=`${p.name} · jugant des del ${p.since.split('-').reverse().join('/')}`;
+  $('#accBar2').style.width=pct+'%';$('#accXp2').textContent=`${p.xp} d'experiència en total · et falten ${p.nextXp-p.xp} per al nivell ${p.level+1}`;
+  const wr=p.games?Math.round(p.wins/p.games*100):0;
+  $('#accStats').innerHTML=[[p.games,'Partides'],[p.wins,'Victòries'],[wr+'%','Guanyades'],[p.cantons,'Cantons'],[p.hands,'Mans'],[p.xp,'Experiència']].map(([v,l])=>`<div><b>${v}</b><small>${l}</small></div>`).join('');
+  $('#accLevels').innerHTML=LEVEL_TITLES.map(([n,t],i)=>{const nx=LEVEL_TITLES[i+1];const on=p.level>=n&&(!nx||p.level<nx[0]);
+    return `<li class="${on?'on':''}"><span>${t}</span><span>${nx?`nivells ${n}–${nx[0]-1}`:`nivell ${n} o més`}</span></li>`;}).join('');
+}
+function acctProfile(prof,apply){
+  Acct.profile=prof;
+  if(apply&&prof){ // el compte mana: posa el nom i l'aspecte guardats
+    Me.name=prof.name||Me.name;Me.look=prof.look||Me.look;Me.hat=prof.hat||Me.hat;Me.back=prof.back||Me.back;
+    $('#nameIn').value=Me.name;store.set('truc_name',Me.name);store.set('truc_look',Me.look);store.set('truc_hat',Me.hat);store.set('truc_back',Me.back);
+    Acct.lastPrefs=JSON.stringify([Me.name,Me.look,Me.hat,Me.back]);
+    renderLobby();
+  }
+  renderAcct();
+}
+function acctSavePrefs(p){
+  if(!Acct.profile)return;
+  const k=JSON.stringify([p.name,p.look,p.hat,p.back]);if(k===Acct.lastPrefs)return;
+  Acct.lastPrefs=k;Net.send(Object.assign({t:'prefs'},p));
+}
+function acctGained(g){ // resum d'experiència al final de la partida
+  const p=Acct.profile,el=$('#ovXp');if(!p||!el)return;
+  const pct=Math.max(0,Math.min(100,(p.xp-p.levelXp)/Math.max(1,p.nextXp-p.levelXp)*100));
+  el.innerHTML=(g.levelUp?`🎉 <b>Has pujat al nivell ${p.level}: ${esc(p.title)}!</b><br>`:'')+`+${g.xp} d'experiència · Nivell ${p.level}<span class="xpbar"><i style="width:${pct}%"></i></span>`;
+}
+const lvTag=l=>l?`<span class="lv" title="Nivell ${l}">${l}</span>`:'';
+let LVLS=[0,0,0,0];
 const rel=a=>(a-Me.seat+4)%4;
 const absOf=r=>(r+Me.seat)%4;
 const vteam=t=>(t===null||t===undefined)?null:(t===Me.seat%2?0:1);
@@ -2521,6 +2649,7 @@ function onMsg(m){
   switch(m.t){
     case 'hello':
       store.set('truc_token',m.token);
+      if(Acct.session&&GCLIENT&&GCLIENT.charAt(0)!=='_')Net.send({t:'auth',session:Acct.session});
       setTimeout(pollRooms,200);
       if(!m.resumed&&Me.code)resetToMenu('S\'ha perdut la sessió de la sala.');
       break;
@@ -2532,6 +2661,11 @@ function onMsg(m){
     case 'info':lobbyError(m.m);break;
     case 'list':renderOpenRooms(m.rooms);break;
     case 'left':resetToMenu('');break;
+    case 'login':Acct.session=m.session;store.set('truc_session',m.session);acctProfile(m.profile,true);
+      View.toast(`Has entrat! Nivell ${m.profile.level} · ${m.profile.title}`,2600);break;
+    case 'me':{const first=!Acct.profile;acctProfile(m.profile,first);if(m.gained)acctGained(m.gained);break;}
+    case 'logout':acctClear('');break;
+    case 'deleted':acctClear('Hem esborrat el teu compte i tot el seu progrés.');break;
   }
 }
 function resetToMenu(msg){
@@ -2557,6 +2691,7 @@ function updateRoster(){
   const arr=[];
   for(let r=0;r<4;r++){const x=Me.players[absOf(r)];arr.push(r===0?'Tu':x.name);}
   NAMES=arr;
+  LVLS=[0,1,2,3].map(r=>{const x=Me.players[absOf(r)];return x&&x.lvl||0;});
   const looks=[],tints=[];
   const styles=[];
   for(let r=1;r<4;r++){const a=absOf(r),x=Me.players[a];looks.push(x.look);tints.push(a);styles.push({hat:x.hat,back:x.back});}
@@ -2601,7 +2736,7 @@ function renderLobby(){
     const x=Me.players[i],mine=i===Me.seat,el=$('#seat'+i);if(!el||!x)continue;
     el.className='tm-seat '+['s-bottom','s-right','s-top','s-left'][i]+' '+(i%2?'tB':'tA')+(mine?' me':'')+(x.human?'':' empty');
     const sub=x.human?((mine?'Tu':i%2===Me.seat%2?'Company':'Rival')+(i===Me.host?' · amfitrió':'')+(x.connected?'':' · desconnectat')):'Bot si queda buit';
-    el.innerHTML=`<span class="av">${avatarSVG(x.look,x.hat,i)}</span><span class="nm2"><b>${esc(x.human?x.name:'Lliure')}</b><small>${sub}</small>${(!x.human&&!mine)?`<button class="sitbtn" data-sit="${i}">Seure aquí</button>`:''}</span>`;
+    el.innerHTML=`<span class="av">${avatarSVG(x.look,x.hat,i)}</span><span class="nm2"><b>${esc(x.human?x.name:'Lliure')}${x.human?lvTag(x.lvl):''}</b><small>${sub}</small>${(!x.human&&!mine)?`<button class="sitbtn" data-sit="${i}">Seure aquí</button>`:''}</span>`;
   }
   const host=Me.host===Me.seat;
   $('#btnStart').hidden=!host;
@@ -2653,7 +2788,9 @@ function readProfile(){
   Me.name=n;store.set('truc_name',n);store.set('truc_look',Me.look);
   if(!Me.hat)Me.hat=DEF_HAT[Me.look]||'palla';
   store.set('truc_hat',Me.hat);store.set('truc_back',Me.back);
-  return {name:n,look:Me.look,hat:Me.hat,back:Me.back};
+  const pr={name:n,look:Me.look,hat:Me.hat,back:Me.back};
+  acctSavePrefs(pr);
+  return pr;
 }
 function setupLobby(){
   $('#nameIn').value=Me.name;
@@ -2814,7 +2951,9 @@ function onEvent(e){
       const par=Me.seat%2,mine=e.cantons[par],theirs=e.cantons[1-par];
       Me.holdGame=true;
       const host=Me.host===Me.seat;
+      const acctOn=GCLIENT&&GCLIENT.charAt(0)!=='_';
       showOverlay(`<h2>${vteam(e.w)===0?'Heu guanyat la partida!':'Heu perdut la partida'}</h2><p>Cantons: ${mine} a ${theirs}.</p>`
+        +(acctOn?(Acct.profile?'<div class="ov-xp" id="ovXp"></div>':'<p class="hint">Entra amb Google (a la sala d\'espera) per guardar el teu progrés i pujar de nivell.</p>'):'')
         +(host?`<div class="row"><button class="btn truc" data-ov="rematch">Revenja!</button><button class="btn ghost" data-ov="backlobby">Tornar a la sala</button></div>`
               :`<p class="hint">Si l'amfitrió demana la revenja, la partida començarà sola.</p><div class="row"><button class="btn ghost" data-ov="backlobby">Tornar a la sala</button></div>`));
       break;}
@@ -2921,7 +3060,7 @@ document.addEventListener('keydown',e=>{
 // ---------- Inici ----------
 window.__truc={G,get H(){return H;},Me,View,Net};
 renderSigns();
-setupLobby();
+setupLobby();acctInit();
 render();
 if(!View.ready)$('#nogl').hidden=false;
 routeScreen();

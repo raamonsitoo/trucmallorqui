@@ -119,6 +119,7 @@ class Game {
     this.iv = null;
     this.finished = false;
     this.stats = { hands: 0, timeouts: 0 };
+    this.tally = { hands: [0, 0] }; // mans guanyades per cada parella (per a l'experiència)
   }
 
   // ---------- Utilitats ----------
@@ -284,7 +285,7 @@ class Game {
       await this.showdownEnvit(H.envitLevel);
       if (done()) return;
     }
-    if (H.result) { this.addScore(H.result.t, H.result.pts); this.snap(); }
+    if (H.result) { this.tally.hands[H.result.t]++; this.addScore(H.result.t, H.result.pts); this.snap(); }
   }
 
   // ---------- IA dels bots ----------

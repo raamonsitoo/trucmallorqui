@@ -1,6 +1,8 @@
 process.env.TRUC_SPEED='0.01';
 process.env.TRUC_TIMER_MS='400';
 process.env.PORT='0';
+// comptes en mode de prova (memòria i credencials falses «test:...»)
+process.env.NODE_ENV='test';process.env.TRUC_TEST_AUTH='1';process.env.GOOGLE_CLIENT_ID='test-client';process.env.SESSION_SECRET='test-secret';delete process.env.DATABASE_URL;
 const WebSocket=require('ws');
 const {server,rooms}=require('./server.js');
 const assert=require('assert');
@@ -19,6 +21,7 @@ class Bot{
     else if(m.t==='err')this.errors.push(m.m);
     else if(m.t==='ev'){this.events.push(m.e);}
     else if(m.t==='snap'){this.snap=m;this.react(m);}
+    else{(this.msgs=this.msgs||[]).push(m);}
   }
   react(m){
     const h=m.h;if(!h||!h.pending||this.policy==='silent')return;
@@ -108,10 +111,44 @@ function scenario5(){
   assert.equal(g.envitPts(1),2);assert.equal(g.envitPts(3),6);
   console.log('5) regles: envit després del truc i «envit tots» = el que falta (15-9 → 9; 10-20 → només fins a 2 més)');
 }
+// Comptes: entrar, guanyar experiència, tornar a entrar, canviar el nom i esborrar
+async function scenario6(){
+  const a=new Bot('A');await a.connect();
+  a.send({t:'login',credential:'test:ramon',name:'Ramon',look:'palla'});
+  await a.until(()=>(a.msgs||[]).some(m=>m.t==='login'),5000);
+  const lg=a.msgs.find(m=>m.t==='login');
+  assert(lg&&lg.session&&lg.profile.level===1&&lg.profile.name==='Ramon','login correcte');
+  a.send({t:'create',name:'Ramon',look:'palla',quick:true});
+  await a.until(()=>a.room&&a.room.seats[a.room.you].lvl===1,5000);
+  assert.equal(a.room.seats[a.room.you].lvl,1,'el seient mostra el nivell');
+  const ok=await a.until(()=>a.msgs.some(m=>m.t==='me'&&m.gained),90000);
+  assert(ok,"havia de rebre l'experiència en acabar");
+  const me=a.msgs.find(m=>m.t==='me'&&m.gained);
+  assert(me.profile.games===1&&me.profile.xp===me.gained.xp&&me.gained.xp>0,'experiència guardada');
+  a.ws.close();
+  const b=new Bot('B');await b.connect();
+  b.send({t:'auth',session:lg.session});
+  await b.until(()=>(b.msgs||[]).some(m=>m.t==='me'),5000);
+  assert.equal(b.msgs.find(m=>m.t==='me').profile.games,1,'el progrés es conserva');
+  b.send({t:'prefs',name:'Ramonet',look:'barretina',hat:'barretina',back:'siurell'});
+  await b.until(()=>b.msgs.filter(m=>m.t==='me').length>=2,5000);
+  assert.equal(b.msgs.filter(m=>m.t==='me')[1].profile.name,'Ramonet');
+  b.send({t:'auth',session:lg.session.slice(0,-2)+'xx'});
+  await b.until(()=>b.msgs.some(m=>m.t==='logout'),3000);
+  assert(b.msgs.some(m=>m.t==='logout'),'una sessió falsificada no val');
+  b.send({t:'auth',session:lg.session});await new Promise(r=>setTimeout(r,200));
+  b.send({t:'delete'});
+  await b.until(()=>b.msgs.some(m=>m.t==='deleted'),3000);
+  b.send({t:'auth',session:lg.session});
+  await b.until(()=>b.msgs.filter(m=>m.t==='logout').length>=2,3000);
+  assert.equal(b.msgs.filter(m=>m.t==='logout').length,2,'compte esborrat');
+  console.log('6) comptes: entrar, +'+me.gained.xp+' XP en acabar, sessió conservada, canvi de nom i esborrat');
+  b.ws.close();
+}
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();await scenario1();await scenario2();await scenario3();await scenario4();
+    scenario5();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });

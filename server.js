@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const zlib = require('zlib');
 const { WebSocketServer } = require('ws');
 const { Game } = require('./game');
+const acc = require('./accounts');
 
 const PORT = Number(process.env.PORT) || 3000;
 const SPEED = process.env.TRUC_SPEED ? Number(process.env.TRUC_SPEED) : 1;
@@ -28,6 +29,8 @@ const STATS_KEY = (process.env.STATS_KEY || '').trim();
 const ANALYTICS_TAG = GOATCOUNTER
   ? `<script data-goatcounter="https://${GOATCOUNTER}.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>`
   : '';
+// Correu de contacte que surt a la política de privacitat (variable d'entorn CONTACT_EMAIL)
+const CONTACT_EMAIL = (process.env.CONTACT_EMAIL || '').trim().replace(/[<>"']/g, '');
 const STARTED_AT = Date.now();
 const counters = { gamesStarted: 0, gamesFinished: 0, quick: 0, matched: 0 };
 const LOOKS = ['palla', 'barretina', 'mocador'];
@@ -94,7 +97,7 @@ class Room {
     this.lastActive = Date.now();
     this.searching = false;   // cercant rivals: surt a la llista de sales obertes i s'emparella sola
     this.searchSince = 0;
-    this.seats = [0, 1, 2, 3].map(() => ({ human: false, name: '', look: 'palla', hat: 'palla', back: 'llenguesBlau', connected: false, ws: null, token: null, freeTimer: null }));
+    this.seats = [0, 1, 2, 3].map(() => ({ human: false, name: '', look: 'palla', hat: 'palla', back: 'llenguesBlau', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0 }));
   }
   sendSeat(s, msg) {
     const x = this.seats[s];
@@ -110,7 +113,8 @@ class Room {
       searching: this.searching, searchMs: this.searching ? Date.now() - this.searchSince : 0,
       seats: this.seats.map((x, i) => ({
         human: x.human, name: x.human ? x.name : DEF_NAMES[i], look: x.human ? x.look : DEF_LOOKS[i],
-        hat: x.human ? x.hat : DEF_HAT[DEF_LOOKS[i]], back: x.human ? x.back : 'llenguesBlau', connected: x.human ? x.connected : true
+        hat: x.human ? x.hat : DEF_HAT[DEF_LOOKS[i]], back: x.human ? x.back : 'llenguesBlau', connected: x.human ? x.connected : true,
+        lvl: x.human && x.uid ? x.lvl : 0
       }))
     };
   }
@@ -128,6 +132,7 @@ class Room {
     if (name) x.name = name;
     if (look) x.look = look;
     if (style) { x.hat = style.hat; x.back = style.back; }
+    if (ws.ctx.uid) { x.uid = ws.ctx.uid; x.lvl = ws.ctx.lvl || 1; }
     ws.ctx.code = this.code; ws.ctx.seat = seat;
     sessions.set(token, { code: this.code, seat });
     this.lastActive = Date.now();
@@ -149,7 +154,7 @@ class Room {
   freeSeatNow(seat) {
     const x = this.seats[seat];
     if (x.token) sessions.delete(x.token);
-    x.human = false; x.connected = false; x.ws = null; x.token = null; x.name = ''; x.freeTimer = null;
+    x.human = false; x.connected = false; x.ws = null; x.token = null; x.name = ''; x.freeTimer = null; x.uid = null; x.lvl = 0;
     if (this.hostSeat === seat) this.pickHost();
   }
   pickHost() {
@@ -165,12 +170,14 @@ class Room {
     counters.gamesStarted++;
     this.searching = false;
     this.phase = 'playing';
+    this.humansAtStart = this.seats.filter(x => x.human).length;
     this.game = new Game(this, { speed: SPEED, timerMs: TIMER_MS });
     this.broadcastRoom();
     this.game.start();
   }
   onGameOver() {
     counters.gamesFinished++;
+    if (this.game) awardGame(this, this.game);
     this.phase = 'lobby';
     this.game = null;
     for (let s = 0; s < 4; s++) if (this.seats[s].human && !this.seats[s].connected) this.freeSeatNow(s);
@@ -210,10 +217,10 @@ function mergeInto(A, B, rot) {
     const x = B.seats[s];
     if (!x.human) continue;
     const t = (s + rot) % 4, y = A.seats[t];
-    Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null });
+    Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null, uid: x.uid, lvl: x.lvl });
     if (x.ws && x.ws.ctx) { x.ws.ctx.code = A.code; x.ws.ctx.seat = t; }
     sessions.set(x.token, { code: A.code, seat: t });
-    Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null });
+    Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0 });
   }
   B.searching = false;
   B.destroy();
@@ -259,7 +266,8 @@ const STATIC = {
   '/icon-192.png': 'image/png', '/icon-512.png': 'image/png', '/icon-maskable.png': 'image/png', '/apple-touch-icon.png': 'image/png',
   '/manifest.webmanifest': 'application/manifest+json', '/sw.js': 'text/javascript; charset=utf-8'
 };
-const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/regles': 'regles.html', '/regles.html': 'regles.html', '/reglas': 'reglas.html', '/reglas.html': 'reglas.html' };
+const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/regles': 'regles.html', '/regles.html': 'regles.html', '/reglas': 'reglas.html', '/reglas.html': 'reglas.html',
+  '/privacitat': 'privacitat.html', '/privacidad': 'privacidad.html' };
 const HTML_HEADERS = {
   'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache',
   'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin'
@@ -275,7 +283,8 @@ const server = http.createServer((req, res) => {
   if (PAGES[url]) {
     fs.readFile(path.join(__dirname, 'public', PAGES[url]), 'utf8', (err, data) => {
       if (err) { res.writeHead(500); return res.end('Falta public/' + PAGES[url]); }
-      const body = data.split('__SITE__').join(SITE_URL).replace('<!--ANALYTICS-->', ANALYTICS_TAG);
+      const body = data.split('__SITE__').join(SITE_URL).replace('<!--ANALYTICS-->', ANALYTICS_TAG)
+        .split('__GCLIENT__').join(acc.GOOGLE_CLIENT_ID).split('__CONTACT__').join(CONTACT_EMAIL || 'trucmallorqui@…');
       // Pàgines comprimides (gzip): la web carrega molt més aviat, sobretot al mòbil
       if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
         return zlib.gzip(body, (e, buf) => {
@@ -431,6 +440,7 @@ function handle(ws, m) {
     return;
   }
   if (m.t === 'list') { send(ws, { t: 'list', rooms: openRooms() }); return; }
+  if (m.t === 'login' || m.t === 'auth' || m.t === 'logout' || m.t === 'prefs' || m.t === 'delete') { accountMsg(ws, m); return; }
 
   const room = ctxRoom(ws);
   if (!room) return;
@@ -443,8 +453,8 @@ function handle(ws, m) {
       const to = m.seat;
       if (!Number.isInteger(to) || to < 0 || to > 3 || room.seats[to].human) return;
       const x = room.seats[seat], y = room.seats[to];
-      Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null });
-      Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null });
+      Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null, uid: x.uid, lvl: x.lvl });
+      Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0 });
       c.seat = to;
       sessions.set(y.token, { code: room.code, seat: to });
       if (room.hostSeat === seat) room.hostSeat = to;
@@ -489,6 +499,76 @@ function handle(ws, m) {
     case 'gaze': if (room.game) room.game.onGaze(seat, m.target); return;
     default: return;
   }
+}
+
+// ---------- Comptes ----------
+// El compte queda lligat a la connexió (ws.ctx.uid) i al seient que ocupa (seat.uid).
+function setSeatAccount(ws) {
+  const room = ctxRoom(ws); if (!room) return;
+  const x = room.seats[ws.ctx.seat];
+  x.uid = ws.ctx.uid || null; x.lvl = ws.ctx.uid ? ws.ctx.lvl || 1 : 0;
+  room.broadcastRoom();
+}
+function prefsFrom(m) {
+  const look = cleanLook(m.look);
+  return Object.assign({ name: cleanName(m.name, 'Jugador'), look }, cleanStyle(m, look));
+}
+async function accountMsg(ws, m) {
+  const c = ws.ctx;
+  if (!acc.ENABLED) return;
+  try {
+    if (m.t === 'login') {
+      if ((c.logins = (c.logins || 0) + 1) > 10) return;
+      const sub = await acc.verifyGoogle(m.credential);
+      if (!sub) return err(ws, "No s'ha pogut entrar amb Google. Torna-ho a provar.");
+      const p = await acc.store.login(sub, prefsFrom(m));
+      c.uid = p.id; c.lvl = acc.levelOf(p.xp);
+      send(ws, { t: 'login', session: acc.signSession(p.id), profile: acc.publicProfile(p) });
+      setSeatAccount(ws);
+    } else if (m.t === 'auth') {
+      const id = acc.verifySession(m.session);
+      const p = id && await acc.store.get(id);
+      if (!p) return send(ws, { t: 'logout' });
+      c.uid = p.id; c.lvl = acc.levelOf(p.xp);
+      send(ws, { t: 'me', profile: acc.publicProfile(p) });
+      setSeatAccount(ws);
+    } else if (m.t === 'prefs') {
+      if (!c.uid) return;
+      const p = await acc.store.prefs(c.uid, prefsFrom(m));
+      if (p) send(ws, { t: 'me', profile: acc.publicProfile(p) });
+    } else if (m.t === 'logout') {
+      c.uid = null; c.lvl = 0; setSeatAccount(ws);
+    } else if (m.t === 'delete') {
+      if (!c.uid) return;
+      await acc.store.remove(c.uid);
+      c.uid = null; c.lvl = 0; setSeatAccount(ws);
+      send(ws, { t: 'deleted' });
+    }
+  } catch (e) {
+    console.error('compte', e.message);
+    err(ws, 'Ara mateix no podem accedir als comptes. Torna-ho a provar més tard.');
+  }
+}
+// En acabar una partida: experiència per a cada jugador amb compte
+function awardGame(room, g) {
+  if (!acc.ENABLED) return;
+  const vsBots = (room.humansAtStart || 0) <= 1;
+  room.seats.forEach((x, s) => {
+    if (!x.human || !x.uid) return;
+    const team = s % 2, cantons = g.G.cantons[team];
+    const r = { won: cantons >= 2, cantons, hands: (g.tally && g.tally.hands[team]) || 0, vsBots };
+    r.xp = acc.xpForGame(r);
+    const before = x.lvl || 1, uid = x.uid;
+    acc.store.addGame(uid, r).then(p => {
+      if (!p) return;
+      const prof = acc.publicProfile(p);
+      if (x.uid === uid) { x.lvl = prof.level; room.broadcastRoom(); }
+      if (x.ws && x.ws.ctx && x.ws.ctx.uid === uid) {
+        x.ws.ctx.lvl = prof.level;
+        send(x.ws, { t: 'me', profile: prof, gained: { xp: r.xp, won: r.won, levelUp: prof.level > before } });
+      }
+    }).catch(e => console.error('xp', e.message));
+  });
 }
 
 // Cor de vida de les connexions i neteja de sales abandonades

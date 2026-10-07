@@ -236,7 +236,7 @@ ${table(T.sth,T.signs)}
 ${T.faq.map(([q,a])=>`<details><summary>${q}</summary><p>${a}</p></details>`).join('\n')}
 <div class="box">${T.endBox}<br><a class="cta" href="/">${T.endCta}</a></div>
 </article>
-<footer>${T.footer} · <a href="/">trucmallorqui.com</a> · <a href="${T.other.path}" hreflang="${T.other.lang}">${T.other.label}</a> · ${T.follow}: <a href="https://x.com/trucmallorqui" rel="noopener">@trucmallorqui</a></footer>
+<footer>${T.footer} · <a href="/">trucmallorqui.com</a> · <a href="${T.other.path}" hreflang="${T.other.lang}">${T.other.label}</a> · ${T.follow}: <a href="https://x.com/trucmallorqui" rel="noopener">@trucmallorqui</a> · <a href="${T.lang==='es'?'/privacidad':'/privacitat'}">${T.lang==='es'?'Privacidad':'Privacitat'}</a></footer>
 </main>
 </body>
 </html>
