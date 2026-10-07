@@ -452,6 +452,33 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
 .lb-lvl-opts b{font-size:.92rem}
 .lb-lvl-opts small{font-size:.68rem;color:var(--lb-muted);text-align:center;line-height:1.2}
 .lb-lvl-opts i{font-style:normal;font-size:.55rem;letter-spacing:2px;color:var(--lb-gold)}
+/* botiga */
+.shopbtn{background:linear-gradient(135deg,#e0a21f,#c98a12);color:#2b1c00;border-color:transparent}
+.shop-card{width:min(520px,100%)}
+.shop-test{margin:10px 0 0;padding:8px 10px;border-radius:10px;background:rgba(63,138,58,.18);border:1px dashed #5fae58;font-size:.85rem}
+.shop-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.shop-item{border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.shop-item.mine{border-color:var(--gold);background:rgba(233,179,28,.08)}
+.shop-prev{display:flex;gap:8px;align-items:flex-end}
+.shop-prev img{width:54px;height:81px;border-radius:6px;box-shadow:0 3px 10px rgba(0,0,0,.35)}
+.shop-prev .fund{font-size:1.9rem;margin:0 0 6px 6px}
+.shop-txt b{display:block;font-size:1.05rem}
+.shop-txt small{color:var(--muted);font-size:.85rem;line-height:1.35;display:block;margin-top:2px}
+.shop-buy{font:inherit;font-weight:800;font-size:.95rem;color:#2b1c00;background:var(--gold);border:0;border-radius:999px;padding:.55rem 1.1rem;cursor:pointer;min-height:42px;align-self:flex-start}
+.shop-buy:disabled{opacity:.45;cursor:default}
+.shop-buy.own{background:transparent;color:var(--gold);border:1px solid var(--gold);opacity:1}
+.shop-login{margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(0,0,0,.18);font-size:.88rem}
+.shop-login p{margin:0 0 8px}
+.shop-ok{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:.82rem;line-height:1.4;color:var(--muted);cursor:pointer}
+.shop-card [hidden]{display:none!important}
+.shop-ok input{width:20px;height:20px;flex:none;margin-top:1px;accent-color:var(--gold)}
+.shop-ok a{color:var(--gold)}
+.shop-note{margin:8px 0 0;min-height:1.2em;font-size:.85rem;color:#ff9d93}
+.shop-note.ok{color:#8fe08a;font-weight:700}
+.backbtn.locked{position:relative}
+.backbtn.locked img{filter:grayscale(.35) brightness(.75)}
+.backbtn.locked::after{content:'🔒';position:absolute;top:4px;right:4px;font-size:.8rem}
+.lb-linkbtn.inl{padding:0;color:var(--gold);text-decoration:underline;font-size:inherit}
 /* finestra «Contra bots»: triar el nivell i començar */
 .lvl-card{width:min(480px,100%)}
 .lvl-ico{width:52px;height:52px;flex:none;border-radius:50%;background:rgba(233,179,28,.15);border:2px solid var(--gold);display:grid;place-items:center;font-size:1.6rem}
@@ -617,6 +644,7 @@ body.ui2 .coach .btn.ghost{color:var(--ink)}
 .ov-xp .xpbar{margin-top:6px}
 .lv{display:inline-block;margin-left:4px;font-size:.62rem;font-weight:800;line-height:1.45;padding:0 5px;border-radius:7px;background:#e0a21f;color:#2b1c00;vertical-align:1px}
 .nm2 .lv{margin-left:6px}
+.fund{display:inline-block;margin-left:4px;color:#e0a21f;font-size:.9em;line-height:1;text-shadow:0 0 6px rgba(224,162,31,.55);vertical-align:0}
 body.ui2 .lb-sheet-card{background:#13302b;color:var(--ink);border:1px solid rgba(255,255,255,.12)}
 body.ui2 .lb-sheet-head p,body.ui2 .lb-x{color:var(--muted)}
 body.ui2 .backbtn{color:var(--ink)}
@@ -699,6 +727,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
     <button class="lb-avatar" id="btnLook" aria-label="Canviar el teu aspecte"><span id="avatar"></span><i>✎</i></button>
     <div class="lb-name"><label for="nameIn">El teu nom</label><input id="nameIn" maxlength="16" autocomplete="nickname" placeholder="Com et dius?"></div>
     <button class="lb-chipbtn" id="btnLook2">Aspecte</button>
+    <button class="lb-chipbtn shopbtn" id="btnShop" hidden>Botiga</button>
   </section>
 
   <section class="lb-account" id="acctBox" hidden aria-label="El teu compte">
@@ -765,6 +794,17 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
   </div>
  </div>
 
+ <div class="lb-sheet" id="shopSheet" hidden role="dialog" aria-modal="true" aria-label="Botiga">
+  <div class="lb-sheet-card shop-card">
+    <div class="lb-sheet-head"><span class="lvl-ico" aria-hidden="true">🛍️</span><div><h2>Botiga</h2><p>Només aspectes: res d'aquí fa guanyar partides. Amb la teva compra ajudes a mantenir el joc.</p></div><button class="lb-x" data-shop="close" aria-label="Tancar">✕</button></div>
+    <p class="shop-test" id="shopTest" hidden>Mode de prova: no es cobra res. Per provar el pagament fes servir la targeta 4242 4242 4242 4242.</p>
+    <div class="shop-list" id="shopList"><p class="hint">Carregant…</p></div>
+    <div class="shop-login" id="shopLogin" hidden><p>Per comprar has d'entrar amb Google: així la compra queda guardada al teu compte i la tens a tots els aparells.</p><div id="shopGsi"></div></div>
+    <label class="shop-ok" id="shopOkBox"><input type="checkbox" id="shopOk"><span>Vull rebre la compra ara mateix i entenc que, com que és contingut digital, <b>perdo el dret de desistiment</b> de 14 dies. He llegit les <a href="/condicions" target="_blank" rel="noopener">condicions de venda</a>.</span></label>
+    <p class="shop-note" id="shopNote" role="status"></p>
+  </div>
+ </div>
+
  <div class="lb-sheet" id="lvlSheet" hidden role="dialog" aria-modal="true" aria-label="Nivell dels bots">
   <div class="lb-sheet-card lvl-card">
     <div class="lb-sheet-head"><span class="lvl-ico" aria-hidden="true">🤖</span><div><h2>Contra bots</h2><p>Tria el nivell. Tots els bots, també el teu company, hi jugaran.</p></div><button class="lb-x" data-lvlsheet="close" aria-label="Tancar">✕</button></div>
@@ -783,6 +823,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
       </div></div>
     <div class="fld"><span>Capell</span><div class="chips" id="hats"></div></div>
     <div class="fld"><span>Revers de les teves cartes</span><div class="backs" id="backs"></div></div>
+    <p class="hint" id="backsShop" hidden>Els reversos amb 🔒 són de la <button class="lb-linkbtn inl" data-openshop>botiga</button>.</p>
     <button class="lb-play sm" id="btnLookOk"><span><b>Fet</b></span></button>
   </div>
  </div>
@@ -1293,7 +1334,10 @@ return {cardSVG,cardLabel};
 })();
 // ---------- Aspectes: capells i reversos ----------
 const HAT_OPTS=[['palla','Capell de palla'],['pallaAmple','Palla d\'ala ampla'],['pallaNegre','Palla amb cinta negra'],['gorra','Gorra vermella i negra'],['barretina','Barretina'],['mocador','Mocador'],['res','Sense res']];
-const BACK_OPTS=[['llenguesBlau','Llengües blau'],['llenguesVermell','Llengües vermell'],['llenguesVerd','Llengües verd'],['rajola','Rajola hidràulica'],['siurell','Siurell'],['tramuntana','Tramuntana']];
+const BACK_OPTS=[['llenguesBlau','Llengües blau'],['llenguesVermell','Llengües vermell'],['llenguesVerd','Llengües verd'],['rajola','Rajola hidràulica'],['siurell','Siurell'],['tramuntana','Tramuntana'],
+  ['fundador','Fundador'],['dimonis','Dimonis'],['foguero','Fogueró'],['cossiers','Cossiers']];
+// Reversos de la botiga i el pack que els du
+const BACK_PACK={fundador:'fundador',dimonis:'festes',foguero:'festes',cossiers:'festes'};
 const DEF_HAT={palla:'palla',barretina:'barretina',mocador:'mocador'};
 const LL_COL={llenguesBlau:['#2a4a9a','#b8322a'],llenguesVermell:['#b8322a','#2a4a9a'],llenguesVerd:['#3f6b43','#e0a21f']};
 function tileSVG(bg,mid){
@@ -1349,6 +1393,80 @@ function drawBack(x,w,h,id,done){
     x.fillStyle='#c4302b';x.beginPath();x.arc(0,-82,4,0,7);x.fill();
     x.restore();
     border();done();return;
+  }
+  // Reversos de la botiga: es dibuixen sobre 200×300 i s'escalen
+  if(BACK_PACK[id]){
+    x.save();x.scale(w/200,h/300);
+    let sd=11;const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647; // sempre igual
+    const star=(cx,cy,ro,ri)=>{x.beginPath();for(let i=0;i<10;i++){const r=i%2?ri:ro,a=-Math.PI/2+i*Math.PI/5;x.lineTo(cx+Math.cos(a)*r,cy+Math.sin(a)*r);}x.closePath();};
+    const flame=(cx,base,fh,fw,c)=>{x.fillStyle=c;x.beginPath();x.moveTo(cx-fw,base);
+      x.bezierCurveTo(cx-fw*1.1,base-fh*0.45,cx-fw*0.2,base-fh*0.55,cx-fw*0.15,base-fh*0.75);
+      x.bezierCurveTo(cx+fw*0.1,base-fh*0.6,cx+fw*0.05,base-fh*0.85,cx,base-fh);
+      x.bezierCurveTo(cx+fw*0.7,base-fh*0.7,cx+fw*1.15,base-fh*0.35,cx+fw,base);x.closePath();x.fill();};
+    if(id==='fundador'){
+      const g=x.createRadialGradient(100,140,10,100,150,200);g.addColorStop(0,'#21604d');g.addColorStop(1,'#0a261f');
+      x.fillStyle=g;x.fillRect(0,0,200,300);
+      x.strokeStyle='rgba(224,162,31,.22)';x.lineWidth=1.2;
+      for(let i=-300;i<500;i+=20){x.beginPath();x.moveTo(i,0);x.lineTo(i+300,300);x.stroke();x.beginPath();x.moveTo(i,300);x.lineTo(i+300,0);x.stroke();}
+      x.strokeStyle='#e0a21f';x.lineWidth=3;x.strokeRect(24,24,152,252);x.lineWidth=1;x.strokeRect(30,30,140,240);
+      // llorer
+      x.fillStyle='#c9a24a';
+      for(const sgn of [-1,1])for(let i=0;i<7;i++){const a=Math.PI/2+sgn*(0.55+i*0.33),lx=100+Math.cos(a)*60,ly=140+Math.sin(a)*60;
+        x.save();x.translate(lx,ly);x.rotate(a+sgn*0.9);x.beginPath();x.ellipse(0,0,9,4,0,0,7);x.fill();x.restore();}
+      x.fillStyle='#0a261f';x.beginPath();x.arc(100,140,46,0,7);x.fill();x.strokeStyle='#e0a21f';x.lineWidth=3;x.stroke();
+      const sg=x.createLinearGradient(70,110,130,170);sg.addColorStop(0,'#ffe08a');sg.addColorStop(1,'#c98a12');
+      x.fillStyle=sg;star(100,142,31,13);x.fill();
+      x.fillStyle='#b8322a';x.beginPath();x.moveTo(42,200);x.lineTo(158,200);x.lineTo(170,212);x.lineTo(158,224);x.lineTo(42,224);x.lineTo(30,212);x.closePath();x.fill();
+      x.fillStyle='#fbf6e9';x.font='bold 16px Georgia, serif';x.textAlign='center';x.textBaseline='middle';x.fillText('FUNDADOR',100,213);
+    }else if(id==='dimonis'){
+      const g=x.createLinearGradient(0,0,0,300);g.addColorStop(0,'#c0392b');g.addColorStop(1,'#5e110c');
+      x.fillStyle=g;x.fillRect(0,0,200,300);
+      for(let i=0;i<9;i++)flame(10+i*23,300,70+rnd()*45,16,i%2?'#e8541e':'#f39c12');
+      for(let i=0;i<9;i++)flame(20+i*23,300,30+rnd()*25,8,'#ffd166');
+      // banyes
+      x.fillStyle='#efe0bb';
+      x.beginPath();x.moveTo(70,104);x.quadraticCurveTo(42,74,54,34);x.quadraticCurveTo(66,72,90,94);x.closePath();x.fill();
+      x.beginPath();x.moveTo(130,104);x.quadraticCurveTo(158,74,146,34);x.quadraticCurveTo(134,72,110,94);x.closePath();x.fill();
+      // cap pelut
+      x.fillStyle='#171212';x.beginPath();x.ellipse(100,140,46,56,0,0,7);x.fill();
+      x.beginPath();for(let i=0;i<=12;i++){const a=Math.PI+i*Math.PI/12,r=i%2?50:60;x.lineTo(100+Math.cos(a)*r*0.95,128+Math.sin(a)*r);}x.fill();
+      // ulls, celles i boca
+      x.fillStyle='#fbf6e9';
+      for(const s of [-1,1]){x.save();x.translate(100+s*19,130);x.rotate(s*0.35);x.beginPath();x.ellipse(0,0,11,7,0,0,7);x.fill();x.restore();}
+      x.fillStyle='#e0a21f';x.beginPath();x.arc(83,131,4,0,7);x.arc(117,131,4,0,7);x.fill();
+      x.strokeStyle='#c0392b';x.lineWidth=5;x.lineCap='round';
+      x.beginPath();x.moveTo(68,112);x.lineTo(93,122);x.moveTo(132,112);x.lineTo(107,122);x.stroke();
+      x.fillStyle='#fbf6e9';x.beginPath();x.moveTo(72,160);x.quadraticCurveTo(100,192,128,160);x.quadraticCurveTo(100,174,72,160);x.fill();
+      x.strokeStyle='#171212';x.lineWidth=2;x.lineCap='butt';for(const tx of [86,100,114]){x.beginPath();x.moveTo(tx,164);x.lineTo(tx,178);x.stroke();}
+    }else if(id==='foguero'){
+      const g=x.createLinearGradient(0,0,0,300);g.addColorStop(0,'#0b1430');g.addColorStop(0.6,'#2a1838');g.addColorStop(1,'#5a2622');
+      x.fillStyle=g;x.fillRect(0,0,200,300);
+      x.fillStyle='#fff3cf';for(let i=0;i<40;i++){x.globalAlpha=0.4+rnd()*0.6;x.beginPath();x.arc(rnd()*200,rnd()*170,rnd()*1.4+0.4,0,7);x.fill();}
+      x.globalAlpha=1;
+      x.fillStyle='#fff3cf';x.beginPath();x.arc(150,52,16,0,7);x.fill();x.fillStyle='#0f1734';x.beginPath();x.arc(157,47,15,0,7);x.fill();
+      const halo=x.createRadialGradient(100,230,10,100,230,120);halo.addColorStop(0,'rgba(255,170,60,.55)');halo.addColorStop(1,'rgba(255,170,60,0)');
+      x.fillStyle=halo;x.fillRect(0,100,200,200);
+      flame(100,262,150,52,'#e8541e');flame(84,262,105,30,'#f39c12');flame(118,262,115,30,'#f39c12');flame(100,262,80,22,'#ffe08a');
+      x.fillStyle='#6b4423';
+      for(const [r,dx] of [[-0.35,0],[0.35,0],[0,0]]){x.save();x.translate(100+dx,266);x.rotate(r);x.fillRect(-62,-7,124,14);x.fillStyle='#4a2e17';x.beginPath();x.arc(-62,0,7,0,7);x.arc(62,0,7,0,7);x.fill();x.fillStyle='#6b4423';x.restore();}
+      x.fillStyle='#ffb347';for(let i=0;i<26;i++){x.globalAlpha=0.5+rnd()*0.5;x.beginPath();x.arc(60+rnd()*80,60+rnd()*110,rnd()*1.8+0.6,0,7);x.fill();}
+      x.globalAlpha=1;
+    }else{ // cossiers: cintes de colors, cascavells i el capell de flors
+      x.fillStyle='#fbf6e9';x.fillRect(0,0,200,300);
+      x.lineWidth=9;
+      for(let i=-300;i<500;i+=34){x.strokeStyle='#c4302b';x.beginPath();x.moveTo(i,0);x.lineTo(i+300,300);x.stroke();x.strokeStyle='#3f8a3a';x.beginPath();x.moveTo(i+17,300);x.lineTo(i+317,0);x.stroke();}
+      x.fillStyle='#e0a21f';x.strokeStyle='#8a5a00';x.lineWidth=1;
+      for(let gx=-1;gx<8;gx++)for(let gy=-1;gy<10;gy++){const cx=gx*34+8.5+(gy%2?17:0),cy=gy*34;x.beginPath();x.arc(cx,cy,4.5,0,7);x.fill();x.stroke();}
+      // medalló amb el capell de flors i les cintes que pengen
+      x.fillStyle='#fbf6e9';x.beginPath();x.arc(100,130,52,0,7);x.fill();x.strokeStyle='#e0a21f';x.lineWidth=3;x.stroke();
+      const rib=['#c4302b','#3f8a3a','#e0a21f','#2a4a9a','#c4302b'];
+      x.lineWidth=5;rib.forEach((c,i)=>{x.strokeStyle=c;x.beginPath();x.moveTo(80+i*10,172);x.quadraticCurveTo(76+i*12,215,82+i*9,250);x.stroke();});
+      x.fillStyle='#fbf6e9';x.beginPath();x.arc(100,130,48,0,7);x.fill();
+      x.fillStyle='#3f8a3a';for(let i=0;i<8;i++){const a=i*Math.PI/4+0.4;x.save();x.translate(100+Math.cos(a)*30,130+Math.sin(a)*30);x.rotate(a);x.beginPath();x.ellipse(0,0,10,4,0,0,7);x.fill();x.restore();}
+      const flower=(cx,cy,r,c)=>{x.fillStyle=c;for(let i=0;i<6;i++){const a=i*Math.PI/3;x.beginPath();x.arc(cx+Math.cos(a)*r*0.7,cy+Math.sin(a)*r*0.7,r*0.5,0,7);x.fill();}x.fillStyle='#e0a21f';x.beginPath();x.arc(cx,cy,r*0.4,0,7);x.fill();};
+      flower(100,130,18,'#c4302b');flower(76,112,10,'#2a4a9a');flower(124,112,10,'#2a4a9a');flower(78,150,10,'#e86a8e');flower(122,150,10,'#e86a8e');
+    }
+    x.restore();border();done();return;
   }
   // tramuntana
   const g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,'#f6c37a');g.addColorStop(0.45,'#f3dcb0');g.addColorStop(0.62,'#9cc7d9');g.addColorStop(1,'#2d6e93');
@@ -2310,13 +2428,13 @@ const View=(function(){
     for(let p=1;p<4;p++){
       const L=labs[p],turn=H&&H.turn===p&&!H.over,mano=H&&H.mano===p;
       L.nm.className='nm'+(turn?' turn':'');
-      L.nm.innerHTML=esc(NAMES[p])+lvTag(LVLS[p])+(mano?'<span class="tag">mà</span>':'');
+      L.nm.innerHTML=esc(NAMES[p])+bdTag(BADGES[p])+lvTag(LVLS[p])+(mano?'<span class="tag">mà</span>':'');
       const b=H&&H.bubbles[p];L.bub.textContent=b||'';L.bub.style.display=b?'block':'none';
     }
     const b0=H&&H.bubbles[0];bub0.textContent=b0||'';bub0.style.display=b0?'block':'none';
     const t0=H&&H.turn===0&&!H.over;
     you.className='you nm'+(t0?' turn':'');
-    you.innerHTML=esc(NAMES[0])+lvTag(LVLS[0])+(H&&H.mano===0?'<span class="tag">mà</span>':'');
+    you.innerHTML=esc(NAMES[0])+bdTag(BADGES[0])+lvTag(LVLS[0])+(H&&H.mano===0?'<span class="tag">mà</span>':'');
     stage.classList.toggle('myturn',UI.mode==='turn'||UI.mode==='respond');
     syncHands();syncPlayed();syncDeck();
   }
@@ -2684,7 +2802,7 @@ function acctInit(){
     if(a==='close')$('#accSheet').hidden=true;
     else if(a==='logout'){Net.send({t:'logout'});acctClear('Has tancat la sessió.');}
     else if(a==='delete'){
-      if(!b.classList.contains('armed')){b.classList.add('armed');b.textContent='Segur? Es perdrà tot el progrés. Torna a pitjar per esborrar-lo';return;}
+      if(!b.classList.contains('armed')){b.classList.add('armed');b.textContent='Segur? Es perdrà tot el progrés i les compres. Torna a pitjar per esborrar-lo';return;}
       Net.send({t:'delete'});
     }
   });
@@ -2693,7 +2811,7 @@ function acctClear(msg){
   Acct.profile=null;Acct.session='';store.set('truc_session','');
   try{if(window.google&&google.accounts)google.accounts.id.disableAutoSelect();}catch(e){}
   $('#accSheet').hidden=true;const d=$('#accDel');if(d){d.classList.remove('armed');d.textContent='Esborrar el meu compte';}
-  renderAcct();if(msg)View.toast(msg,2500);
+  renderAcct();Shop.update();if(msg)View.toast(msg,2500);
 }
 function renderAcct(){
   const box=$('#acctBox');if(!box||!Acct.on)return;
@@ -2724,7 +2842,7 @@ function acctProfile(prof,apply){
     Acct.lastPrefs=JSON.stringify([Me.name,Me.look,Me.hat,Me.back]);
     renderLobby();
   }
-  renderAcct();
+  renderAcct();Shop.update();
 }
 function acctSavePrefs(p){
   if(!Acct.profile)return;
@@ -2736,8 +2854,69 @@ function acctGained(g){ // resum d'experiència al final de la partida
   const pct=Math.max(0,Math.min(100,(p.xp-p.levelXp)/Math.max(1,p.nextXp-p.levelXp)*100));
   el.innerHTML=(g.levelUp?`🎉 <b>Has pujat al nivell ${p.level}: ${esc(p.title)}!</b><br>`:'')+`+${g.xp} d'experiència · Nivell ${p.level}<span class="xpbar"><i style="width:${pct}%"></i></span>`;
 }
+// ---------- Botiga ----------
+const owns=g=>!!(Acct.profile&&Acct.profile.owned&&Acct.profile.owned.includes(g));
+const eur=c=>(c/100).toFixed(2).replace('.',',')+' €';
+const THUMBS={};
+function thumbOf(id,cb){if(THUMBS[id])return cb(THUMBS[id]);backThumb(id,u=>{THUMBS[id]=u;cb(u);});}
+const Shop={items:null,anon:false,test:false,busy:'',pending:null,
+  canSee(){return Acct.profile?!!Acct.profile.shop:this.anon;},
+  ownsItem(it){return it.gives.every(owns);},
+  open(){$('#shopNote').textContent='';$('#shopNote').classList.remove('ok');$('#lookSheet').hidden=true;$('#shopSheet').hidden=false;if(!this.items)Net.send({t:'shop'});this.render();},
+  close(){$('#shopSheet').hidden=true;},
+  render(){
+    const L=$('#shopList');if(!L||$('#shopSheet').hidden)return;
+    const logged=!!Acct.profile,ok=$('#shopOk').checked;
+    $('#shopTest').hidden=!this.test;$('#shopLogin').hidden=logged;$('#shopOkBox').hidden=!logged;
+    if(!logged&&Acct.gsi){const el=$('#shopGsi');if(!el.dataset.done){el.dataset.done='1';try{google.accounts.id.renderButton(el,{theme:'filled_black',size:'medium',shape:'pill',text:'signin_with',locale:'ca'});}catch(e){}}}
+    if(!this.items){L.innerHTML='<p class="hint">Carregant…</p>';return;}
+    L.innerHTML=this.items.map(it=>{
+      const mine=this.ownsItem(it);
+      const prev=it.gives.map(g=>g.startsWith('back:')?`<img alt="" data-thumb="${esc(g.slice(5))}">`:g==='badge:fundador'?'<span class="fund" aria-hidden="true">★</span>':'').join('');
+      const btn=mine?'<button class="shop-buy own" disabled>✓ Ja és teu</button>'
+        :`<button class="shop-buy" data-buy="${esc(it.id)}"${logged&&ok&&!this.busy?'':' disabled'}>${this.busy===it.id?'Obrint el pagament…':'Comprar · '+eur(it.price)}</button>`;
+      return `<div class="shop-item${mine?' mine':''}"><div class="shop-prev">${prev}</div><div class="shop-txt"><b>${esc(it.name)}</b><small>${esc(it.desc)}</small></div>${btn}</div>`;
+    }).join('');
+    L.querySelectorAll('[data-thumb]').forEach(img=>thumbOf(img.dataset.thumb,u=>{img.src=u;}));
+  },
+  buy(id){if(!$('#shopOk').checked||this.busy)return;this.busy=id;$('#shopNote').textContent='';this.render();Net.send({t:'buy',item:id,consent:true});},
+  note(t,ok){const n=$('#shopNote');n.textContent=t;n.classList.toggle('ok',!!ok);},
+  onMsg(m){
+    if(m.t==='shop'){this.items=m.items;this.test=!!m.test;this.render();}
+    else if(m.t==='buy'){location.href=m.url;}
+    else if(m.t==='bought'){
+      if(m.ok){this.open();this.note(`Gràcies! Ja tens el «${m.name}». Tria el revers a «Aspecte».`,true);}
+      else View.toast("Encara no ens ha arribat la confirmació del pagament. Si has pagat, et sortirà d'aquí a una estona.",4000);
+    }
+  },
+  onErr(t){if(this.busy){this.busy='';this.render();}if(!$('#shopSheet').hidden)this.note(t);},
+  // Quan canvia el compte: botó, reversos i, si tornam de pagar, comprovar el pagament
+  update(){
+    $('#btnShop').hidden=!this.canSee();
+    renderBacks();this.render();
+    if(this.pending&&Acct.profile){Net.send({t:'buyCheck',session:this.pending});this.pending=null;}
+  }
+};
+// Reversos a «El teu aspecte»: els de la botiga surten amb cadenat si no els tens
+function renderBacks(){
+  const el=$('#backs');if(!el)return;
+  const see=Shop.canSee(),locked=id=>!!BACK_PACK[id]&&!owns('back:'+id);
+  // un revers de pagament que no és teu (o has tancat la sessió) torna al de sempre; si el compte encara carrega, s'espera
+  if(BACK_PACK[Me.back]&&!owns('back:'+Me.back)&&(Acct.profile||!Acct.session)){Me.back='llenguesBlau';store.set('truc_back',Me.back);}
+  const list=BACK_OPTS.filter(([id])=>!BACK_PACK[id]||!locked(id)||see);
+  const key=list.map(([id])=>id+(locked(id)?'!':'')).join();
+  if(el.dataset.key!==key){
+    el.dataset.key=key;
+    el.innerHTML=list.map(([id,l])=>`<button class="backbtn${locked(id)?' locked':''}" data-back="${id}" aria-label="${l}${locked(id)?' (botiga)':''}"><img alt="">${l}</button>`).join('');
+    el.querySelectorAll('.backbtn').forEach(b=>thumbOf(b.dataset.back,u=>{b.querySelector('img').src=u;}));
+  }
+  el.querySelectorAll('.backbtn').forEach(c=>c.classList.toggle('on',c.dataset.back===Me.back));
+  $('#backsShop').hidden=!see;
+}
 const lvTag=l=>l?`<span class="lv" title="Nivell ${l}">${l}</span>`:'';
-let LVLS=[0,0,0,0];
+// Insígnia de la botiga (ara només la de fundador)
+const bdTag=b=>b==='fundador'?'<span class="fund" title="Fundador: dona suport al Truc mallorquí online">★</span>':'';
+let LVLS=[0,0,0,0],BADGES=['','','',''];
 const rel=a=>(a-Me.seat+4)%4;
 const absOf=r=>(r+Me.seat)%4;
 const vteam=t=>(t===null||t===undefined)?null:(t===Me.seat%2?0:1);
@@ -2798,6 +2977,7 @@ function onMsg(m){
   switch(m.t){
     case 'hello':
       store.set('truc_token',m.token);
+      Shop.anon=!!m.shop;Shop.update();
       if(Acct.session&&GCLIENT&&GCLIENT.charAt(0)!=='_')Net.send({t:'auth',session:Acct.session});
       setTimeout(pollRooms,200);
       if(!m.resumed&&Me.code)resetToMenu('S\'ha perdut la sessió de la sala.');
@@ -2806,7 +2986,8 @@ function onMsg(m){
     case 'snap':if(Me.seat>=0)applySnap(m);break;
     case 'ev':if(Me.seat>=0)onEvent(m.e);break;
     case 'gz':if(Me.seat>=0)applyGaze(m.g);break;
-    case 'err':lobbyError(m.m);View.toast(m.m);break;
+    case 'err':lobbyError(m.m);View.toast(m.m);Shop.onErr(m.m);break;
+    case 'shop':case 'buy':case 'bought':Shop.onMsg(m);break;
     case 'info':lobbyError(m.m);break;
     case 'list':renderOpenRooms(m.rooms);break;
     case 'left':resetToMenu('');break;
@@ -2842,6 +3023,7 @@ function updateRoster(){
   for(let r=0;r<4;r++){const x=Me.players[absOf(r)];arr.push(r===0?'Tu':x.name);}
   NAMES=arr;
   LVLS=[0,1,2,3].map(r=>{const x=Me.players[absOf(r)];return x&&x.lvl||0;});
+  BADGES=[0,1,2,3].map(r=>{const x=Me.players[absOf(r)];return x&&x.badge||'';});
   const looks=[],tints=[];
   const styles=[];
   for(let r=1;r<4;r++){const a=absOf(r),x=Me.players[a];looks.push(x.look);tints.push(a);styles.push({hat:x.hat,back:x.back});}
@@ -2898,7 +3080,7 @@ function renderLobby(){
   document.querySelectorAll('#looks .chip').forEach(c=>c.classList.toggle('on',c.dataset.lk===Me.look));
   const hat=Me.hat||DEF_HAT[Me.look]||'palla';
   document.querySelectorAll('#hats .chip').forEach(c=>c.classList.toggle('on',c.dataset.hat===hat));
-  document.querySelectorAll('#backs .backbtn').forEach(c=>c.classList.toggle('on',c.dataset.back===Me.back));
+  renderBacks();
   const av=avatarSVG(Me.look,hat);$('#avatar').innerHTML=av;$('#avatarBig').innerHTML=av;
   renderLevels();
   if(!inRoom)return;
@@ -2916,7 +3098,7 @@ function renderLobby(){
     const x=Me.players[i],mine=i===Me.seat,el=$('#seat'+i);if(!el||!x)continue;
     el.className='tm-seat '+['s-bottom','s-right','s-top','s-left'][i]+' '+(i%2?'tB':'tA')+(mine?' me':'')+(x.human?'':' empty');
     const sub=x.human?((mine?'Tu':i%2===Me.seat%2?'Company':'Rival')+(i===Me.host?' · amfitrió':'')+(x.connected?'':' · desconnectat')):'Bot si queda buit';
-    el.innerHTML=`<span class="av">${avatarSVG(x.look,x.hat,i)}</span><span class="nm2"><b>${esc(x.human?x.name:'Lliure')}${x.human?lvTag(x.lvl):''}</b><small>${sub}</small>${(!x.human&&!mine)?`<button class="sitbtn" data-sit="${i}">Seure aquí</button>`:''}</span>`;
+    el.innerHTML=`<span class="av">${avatarSVG(x.look,x.hat,i)}</span><span class="nm2"><b>${esc(x.human?x.name:'Lliure')}${x.human?bdTag(x.badge)+lvTag(x.lvl):''}</b><small>${sub}</small>${(!x.human&&!mine)?`<button class="sitbtn" data-sit="${i}">Seure aquí</button>`:''}</span>`;
   }
   const host=Me.host===Me.seat;
   $('#btnStart').hidden=!host;
@@ -2979,11 +3161,26 @@ function setupLobby(){
   $('#btnLookClose').addEventListener('click',closeLook);$('#btnLookOk').addEventListener('click',closeLook);
   $('#lookSheet').addEventListener('click',e=>{if(e.target.id==='lookSheet')closeLook();});
   $('#hats').innerHTML=HAT_OPTS.map(([id,l])=>`<button class="chip" data-hat="${id}">${l}</button>`).join('');
-  $('#backs').innerHTML=BACK_OPTS.map(([id,l])=>`<button class="backbtn" data-back="${id}" aria-label="${l}"><img alt="">${l}</button>`).join('');
-  document.querySelectorAll('#backs .backbtn').forEach(b=>backThumb(b.dataset.back,u=>{b.querySelector('img').src=u;}));
+  renderBacks();
   const sendStyle=()=>{renderLobby();if(Me.code){const p=readProfile();Net.send(Object.assign({t:'profile'},p));}else readProfile();};
   $('#hats').addEventListener('click',e=>{const c=e.target.closest('[data-hat]');if(!c)return;Me.hat=c.dataset.hat;sendStyle();});
-  $('#backs').addEventListener('click',e=>{const c=e.target.closest('[data-back]');if(!c)return;Me.back=c.dataset.back;sendStyle();});
+  $('#backs').addEventListener('click',e=>{const c=e.target.closest('[data-back]');if(!c)return;
+    if(c.classList.contains('locked')){Shop.open();return;}
+    Me.back=c.dataset.back;sendStyle();});
+  // Botiga
+  $('#btnShop').addEventListener('click',()=>{track('botiga');Shop.open();});
+  $('#backsShop').addEventListener('click',e=>{if(e.target.closest('[data-openshop]'))Shop.open();});
+  $('#shopSheet').addEventListener('click',e=>{
+    if(e.target.id==='shopSheet'||e.target.closest('[data-shop="close"]'))return Shop.close();
+    const b=e.target.closest('[data-buy]');if(b)Shop.buy(b.dataset.buy);
+  });
+  $('#shopOk').addEventListener('change',()=>Shop.render());
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#shopSheet').hidden)Shop.close();});
+  // Tornam de la pàgina de pagament (?compra=...)
+  {const q=new URLSearchParams(location.search),c=q.get('compra');
+    if(c){q.delete('compra');history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')+location.hash);
+      if(c==='cancel')setTimeout(()=>View.toast("Pagament cancel·lat: no s'ha cobrat res.",3000),600);
+      else{Shop.pending=c;Shop.update();}}}
   document.querySelectorAll('#looks .chip').forEach(c=>c.addEventListener('click',()=>{
     // si duia el capell per defecte del personatge anterior, posa el del nou
     if(!Me.hat||Me.hat===DEF_HAT[Me.look])Me.hat=DEF_HAT[c.dataset.lk];

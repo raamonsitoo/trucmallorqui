@@ -109,7 +109,16 @@ function pgStore() {
     hands INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_seen TIMESTAMPTZ NOT NULL DEFAULT now())`);
+  // Compres de la botiga: una fila per article comprat. `ref` és la sessió de pagament (no es pot repetir).
+  const readyShop = ready.then(() => pool.query(`CREATE TABLE IF NOT EXISTS purchases (
+    id SERIAL PRIMARY KEY,
+    player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+    item TEXT NOT NULL,
+    ref TEXT UNIQUE NOT NULL,
+    amount INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now())`));
   ready.catch(e => console.error('db init', e.message));
+  readyShop.catch(e => console.error('db init compres', e.message));
   const one = async (q, v) => { await ready; return (await pool.query(q, v)).rows[0] || null; };
   return {
     async login(sub, d) {
@@ -125,11 +134,23 @@ function pgStore() {
         WHERE id = $1 RETURNING ${COLS}`, [id, r.xp, r.won ? 1 : 0, r.cantons, r.hands]);
     },
     async remove(id) { await ready; await pool.query('DELETE FROM players WHERE id = $1', [id]); },
+    // Articles comprats (llista d'identificadors, sense repetir)
+    async owned(id) {
+      await readyShop;
+      return (await pool.query('SELECT DISTINCT item FROM purchases WHERE player_id = $1', [id])).rows.map(r => r.item);
+    },
+    // Apunta una compra; si aquesta sessió de pagament ja s'havia apuntat, no fa res. Torna true si és nova.
+    async grant(id, item, ref, amount) {
+      await readyShop;
+      const r = await pool.query(`INSERT INTO purchases (player_id, item, ref, amount) VALUES ($1,$2,$3,$4)
+        ON CONFLICT (ref) DO NOTHING RETURNING id`, [id, item, ref, amount]);
+      return r.rowCount > 0;
+    },
     async close() { await pool.end(); }
   };
 }
 function memStore() {
-  const bySub = new Map(), byId = new Map(); let next = 1;
+  const bySub = new Map(), byId = new Map(), buys = []; let next = 1;
   const copy = p => p && Object.assign({}, p);
   return {
     async login(sub, d) {
@@ -143,7 +164,15 @@ function memStore() {
       const p = byId.get(id); if (!p) return null;
       p.xp += r.xp; p.games++; p.wins += r.won ? 1 : 0; p.cantons += r.cantons; p.hands += r.hands; return copy(p);
     },
-    async remove(id) { const p = byId.get(id); if (p) { byId.delete(id); bySub.delete(p.sub); } },
+    async remove(id) {
+      const p = byId.get(id); if (p) { byId.delete(id); bySub.delete(p.sub); }
+      for (let i = buys.length - 1; i >= 0; i--) if (buys[i].id === id) buys.splice(i, 1);
+    },
+    async owned(id) { return Array.from(new Set(buys.filter(b => b.id === id).map(b => b.item))); },
+    async grant(id, item, ref, amount) {
+      if (!byId.has(id) || buys.some(b => b.ref === ref)) return false;
+      buys.push({ id, item, ref, amount }); return true;
+    },
     async close() {}
   };
 }

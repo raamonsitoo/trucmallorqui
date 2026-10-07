@@ -3,6 +3,8 @@ process.env.TRUC_TIMER_MS='400';
 process.env.PORT='0';
 // comptes en mode de prova (memòria i credencials falses «test:...»)
 process.env.NODE_ENV='test';process.env.TRUC_TEST_AUTH='1';process.env.GOOGLE_CLIENT_ID='test-client';process.env.SESSION_SECRET='test-secret';delete process.env.DATABASE_URL;
+// botiga oberta amb pagaments simulats (sense Stripe)
+process.env.SHOP='on';process.env.SHOP_SIMULATED='1';delete process.env.STRIPE_SECRET_KEY;
 const WebSocket=require('ws');
 const {server,rooms}=require('./server.js');
 const assert=require('assert');
@@ -199,10 +201,63 @@ async function scenario9(){
   assert(mn>0.55,'el mestre ha de guanyar el normal ('+mn+')');
   console.log(`9) nivells: fàcil guanya ${(100*fn).toFixed(0)}% contra normal, mestre ${(100*mn).toFixed(0)}%`);
 }
+// Botiga: no es pot dur un revers sense comprar-lo; comprar (pagament simulat), desbloquejar i veure-ho a la taula
+async function scenario10(){
+  const http=require('http'),crypto=require('crypto'),shop=require('./shop');
+  const a=new Bot('A');await a.connect();
+  const msgs=t=>(a.msgs||[]).filter(m=>m.t===t);
+  a.send({t:'login',credential:'test:compradora',name:'Marga',look:'mocador'});
+  await a.until(()=>msgs('login').length,5000);
+  const prof=msgs('login')[0].profile;
+  assert(prof.shop&&prof.owned.length===0,'botiga visible i res comprat');
+  a.send({t:'prefs',name:'Marga',look:'mocador',hat:'mocador',back:'dimonis'});
+  await a.until(()=>msgs('me').length>=1,3000);
+  assert.equal(msgs('me')[0].profile.back,'llenguesBlau','un revers de pagament no es pot dur sense comprar-lo');
+  a.send({t:'shop'});await a.until(()=>msgs('shop').length,3000);
+  assert(msgs('shop')[0].items.some(i=>i.id==='festes'&&i.price===199),'catàleg amb preus');
+  a.send({t:'buy',item:'festes'});
+  await a.until(()=>a.errors.length,3000);
+  assert(/casella/.test(a.errors[0]),'sense marcar la casella del desistiment no es pot comprar');
+  const pay=async item=>{
+    const n=msgs('buy').length;a.send({t:'buy',item,consent:true});
+    await a.until(()=>msgs('buy').length>n,3000);
+    const sid=new URL(msgs('buy')[n].url).searchParams.get('s'),b0=msgs('bought').length;
+    a.send({t:'buyCheck',session:sid});
+    await a.until(()=>msgs('bought').length>b0,3000);
+    assert.equal(msgs('bought')[b0].ok,false,'sense pagar no es desbloqueja');
+    const loc=await new Promise((res,rej)=>http.get(`http://127.0.0.1:${port}/compra-simulada?s=${sid}&pagar=1`,r=>{r.resume();res(r.headers.location);}).on('error',rej));
+    assert.equal(loc,'/?compra='+sid,'torna al joc després de pagar');
+    a.send({t:'buyCheck',session:sid});a.send({t:'buyCheck',session:sid});
+    await a.until(()=>msgs('bought').length>=b0+3,3000);
+    assert(msgs('bought')[b0+1].ok&&msgs('bought')[b0+2].ok,'pagat: es desbloqueja (i repetir la comprovació no fa mal)');
+  };
+  await pay('festes');
+  await a.until(()=>msgs('me').some(m=>m.profile.owned.includes('back:dimonis')),3000);
+  a.send({t:'prefs',name:'Marga',look:'mocador',hat:'mocador',back:'dimonis'});
+  await a.until(()=>msgs('me').some(m=>m.profile.back==='dimonis'),3000);
+  a.send({t:'buy',item:'festes',consent:true});
+  await a.until(()=>a.errors.length>=2,3000);
+  assert(/Ja tens/.test(a.errors[1]),'no es pot comprar dues vegades');
+  a.send({t:'create',name:'Marga',look:'mocador',hat:'mocador',back:'dimonis'});
+  await a.until(()=>a.room,3000);
+  assert.equal(a.room.seats[a.room.you].back,'dimonis','el revers comprat es veu a la taula');
+  await pay('fundador');
+  await a.until(()=>a.room.seats[a.room.you].badge==='fundador',3000);
+  assert.equal(a.room.seats[a.room.you].badge,'fundador','la insígnia de fundador surt al seient');
+  // avís de Stripe: només s'accepta amb la signatura bona i recent
+  const raw=JSON.stringify({type:'prova'}),t=Math.floor(Date.now()/1000);
+  const sig=crypto.createHmac('sha256','whsec_prova').update(t+'.'+raw).digest('hex');
+  assert(shop.verifyWebhook(raw,`t=${t},v1=${sig}`,'whsec_prova'),'signatura bona');
+  assert(!shop.verifyWebhook(raw,`t=${t},v1=${sig.slice(0,-1)+(sig.slice(-1)==='0'?'1':'0')}`,'whsec_prova'),'signatura dolenta');
+  assert(!shop.verifyWebhook(raw,`t=${t},v1=${sig}`,'whsec_altra'),'secret diferent');
+  assert(!shop.verifyWebhook(raw,`t=${t},v1=${sig}`,'whsec_prova',Date.now()+600e3),'avís massa antic');
+  console.log('10) botiga: revers bloquejat, casella obligatòria, pagament simulat, desbloqueig sense repetir, revers i insígnia a la taula, signatura de Stripe');
+  a.send({t:'leave'});a.ws.close();
+}
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();
+    scenario5();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });

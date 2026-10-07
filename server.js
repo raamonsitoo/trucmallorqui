@@ -8,6 +8,7 @@ const { WebSocketServer } = require('ws');
 const { Game, LEVEL_IDS } = require('./game');
 const acc = require('./accounts');
 const fb = require('./feedback');
+const shop = require('./shop');
 
 const PORT = Number(process.env.PORT) || 3000;
 const SPEED = process.env.TRUC_SPEED ? Number(process.env.TRUC_SPEED) : 1;
@@ -36,6 +37,10 @@ const ANALYTICS_TAG = GOATCOUNTER
   : '';
 // Correu de contacte que surt a la política de privacitat (per defecte trucmallorqui@gmail.com; es pot canviar amb CONTACT_EMAIL)
 const CONTACT_EMAIL = (process.env.CONTACT_EMAIL || '').trim().replace(/[<>"']/g, '');
+// Qui ven (surt a les condicions de venda; és obligatori abans d'obrir la botiga de veres)
+const envText = k => (process.env[k] || '').trim().replace(/[<>"'&]/g, '');
+const SELLER = [envText('SELLER_NAME'), envText('SELLER_NIF') && 'NIF ' + envText('SELLER_NIF'), envText('SELLER_ADDRESS')].filter(Boolean).join(' · ');
+if (shop.ENABLED && !shop.TEST && !SELLER) console.warn('BOTIGA: falten SELLER_NAME, SELLER_NIF i SELLER_ADDRESS per a les condicions de venda');
 const STARTED_AT = Date.now();
 const counters = { gamesStarted: 0, gamesFinished: 0, quick: 0, matched: 0 };
 const LOOKS = ['palla', 'barretina', 'mocador'];
@@ -81,8 +86,9 @@ const HATS = ['palla', 'pallaAmple', 'pallaNegre', 'gorra', 'barretina', 'mocado
 const BACKS = ['llenguesBlau', 'llenguesVermell', 'llenguesVerd', 'rajola', 'siurell', 'tramuntana'];
 const DEF_HAT = { palla: 'palla', barretina: 'barretina', mocador: 'mocador' };
 const cleanHat = (h, look) => (HATS.includes(h) ? h : DEF_HAT[look] || 'palla');
-const cleanBack = b => (BACKS.includes(b) ? b : 'llenguesBlau');
-const cleanStyle = (m, look) => ({ hat: cleanHat(m && m.hat, look), back: cleanBack(m && m.back) });
+// Els reversos de la botiga només els pot dur qui els ha comprat (`owned`: el que té desbloquejat)
+const cleanBack = (b, owned) => (BACKS.includes(b) || (shop.PREMIUM_BACKS.has(b) && owned && owned.has('back:' + b)) ? b : 'llenguesBlau');
+const cleanStyle = (m, look, owned) => ({ hat: cleanHat(m && m.hat, look), back: cleanBack(m && m.back, owned) });
 const newToken = () => crypto.randomBytes(16).toString('hex');
 function newCode() {
   for (let k = 0; k < 50; k++) {
@@ -103,7 +109,7 @@ class Room {
     this.searching = false;   // cercant rivals: surt a la llista de sales obertes i s'emparella sola
     this.searchSince = 0;
     this.botLevel = 'normal'; // nivell dels bots (facil, normal, dificil, mestre); el tria l'amfitrió
-    this.seats = [0, 1, 2, 3].map(() => ({ human: false, name: '', look: 'palla', hat: 'palla', back: 'llenguesBlau', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0 }));
+    this.seats = [0, 1, 2, 3].map(() => ({ human: false, name: '', look: 'palla', hat: 'palla', back: 'llenguesBlau', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0, badge: '' }));
   }
   sendSeat(s, msg) {
     const x = this.seats[s];
@@ -120,7 +126,7 @@ class Room {
       seats: this.seats.map((x, i) => ({
         human: x.human, name: x.human ? x.name : DEF_NAMES[i], look: x.human ? x.look : DEF_LOOKS[i],
         hat: x.human ? x.hat : DEF_HAT[DEF_LOOKS[i]], back: x.human ? x.back : 'llenguesBlau', connected: x.human ? x.connected : true,
-        lvl: x.human && x.uid ? x.lvl : 0
+        lvl: x.human && x.uid ? x.lvl : 0, badge: x.human && x.uid ? x.badge || '' : ''
       }))
     };
   }
@@ -138,7 +144,7 @@ class Room {
     if (name) x.name = name;
     if (look) x.look = look;
     if (style) { x.hat = style.hat; x.back = style.back; }
-    if (ws.ctx.uid) { x.uid = ws.ctx.uid; x.lvl = ws.ctx.lvl || 1; }
+    if (ws.ctx.uid) { x.uid = ws.ctx.uid; x.lvl = ws.ctx.lvl || 1; x.badge = ws.ctx.badge || ''; }
     ws.ctx.code = this.code; ws.ctx.seat = seat;
     sessions.set(token, { code: this.code, seat });
     this.lastActive = Date.now();
@@ -160,7 +166,7 @@ class Room {
   freeSeatNow(seat) {
     const x = this.seats[seat];
     if (x.token) sessions.delete(x.token);
-    x.human = false; x.connected = false; x.ws = null; x.token = null; x.name = ''; x.freeTimer = null; x.uid = null; x.lvl = 0;
+    x.human = false; x.connected = false; x.ws = null; x.token = null; x.name = ''; x.freeTimer = null; x.uid = null; x.lvl = 0; x.badge = '';
     if (this.hostSeat === seat) this.pickHost();
   }
   pickHost() {
@@ -223,10 +229,10 @@ function mergeInto(A, B, rot) {
     const x = B.seats[s];
     if (!x.human) continue;
     const t = (s + rot) % 4, y = A.seats[t];
-    Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null, uid: x.uid, lvl: x.lvl });
+    Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null, uid: x.uid, lvl: x.lvl, badge: x.badge });
     if (x.ws && x.ws.ctx) { x.ws.ctx.code = A.code; x.ws.ctx.seat = t; }
     sessions.set(x.token, { code: A.code, seat: t });
-    Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0 });
+    Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0, badge: '' });
   }
   B.searching = false;
   B.destroy();
@@ -273,7 +279,7 @@ const STATIC = {
   '/manifest.webmanifest': 'application/manifest+json', '/sw.js': 'text/javascript; charset=utf-8'
 };
 const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/regles': 'regles.html', '/regles.html': 'regles.html', '/reglas': 'reglas.html', '/reglas.html': 'reglas.html',
-  '/privacitat': 'privacitat.html', '/privacidad': 'privacidad.html' };
+  '/privacitat': 'privacitat.html', '/privacidad': 'privacidad.html', '/condicions': 'condicions.html' };
 const HTML_HEADERS = {
   'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache',
   'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin'
@@ -281,6 +287,22 @@ const HTML_HEADERS = {
 const server = http.createServer((req, res) => {
   const url = (req.url || '/').split('?')[0];
   if (url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
+  // Stripe ens avisa quan algú ha pagat (abans de la redirecció al domini: Stripe no segueix redireccions)
+  if (url === '/stripe/webhook' && req.method === 'POST') {
+    const chunks = []; let size = 0;
+    req.on('data', d => { size += d.length; if (size > 256 * 1024) req.destroy(); else chunks.push(d); });
+    req.on('end', () => {
+      const ev = shop.verifyWebhook(Buffer.concat(chunks).toString('utf8'), req.headers['stripe-signature']);
+      if (!ev) { res.writeHead(400, { 'Content-Type': 'text/plain' }); return res.end('Signatura no vàlida'); }
+      const o = ev.data && ev.data.object;
+      if (['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(ev.type) && o && o.payment_status === 'paid'
+        && o.metadata && shop.ITEMS[o.metadata.item] && Number(o.metadata.uid) > 0 && acc.ENABLED) {
+        grantPurchase(Number(o.metadata.uid), o.metadata.item, o.id, o.amount_total || 0).catch(e => console.error('webhook', e.message));
+      }
+      res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end('ok');
+    });
+    return;
+  }
   const host = String(req.headers.host || '').toLowerCase().split(':')[0];
   if (CANONICAL_HOST && host.endsWith('.onrender.com')) {
     res.writeHead(301, { Location: SITE_URL + (req.url || '/') });
@@ -290,7 +312,8 @@ const server = http.createServer((req, res) => {
     fs.readFile(path.join(__dirname, 'public', PAGES[url]), 'utf8', (err, data) => {
       if (err) { res.writeHead(500); return res.end('Falta public/' + PAGES[url]); }
       const body = data.split('__SITE__').join(SITE_URL).replace('<!--ANALYTICS-->', ANALYTICS_TAG)
-        .split('__GCLIENT__').join(acc.GOOGLE_CLIENT_ID).split('__CONTACT__').join(CONTACT_EMAIL || 'trucmallorqui@gmail.com');
+        .split('__GCLIENT__').join(acc.GOOGLE_CLIENT_ID).split('__CONTACT__').join(CONTACT_EMAIL || 'trucmallorqui@gmail.com')
+        .split('__SELLER__').join(SELLER || '[falten el nom, el NIF i l\'adreça del venedor]');
       // Pàgines comprimides (gzip): la web carrega molt més aviat, sobretot al mòbil
       if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
         return zlib.gzip(body, (e, buf) => {
@@ -303,6 +326,17 @@ const server = http.createServer((req, res) => {
       res.end(body);
     });
     return;
+  }
+  // Pagament de mentida per provar la botiga a l'ordinador (SHOP_SIMULATED=1, sense Stripe)
+  if (url === '/compra-simulada' && shop.SIMULATED) {
+    const q = new URL(req.url, 'http://x').searchParams, s = String(q.get('s') || '').replace(/[^a-z0-9_]/g, '');
+    if (q.get('pagar') === '1' && shop.simulatePay(s)) { res.writeHead(302, { Location: '/?compra=' + s }); return res.end(); }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+    return res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pagament simulat</title>
+<body style="font-family:system-ui;background:#0a1b1d;color:#e2eeea;display:grid;place-items:center;min-height:100vh;margin:0;padding:16px">
+<div style="max-width:380px;text-align:center"><h1>Pagament simulat</h1><p>Aquí aniria la pàgina de pagament de Stripe. No es cobra res.</p>
+<p><a href="?s=${s}&pagar=1" style="display:inline-block;background:#e0a21f;color:#2b1c00;padding:12px 22px;border-radius:999px;font-weight:800;text-decoration:none">Pagar (simulat)</a></p>
+<p><a href="/?compra=cancel" style="color:#8fb0aa">Cancel·lar</a></p></div>`);
   }
   if (url === '/stats') {
     const key = new URL(req.url, 'http://x').searchParams.get('key');
@@ -370,7 +404,9 @@ wss.on('connection', (ws, req) => {
   if (n > MAX_CONN_PER_IP) { try { ws.close(1008, 'Massa connexions'); } catch (e) { /* res */ } return; }
   ipConns.set(ip, n);
   ws.once('close', () => { const k = (ipConns.get(ip) || 1) - 1; if (k <= 0) ipConns.delete(ip); else ipConns.set(ip, k); });
-  ws.ctx = { token: null, code: null, seat: -1, count: 0, windowStart: Date.now(), ip, ua: String(req.headers['user-agent'] || '').slice(0, 300) };
+  ws.ctx = { token: null, code: null, seat: -1, count: 0, windowStart: Date.now(), ip, ua: String(req.headers['user-agent'] || '').slice(0, 300), owned: new Set(), badge: '',
+    // On torna el comprador després de pagar (en mode simulat, l'ordinador on es prova)
+    origin: shop.SIMULATED ? 'http://' + String(req.headers.host || 'localhost').replace(/[^a-z0-9.:\-[\]]/gi, '') : SITE_URL };
   ws.isAlive = true;
   ws.on('pong', () => { ws.isAlive = true; });
   ws.on('message', raw => {
@@ -409,14 +445,14 @@ function handle(ws, m) {
       if (room && room.seats[s.seat] && room.seats[s.seat].token === tk) {
         c.token = tk;
         room.attach(s.seat, ws, tk, null, null);
-        send(ws, { t: 'hello', token: tk, resumed: true });
+        send(ws, { t: 'hello', token: tk, resumed: true, shop: shop.visibleTo(null) });
         room.broadcastRoom();
         if (room.game) room.game.onReconnect(s.seat);
         return;
       }
     }
     c.token = newToken();
-    send(ws, { t: 'hello', token: c.token, resumed: false });
+    send(ws, { t: 'hello', token: c.token, resumed: false, shop: shop.visibleTo(null) });
     return;
   }
   if (!c.token) return;
@@ -433,7 +469,7 @@ function handle(ws, m) {
     const room = new Room(code);
     room.ownerIp = c.ip;
     rooms.set(code, room);
-    room.attach(0, ws, c.token, cleanName(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look)));
+    room.attach(0, ws, c.token, cleanName(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look), c.owned));
     room.hostSeat = 0;
     if (LEVEL_IDS.includes(m.level)) room.botLevel = m.level;
     if (m.quick) { counters.quick++; room.broadcastRoom(); room.startGame(); }
@@ -449,7 +485,7 @@ function handle(ws, m) {
     if (room.phase !== 'lobby') return err(ws, 'La partida ja ha començat');
     const seat = room.freeSeat([2, 1, 3, 0]);
     if (seat < 0) return err(ws, 'La sala està plena');
-    room.attach(seat, ws, c.token, cleanName(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look)));
+    room.attach(seat, ws, c.token, cleanName(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look), c.owned));
     room.broadcastRoom();
     // Sala oberta que s'omple: comença sola
     if (room.searching && room.humans() === 4) room.startGame();
@@ -458,6 +494,8 @@ function handle(ws, m) {
   if (m.t === 'list') { send(ws, { t: 'list', rooms: openRooms() }); return; }
   if (m.t === 'login' || m.t === 'auth' || m.t === 'logout' || m.t === 'prefs' || m.t === 'delete') { accountMsg(ws, m); return; }
   if (m.t === 'feedback') { feedbackMsg(ws, m); return; }
+  if (m.t === 'shop') { if (shop.visibleTo(c.uid)) send(ws, { t: 'shop', items: shop.catalog(), test: shop.TEST }); return; }
+  if (m.t === 'buy' || m.t === 'buyCheck') { shopMsg(ws, m); return; }
 
   const room = ctxRoom(ws);
   if (!room) return;
@@ -470,8 +508,8 @@ function handle(ws, m) {
       const to = m.seat;
       if (!Number.isInteger(to) || to < 0 || to > 3 || room.seats[to].human) return;
       const x = room.seats[seat], y = room.seats[to];
-      Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null, uid: x.uid, lvl: x.lvl });
-      Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0 });
+      Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null, uid: x.uid, lvl: x.lvl, badge: x.badge });
+      Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0, badge: '' });
       c.seat = to;
       sessions.set(y.token, { code: room.code, seat: to });
       if (room.hostSeat === seat) room.hostSeat = to;
@@ -480,13 +518,13 @@ function handle(ws, m) {
     }
     case 'profile': {
       if (room.phase !== 'lobby') {
-        Object.assign(room.seats[seat], cleanStyle(m, room.seats[seat].look));
+        Object.assign(room.seats[seat], cleanStyle(m, room.seats[seat].look, c.owned));
         room.broadcastRoom();
         return;
       }
       room.seats[seat].name = cleanName(m.name, 'Jugador');
       room.seats[seat].look = cleanLook(m.look);
-      Object.assign(room.seats[seat], cleanStyle(m, room.seats[seat].look));
+      Object.assign(room.seats[seat], cleanStyle(m, room.seats[seat].look, c.owned));
       room.broadcastRoom();
       return;
     }
@@ -529,13 +567,22 @@ function handle(ws, m) {
 function setSeatAccount(ws) {
   const room = ctxRoom(ws); if (!room) return;
   const x = room.seats[ws.ctx.seat];
-  x.uid = ws.ctx.uid || null; x.lvl = ws.ctx.uid ? ws.ctx.lvl || 1 : 0;
+  x.uid = ws.ctx.uid || null; x.lvl = ws.ctx.uid ? ws.ctx.lvl || 1 : 0; x.badge = ws.ctx.uid ? ws.ctx.badge || '' : '';
+  x.back = cleanBack(x.back, ws.ctx.owned);
   room.broadcastRoom();
 }
-function prefsFrom(m) {
+function prefsFrom(m, owned) {
   const look = cleanLook(m.look);
-  return Object.assign({ name: cleanName(m.name, 'Jugador'), look }, cleanStyle(m, look));
+  return Object.assign({ name: cleanName(m.name, 'Jugador'), look }, cleanStyle(m, look, owned));
 }
+// El que ha comprat el compte de la connexió (reversos i insígnia)
+async function loadOwned(c) {
+  c.owned = c.uid ? shop.entitlements(await acc.store.owned(c.uid)) : new Set();
+  c.badge = c.owned.has('badge:fundador') ? 'fundador' : '';
+}
+function forgetAccount(c) { c.uid = null; c.lvl = 0; c.owned = new Set(); c.badge = ''; }
+// Perfil per al client: progrés, què té comprat i si veu la botiga
+const profileOf = (c, p) => Object.assign(acc.publicProfile(p), { owned: Array.from(c.owned), badge: c.badge, shop: shop.visibleTo(c.uid), shopTest: shop.TEST });
 async function accountMsg(ws, m) {
   const c = ws.ctx;
   if (!acc.ENABLED) return;
@@ -546,25 +593,27 @@ async function accountMsg(ws, m) {
       if (!sub) return err(ws, "No s'ha pogut entrar amb Google. Torna-ho a provar.");
       const p = await acc.store.login(sub, prefsFrom(m));
       c.uid = p.id; c.lvl = acc.levelOf(p.xp);
-      send(ws, { t: 'login', session: acc.signSession(p.id), profile: acc.publicProfile(p) });
+      await loadOwned(c);
+      send(ws, { t: 'login', session: acc.signSession(p.id), profile: profileOf(c, p) });
       setSeatAccount(ws);
     } else if (m.t === 'auth') {
       const id = acc.verifySession(m.session);
       const p = id && await acc.store.get(id);
       if (!p) return send(ws, { t: 'logout' });
       c.uid = p.id; c.lvl = acc.levelOf(p.xp);
-      send(ws, { t: 'me', profile: acc.publicProfile(p) });
+      await loadOwned(c);
+      send(ws, { t: 'me', profile: profileOf(c, p) });
       setSeatAccount(ws);
     } else if (m.t === 'prefs') {
       if (!c.uid) return;
-      const p = await acc.store.prefs(c.uid, prefsFrom(m));
-      if (p) send(ws, { t: 'me', profile: acc.publicProfile(p) });
+      const p = await acc.store.prefs(c.uid, prefsFrom(m, c.owned));
+      if (p) send(ws, { t: 'me', profile: profileOf(c, p) });
     } else if (m.t === 'logout') {
-      c.uid = null; c.lvl = 0; setSeatAccount(ws);
+      forgetAccount(c); setSeatAccount(ws);
     } else if (m.t === 'delete') {
       if (!c.uid) return;
       await acc.store.remove(c.uid);
-      c.uid = null; c.lvl = 0; setSeatAccount(ws);
+      forgetAccount(c); setSeatAccount(ws);
       send(ws, { t: 'deleted' });
     }
   } catch (e) {
@@ -572,6 +621,44 @@ async function accountMsg(ws, m) {
     err(ws, 'Ara mateix no podem accedir als comptes. Torna-ho a provar més tard.');
   }
 }
+// ---------- Botiga ----------
+async function shopMsg(ws, m) {
+  const c = ws.ctx;
+  if (!acc.ENABLED) return;
+  try {
+    if (m.t === 'buy') {
+      if (!c.uid) return err(ws, 'Entra amb Google per comprar: així la compra queda guardada al teu compte.');
+      if (!shop.visibleTo(c.uid) || !shop.ITEMS[m.item]) return;
+      if (m.consent !== true) return err(ws, 'Per comprar has de marcar la casella de les condicions.');
+      if ((await acc.store.owned(c.uid)).includes(m.item)) return err(ws, 'Ja tens aquest pack.');
+      if ((c.buys = (c.buys || 0) + 1) > 20) return;
+      send(ws, { t: 'buy', url: await shop.createCheckout(c.uid, m.item, c.origin) });
+    } else if (m.t === 'buyCheck') {
+      // En tornar de la pàgina de pagament: si ja s'ha pagat, es desbloqueja ara (l'avís de Stripe també ho fa)
+      if (!c.uid || (c.checks = (c.checks || 0) + 1) > 20) return;
+      const s = await shop.getSession(m.session);
+      if (!s || !s.paid || s.uid !== c.uid || !shop.ITEMS[s.item]) return send(ws, { t: 'bought', ok: false });
+      await grantPurchase(s.uid, s.item, m.session, s.amount);
+      send(ws, { t: 'bought', ok: true, item: s.item, name: shop.ITEMS[s.item].name });
+    }
+  } catch (e) {
+    console.error('botiga', e.message);
+    err(ws, "Ara mateix no s'ha pogut obrir el pagament. Torna-ho a provar més tard.");
+  }
+}
+// Apunta la compra (una sola vegada per pagament) i ho diu a totes les connexions d'aquest compte
+async function grantPurchase(uid, item, ref, amount) {
+  if (await acc.store.grant(uid, item, ref, amount)) console.log(`compra: compte ${uid}, ${item}, ${(amount / 100).toFixed(2)} €`);
+  const p = await acc.store.get(uid);
+  if (!p) return;
+  for (const w of wss.clients) {
+    if (!w.ctx || w.ctx.uid !== uid) continue;
+    await loadOwned(w.ctx);
+    send(w, { t: 'me', profile: profileOf(w.ctx, p) });
+    setSeatAccount(w);
+  }
+}
+
 // ---------- Bústia de suggeriments ----------
 function feedbackMsg(ws, m) {
   const c = ws.ctx, now = Date.now();
@@ -605,7 +692,7 @@ function awardGame(room, g) {
       if (x.uid === uid) { x.lvl = prof.level; room.broadcastRoom(); }
       if (x.ws && x.ws.ctx && x.ws.ctx.uid === uid) {
         x.ws.ctx.lvl = prof.level;
-        send(x.ws, { t: 'me', profile: prof, gained: { xp: r.xp, won: r.won, levelUp: prof.level > before } });
+        send(x.ws, { t: 'me', profile: profileOf(x.ws.ctx, p), gained: { xp: r.xp, won: r.won, levelUp: prof.level > before } });
       }
     }).catch(e => console.error('xp', e.message));
   });

@@ -17,6 +17,7 @@ Web per jugar al Truc mallorquí per internet, en 3D i amb senyes: **https://tru
 - **Instal·lable com una app** al mòbil (PWA) i pàgina **/regles** amb la guia completa.
 - **Comptes amb Google** (opcionals): guarden el nom, l'aspecte i el **progrés** (experiència, nivells, partides i victòries). Es poden esborrar des del joc. Pàgina **/privacitat** (i /privacidad).
 - **Protecció**: límits per IP i filtre de noms ofensius.
+- **Botiga** (desactivada per defecte): aspectes de pagament amb Stripe, només estètics. Pack Fundador (revers exclusiu i estrella al nom) i Pack Festes de Mallorca (reversos de dimonis, fogueró i cossiers). Pàgina **/condicions** amb les condicions de venda.
 
 ## Fitxers
 
@@ -25,7 +26,9 @@ server.js              servidor web + WebSocket (sales, emparellament, límits, 
 game.js                regles del joc, bots (i els seus nivells), senyes i mirada (tot passa al servidor)
 bots-entrenats.json    paràmetres dels bots difícil i mestre que surten de l'entrenament
 tools/entrena-bots.js  entrena els bots i fa tornejos entre nivells (vegeu «Entrenar els bots»)
-accounts.js            comptes: entrar amb Google, sessions, nivells i base de dades (PostgreSQL)
+accounts.js            comptes: entrar amb Google, sessions, nivells, compres i base de dades (PostgreSQL)
+shop.js                botiga: catàleg i preus, pagaments amb Stripe, avís de pagament i mode simulat
+public/condicions.html condicions de venda de la botiga
 public/index.html      el joc (3D amb Three.js, sala, menú)
 public/regles.html     guia «Com es juga al truc mallorquí» (i public/reglas.html, en castellà)
 tools/genera-regles.js torna a generar les dues guies (node tools/genera-regles.js)
@@ -71,6 +74,20 @@ Cada `git push` a `main` desplega automàticament. Variables d'entorn:
 | `CONTACT_EMAIL` | Correu de contacte de la política de privacitat | el correu de la web |
 
 Els comptes només s'activen si hi ha `GOOGLE_CLIENT_ID`, `SESSION_SECRET` i `DATABASE_URL`. Sense elles, el joc funciona igual però sense comptes.
+
+### Botiga
+
+Necessita els comptes activats (per comprar s'ha d'entrar amb Google). Variables:
+
+| Variable | Per a què | Valor |
+|---|---|---|
+| `SHOP` | Qui veu la botiga | `off` (per defecte), `testers` (només els comptes de `SHOP_TESTERS`) o `on` (tothom) |
+| `SHOP_TESTERS` | Comptes que la veuen en mode `testers` | identificadors de compte separats per comes (columna `id` de la taula `players`) |
+| `STRIPE_SECRET_KEY` | Clau de Stripe | `sk_test_...` per provar (no es cobra res) o `sk_live_...` per cobrar de veres |
+| `STRIPE_WEBHOOK_SECRET` | Stripe avisa dels pagaments a `https://trucmallorqui.com/stripe/webhook` (esdeveniment `checkout.session.completed`) | `whsec_...` |
+| `SELLER_NAME`, `SELLER_NIF`, `SELLER_ADDRESS` | Dades del venedor a /condicions (obligatòries abans de cobrar de veres) | el teu nom, NIF i adreça |
+
+Per provar-la a l'ordinador sense Stripe: `SHOP=on SHOP_SIMULATED=1` (el pagament és de mentida). Les compres es guarden a la taula `purchases`; el servidor apunta cada compra al registre («compra: compte 12, festes, 1.99 €»).
 
 La bústia de suggeriments (enllaç «Suggeriments» a baix de tot) guarda els missatges a la taula `feedback` de `DATABASE_URL`; sense base de dades, els guarda en memòria i al registre del servidor. Es llegeixen a `/suggeriments?key=STATS_KEY` o a Neon → Tables → feedback.
 
