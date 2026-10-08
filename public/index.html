@@ -324,6 +324,15 @@ body.immersive .band,body.immersive .log,body.immersive .top>div:first-child{dis
 }
 /* Botons «Parlar» i «Fer una seña» (només al mòbil vertical a pantalla completa) */
 .mtools{display:none}
+/* Al mòbil sempre es juga en mode partida: sense botons de pantalla completa; i només en vertical */
+body.phone #btnFs,body.phone #btnFs2{display:none!important}
+.rotate{display:none}
+@media (orientation:landscape){
+  body.phone.immersive .rotate{display:flex;position:fixed;inset:0;z-index:200;background:#0a1b1d;color:#e2eeea;align-items:center;justify-content:center;text-align:center;padding:24px}
+}
+.rotate b{display:block;font-size:3rem;line-height:1}
+.rotate p{font-size:1.2rem;font-weight:700;margin:12px 0 4px}
+.rotate span{color:#8fb0aa;font-size:.95rem}
 /* mòbil vertical: taula a dalt i botons a davall; parlar i senyes s'obren amb els botons de davall de la taula */
 @media (orientation:portrait) and (max-width:760px){
   body.immersive .app{max-width:none;margin:0;height:100vh;height:100dvh;padding:6px;display:grid;gap:6px;
@@ -334,6 +343,10 @@ body.immersive .band,body.immersive .log,body.immersive .top>div:first-child{dis
   body.immersive.show-talk #talkBox,body.immersive.show-signs #signBox{display:block;grid-area:stage;align-self:end;z-index:6;margin:0 6px 6px;
     background:rgba(10,24,21,.92);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
   body.immersive.show-signs #signBox h2 label{display:none}
+  /* al mòbil, les cartes de la ronda petites a dalt a la dreta (no tapen la mesa ni les teves cartes) */
+  body.phone.immersive .trickhud{top:58px;right:8px;left:auto;bottom:auto!important;padding:4px 5px 3px;gap:3px;max-width:62%}
+  body.phone.immersive .tc svg{width:27px;border-radius:3px}
+  body.phone.immersive .tc span{font-size:.52rem;max-width:50px;padding:0 3px}
   body.immersive .top{grid-area:top;margin:0}
   body.immersive .top-actions{gap:5px;justify-content:flex-end}
   body.immersive .top-actions .btn.sm{min-height:34px;padding:.2rem .55rem;font-size:.8rem}
@@ -738,6 +751,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
   </div>
 </main>
 <div class="conn" id="conn" hidden>Connexió perduda. Tornant a connectar…</div>
+<div class="rotate" role="alert"><div><b aria-hidden="true">📱</b><p>Posa el mòbil dret</p><span>El Truc es juga amb el mòbil en vertical.</span></div></div>
 <div class="lobby" id="lobby">
  <div class="lb-wrap">
   <header class="lb-head">
@@ -2675,6 +2689,7 @@ function renderTrick(){
 // de la ronda (mòbil vertical), les posam just per damunt de les teves; si n'hi ha, a baix de tot.
 function placeTrick(){
   const el=$('#trickhud'),st=$('#stage');if(!el||!st||st.classList.contains('flat'))return;
+  if(document.body.classList.contains('phone')){el.style.bottom='';return;} // al mòbil va a dalt a la dreta (CSS)
   const W=st.clientWidth,Hh=st.clientHeight;if(!W||!Hh)return;
   const cw=document.body.classList.contains('immersive')?78:46;
   const free=W/2-0.335*Hh-14,need=Math.max(el.offsetWidth,3*cw+24)+10;
@@ -3069,6 +3084,26 @@ function routeScreen(){
   const inGame=!!Me.code&&(Me.phase==='playing'||Me.holdGame);
   if(inGame)lobby.hidden=true;
   else{lobby.hidden=false;renderLobby();}
+  // Al mòbil la partida es juga sempre en mode pantalla completa (sense haver de baixar) i en vertical
+  const phone=isPhone();document.body.classList.toggle('phone',phone);
+  if(phone&&document.body.classList.contains('immersive')!==inGame){
+    document.body.classList.toggle('immersive',inGame);if(!inGame)closeMtools();
+    setTimeout(()=>window.dispatchEvent(new Event('resize')),30);
+    if(inGame)setTimeout(iosFsTip,800);
+  }
+}
+// Mòbil (no tauleta): pantalla tàctil i el costat curt de la pantalla petit
+function isPhone(){return matchMedia('(pointer:coarse)').matches&&Math.min(screen.width,screen.height)<600;}
+// A l'iPhone el Safari no deixa posar cap web a pantalla completa (només vídeos). Es pot jugar sense barres
+// obrint el joc des de la pantalla d'inici (com una app); ho explicam una sola vegada.
+function iosFsTip(){
+  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+  if(!/iphone|ipod/i.test(navigator.userAgent)||standalone||store.get('truc_fs_ios')||!$('#overlay').hidden)return;
+  store.set('truc_fs_ios','1');
+  showOverlay(`<h2>Juga a pantalla completa</h2>
+    <p>El Safari de l'iPhone no deixa posar les webs a pantalla completa. Per jugar <b>sense les barres del Safari</b>, afegeix el Truc a la pantalla d'inici:</p>
+    <ol><li>Pitja <b>Compartir</b> (el quadrat amb una fletxa cap amunt).</li><li>Tria <b>Afegir a la pantalla d'inici</b> i pitja <b>Afegir</b>.</li><li>Obre el Truc des de la icona nova: es veu a pantalla completa, com una app.</li></ol>
+    <div class="row"><button class="btn ok" data-ov="close">D'acord</button></div>`);
 }
 function lobbyError(t){const e=$('#lobbyErr');if(e)e.textContent=t||'';}
 // ---------- Nivell dels bots (tots els bots de la partida, també el company) ----------
@@ -3538,18 +3573,11 @@ const Feedback=(function(){
   const on=()=>document.body.classList.contains('immersive');
   const upd=()=>{btn.innerHTML=on()?'✕<span class="lbl"> Sortir de pantalla completa</span>':'⛶<span class="lbl"> Pantalla completa</span>';btn.title=on()?'Sortir de pantalla completa':'Pantalla completa';};
   const relayout=()=>{window.dispatchEvent(new Event('resize'));};
-  // A l'iPhone el Safari no deixa posar cap web a pantalla completa (només vídeos). Es pot jugar sense barres
-  // obrint el joc des de la pantalla d'inici (com una app); ho explicam la primera vegada.
   const canFs=!!req&&document.fullscreenEnabled!==false&&document.webkitFullscreenEnabled!==false;
-  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
-  const iphone=/iphone|ipod/i.test(navigator.userAgent);
   function enter(){
     document.body.classList.add('immersive');upd();relayout();
     if(canFs){try{const r=req.call(de);if(r&&r.catch)r.catch(()=>{});}catch(_){}}
-    else if(iphone&&!standalone&&!store.get('truc_fs_ios'))setTimeout(()=>{store.set('truc_fs_ios','1');showOverlay(`<h2>Pantalla completa a l'iPhone</h2>
-      <p>El Safari de l'iPhone no deixa posar les webs a pantalla completa, però ja tens el joc en mode partida. Per jugar <b>sense les barres del Safari</b>, afegeix el Truc a la pantalla d'inici:</p>
-      <ol><li>Pitja <b>Compartir</b> (el quadrat amb una fletxa cap amunt).</li><li>Tria <b>Afegir a la pantalla d'inici</b> i pitja <b>Afegir</b>.</li><li>Obre el Truc des de la icona nova: es veu a pantalla completa, com una app.</li></ol>
-      <div class="row"><button class="btn ok" data-ov="close">D'acord</button></div>`);},300);
+    else setTimeout(iosFsTip,300);
   }
   function leave(){
     closeMtools();
