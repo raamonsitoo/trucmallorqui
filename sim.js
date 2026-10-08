@@ -254,10 +254,31 @@ async function scenario10(){
   console.log('10) botiga: revers bloquejat, casella obligatòria, pagament simulat, desbloqueig sense repetir, revers i insígnia a la taula, signatura de Stripe');
   a.send({t:'leave'});a.ws.close();
 }
+// Senyes: cada bot fa les seves una sola vegada per mà, només quan el company el mira, i el mira mentre la fa
+function scenario11(){
+  const {Game,signOf}=require('./game.js');
+  const sent=[];
+  const room={seats:[0,1,2,3].map(()=>({human:false})),sendAll(m){if(m.t==='ev'&&m.e.e==='sign')sent.push(m.e);},sendSeat(){},phase:'playing'};
+  const g=new Game(room,{speed:0});
+  const C=(n,s)=>({n,s});
+  g.H={over:false,dealt:true,hands:[[C(11,'bastos'),C(3,'oros'),C(4,'copes')],[C(5,'copes'),C(6,'oros'),C(4,'bastos')],[C(1,'espases'),C(3,'copes'),C(3,'bastos')],[C(10,'oros'),C(12,'copes'),C(5,'oros')]]};
+  g.signsReset();
+  const ticks=n=>{for(let i=0;i<n;i++){g.signUntil=[0,0,0,0];g.signNext=[0,0,0,0];g.gzT=[9,9,9,9];g.tick(0.1);}};
+  g.gaze=[-1,-1,-1,-1];ticks(10);
+  assert.equal(sent.length,0,'si el company no el mira, no fa senyes');
+  g.gaze=[2,3,0,1];ticks(30);
+  const by=p=>sent.filter(s=>s.p===p).map(s=>s.id);
+  assert.deepEqual(by(0),['amo','tres'],"l'amo i el 3, una vegada cada una");
+  assert.deepEqual(by(1),['buit'],'sense cartes bones: «buit» una vegada');
+  assert.deepEqual(by(2),['asE','tres'],'dos tresos: la seña del 3 una sola vegada');
+  assert.deepEqual(by(3),['madona']);
+  assert(signOf(C(3,'oros'))==='tres');
+  console.log('11) senyes: una sola vegada per mà, només quan el company mira');
+}
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();
+    scenario5();scenario11();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });

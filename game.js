@@ -10,7 +10,6 @@ const ENVIT_VALUE = [0, 2, 4, 6, 24];
 const ENVIT_REFUSE = [0, 1, 2, 4, 6];
 const SIGN_POWER = { amo: 3, madona: 3, asE: 3, asB: 3, sieteE: 3, sieteO: 3, tres: 2, buit: 0 };
 const SIGN_DUR = { amo: 1.1, madona: 1.0, asE: 1.3, asB: 1.3, sieteE: 1.3, sieteO: 1.3, tres: 1.4, buit: 1.1 };
-const SIGN_IDS = Object.keys(SIGN_DUR);
 // Resposta en parella: si un contesta i el company encara no, aquest té uns segons per dir-hi la seva.
 // Mana la resposta que «més vol»: pujar > vull > no vull.
 const TEAM_WINDOW_MS = 7000;
@@ -196,7 +195,7 @@ class Game {
     this.gaze = [-1, -1, -1, -1];
     this.gzT = [0, 0, 0, 0];
     this.signNext = [0, 0, 0, 0];
-    this.signIdx = [0, 0, 0, 0];
+    this.signQueue = [[], [], [], []]; // senyes que encara ha de fer cada bot en aquesta mà
     this.signUntil = [0, 0, 0, 0];
     this.signCd = [0, 0, 0, 0];
     this.gazeDirty = false;
@@ -629,18 +628,24 @@ class Game {
     if (this.isHuman(q)) return r < 0.55 ? q : r < 0.7 ? -1 : r < 0.85 ? o1 : o2;
     return r < 0.5 ? q : r < 0.7 ? o1 : r < 0.85 ? o2 : -1;
   }
+  // Com al truc de veres: cada bot fa les seves senyes una sola vegada per mà (una per carta bona,
+  // o «buit» si no en té cap), quan el company el mira.
   signsReset() {
     const n = Date.now() / 1000;
-    for (let p = 0; p < 4; p++) { this.signNext[p] = n + 1.5 + Math.random() * 2.5; this.signIdx[p] = 0; }
+    for (let p = 0; p < 4; p++) {
+      this.signNext[p] = n + 1.5 + Math.random() * 2.5;
+      const ids = Array.from(new Set(this.H.hands[p].map(signOf).filter(Boolean)));
+      this.signQueue[p] = ids.length ? ids : ['buit'];
+    }
   }
+  // La següent seña per fer (les de cartes que ja ha tirat es descarten); null si ja les ha fetes totes
   chooseSign(p) {
-    const H = this.H;
-    const partnerHuman = this.isHuman((p + 2) % 4);
-    if (!partnerHuman && Math.random() < 0.08) return SIGN_IDS[Math.floor(Math.random() * SIGN_IDS.length)];
-    const ids = H.hands[p].map(signOf).filter(Boolean);
-    if (!ids.length) return 'buit';
-    this.signIdx[p] = (this.signIdx[p] + 1) % ids.length;
-    return ids[this.signIdx[p]];
+    const H = this.H, q = this.signQueue[p];
+    while (q.length) {
+      const id = q.shift();
+      if (id === 'buit' || H.hands[p].some(c => signOf(c) === id)) return id;
+    }
+    return null;
   }
   tick(dt) {
     const H = this.H;
@@ -655,15 +660,19 @@ class Game {
     if (!live) return;
     const now = Date.now() / 1000;
     for (let p = 0; p < 4; p++) {
-      if (!this.isBot(p) || now < this.signUntil[p] || now < this.signNext[p] || H.hands[p].length === 0) continue;
+      if (!this.isBot(p) || !this.signQueue[p].length || now < this.signUntil[p] || now < this.signNext[p] || H.hands[p].length === 0) continue;
       const q = (p + 2) % 4, o1 = (p + 1) % 4, o2 = (p + 3) % 4;
       const watching = this.gaze[q] === p;
       const danger = this.gaze[o1] === p || this.gaze[o2] === p;
       if (watching && (!danger || Math.random() < 0.12)) {
         const id = this.chooseSign(p);
+        if (!id) continue;
+        // Mira el company mentre li fa la seña
+        if (this.gaze[p] !== q) { this.gaze[p] = q; this.gazeDirty = true; }
+        this.gzT[p] = SIGN_DUR[id] + 0.8;
         this.emit({ e: 'sign', p, id });
         this.signUntil[p] = now + SIGN_DUR[id];
-        this.signNext[p] = now + 2.6 + Math.random() * 3.2;
+        this.signNext[p] = now + SIGN_DUR[id] + 0.5 + Math.random() * 0.5;
       } else this.signNext[p] = now + 0.3;
     }
   }
