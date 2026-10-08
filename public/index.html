@@ -103,8 +103,11 @@ button{font:inherit}
 .trickhud{position:absolute;left:10px;bottom:44px;display:flex;gap:5px;pointer-events:none;z-index:2;max-width:46%;padding:6px 7px 5px;border-radius:12px;background:rgba(8,20,16,.42)}
 .trickhud:empty{display:none}
 .tc{display:flex;flex-direction:column;align-items:center;gap:3px}
-.tc svg{width:clamp(40px,9vw,57px);height:auto;border-radius:5px;box-shadow:0 2px 6px rgba(0,0,0,.5)}
-.tc span{font-size:.66rem;font-weight:700;color:#fff;border-radius:8px;padding:0 5px;line-height:1.5;max-width:66px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tc svg{width:clamp(30px,7vw,42px);height:auto;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.tc span{font-size:.6rem;font-weight:700;color:#fff;border-radius:8px;padding:0 5px;line-height:1.5;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* a pantalla completa la taula és més gran: les cartes de la ronda també */
+body.immersive .tc svg{width:clamp(42px,min(6vw,11vh),84px);border-radius:6px}
+body.immersive .tc span{font-size:.72rem;max-width:84px}
 /* mode simple 2D: les cartes de la ronda continuen al mig (no hi ha taula 3D) */
 .stage.flat .trickhud{left:50%;top:auto;bottom:35%!important;transform:translateX(-50%);max-width:98%;background:none;padding:0}
 .stage.flat .tc svg{width:clamp(46px,13vw,64px);border-radius:7px}
@@ -604,6 +607,19 @@ body.ui2 .signs{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.
 body.ui2 .sbtn{color:var(--ink);border-color:rgba(255,255,255,.18);background:rgba(255,255,255,.03)}
 body.ui2 .sbtn small{color:var(--muted)}
 body.ui2 .sbtn:hover{border-color:#e9b31c}
+/* Per entrar a pantalla completa ja hi ha el botonet de la taula; el de dalt només surt a dins, per sortir-ne (✕) */
+body:not(.immersive) #btnFs{display:none!important}
+/* Pantalla ampla (ordinador): parlar amb el company a l'esquerra i senyes a la dreta de la taula, sense haver de baixar */
+@media (min-width:1240px){
+  body:not(.immersive) .app{max-width:1300px;display:grid;grid-template-columns:minmax(0,1fr) 736px minmax(0,1fr);column-gap:18px;align-items:start}
+  body:not(.immersive) .app>*{grid-column:2}
+  body:not(.immersive) .side-l{display:contents}
+  body:not(.immersive) #talkBox,body:not(.immersive) #signBox{grid-row:3/span 2;margin-top:0;width:100%;max-width:250px}
+  body:not(.immersive) #talkBox{grid-column:1;justify-self:end}
+  body:not(.immersive) #signBox{grid-column:3;justify-self:start}
+  body:not(.immersive) .tgrid{grid-template-columns:1fr}
+  body:not(.immersive) .sgrid{grid-template-columns:1fr 1fr}
+}
 body.ui2 .log{color:var(--muted)}
 body.ui2 .coach{background:rgba(233,179,28,.12);color:var(--ink);border-color:rgba(233,179,28,.6)}
 body.ui2 .coach .btn.ok{background:#e9b31c;color:#2b1c00}
@@ -2651,7 +2667,8 @@ function renderTrick(){
 function placeTrick(){
   const el=$('#trickhud'),st=$('#stage');if(!el||!st||st.classList.contains('flat'))return;
   const W=st.clientWidth,Hh=st.clientHeight;if(!W||!Hh)return;
-  const free=W/2-0.335*Hh-14,need=Math.max(el.offsetWidth,3*62+24)+10;
+  const cw=document.body.classList.contains('immersive')?78:46;
+  const free=W/2-0.335*Hh-14,need=Math.max(el.offsetWidth,3*cw+24)+10;
   el.style.bottom=(need<=free?44:Math.round(0.30*Hh+6))+'px';
 }
 window.addEventListener('resize',()=>setTimeout(placeTrick,60));
