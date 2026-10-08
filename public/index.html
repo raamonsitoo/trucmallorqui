@@ -528,6 +528,8 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
 .lb-label{display:block;font-size:.72rem;color:var(--lb-muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
 .lobby .bigcode{font-family:var(--serif);font-size:2.2rem;letter-spacing:.22em;color:var(--lb-gold);line-height:1.1}
 .lb-share{display:flex;gap:6px;flex:1;min-width:200px}
+.lb-chipbtn.wa{background:#1f9e55;color:#fff;border-color:transparent;text-decoration:none;display:inline-flex;align-items:center}
+.lb-chipbtn.wa:hover{background:#1b8a4a}
 .lobby #shareUrl{flex:1;min-width:0;font:inherit;font-size:.78rem;color:var(--lb-muted);background:transparent;border:1px solid var(--lb-line);border-radius:999px;padding:.4rem .8rem}
 .tablemap{position:relative;height:300px;margin:4px 0}
 .tm-felt{position:absolute;left:22%;right:22%;top:24%;bottom:24%;border-radius:22px;background:radial-gradient(ellipse at 50% 40%,#2f7a52,#1a4a32);border:6px solid #6b4423;box-shadow:inset 0 0 30px rgba(0,0,0,.45),var(--lb-shadow);display:grid;place-items:center}
@@ -796,7 +798,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
   <div id="lobbyRoom" hidden>
     <div class="lb-roomhead">
       <div><span class="lb-label">Codi de la sala</span><b class="bigcode" id="roomCode"></b></div>
-      <div class="lb-share"><input id="shareUrl" readonly aria-label="Enllaç per convidar"><button class="lb-chipbtn" id="btnCopy">Copiar enllaç</button></div>
+      <div class="lb-share"><input id="shareUrl" readonly aria-label="Enllaç per convidar"><button class="lb-chipbtn" id="btnCopy">Copiar enllaç</button><a class="lb-chipbtn wa" id="btnWa" target="_blank" rel="noopener">WhatsApp</a></div>
     </div>
     <div class="tablemap" id="tablemap" aria-label="Seients de la taula">
       <div class="tm-felt"><svg viewBox="0 0 64 64" aria-hidden="true"><g transform="rotate(-14 26 36)"><rect x="12" y="14" width="26" height="38" rx="4" fill="#2a4a9a" stroke="#fbf6e9" stroke-width="2.5"/></g><g transform="rotate(10 36 34)"><rect x="24" y="12" width="28" height="40" rx="4" fill="#fbf8ef" stroke="#222" stroke-width="1.5"/><circle cx="38" cy="32" r="8.5" fill="#e9b31c" stroke="#8a5a00" stroke-width="1.5"/></g></svg></div>
@@ -3148,6 +3150,7 @@ function renderLobby(){
   if(!inRoom)return;
   $('#roomCode').textContent=Me.code;
   $('#shareUrl').value=location.origin+location.pathname+'?sala='+Me.code;
+  $('#btnWa').href='https://wa.me/?text='+encodeURIComponent('Vols fer un truc? 🃏 Entra a la meva sala de Truc mallorquí: '+$('#shareUrl').value);
   const seatHTML=i=>{
     const x=Me.players[i],mine=i===Me.seat;
     let label;
@@ -3291,8 +3294,30 @@ function setupLobby(){
     else lobbyError('Copia l\'enllaç del requadre.');
   });
   $('#shareUrl').addEventListener('focus',e=>e.target.select());
+  $('#btnWa').addEventListener('click',()=>track('convida-whatsapp'));
   const q=new URLSearchParams(location.search).get('sala');
   if(q)$('#codeIn').value=q.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);
+  // Repte d'un amic (?nivell=mestre): obre directament la tria de nivell amb el mateix nivell
+  const qs=new URLSearchParams(location.search),nv=qs.get('nivell');
+  if(nv&&BOT_LEVELS.some(x=>x[0]===nv)){
+    Me.botLevel=nv;store.set('truc_botlvl',nv);track('repte-obert');
+    qs.delete('nivell');history.replaceState(null,'',location.pathname+(qs.toString()?'?'+qs:'')+location.hash);
+    setTimeout(()=>{if(!Me.code)LvlSheet.open(lvl=>{track('partida-bots-'+lvl);const p=readProfile();Net.send(Object.assign({t:'create',quick:true,level:lvl},p));});},700);
+  }
+}
+// En acabar la partida: compartir el resultat (al mòbil, el menú de compartir; a l'ordinador, WhatsApp)
+function shareResult(){
+  const r=Me.lastResult;if(!r)return;
+  const lvl=lvlName(r.level);
+  let text;
+  if(r.allBots)text=r.won?`He guanyat ${r.mine} a ${r.theirs} als bots del Truc mallorquí en nivell ${lvl} 🃏 A veure si tu també els guanyes 👉`
+    :`Els bots del Truc mallorquí en nivell ${lvl} m'han guanyat ${r.theirs} a ${r.mine} 😅 A veure si tu ho fas millor 👉`;
+  else text=r.won?`Hem guanyat ${r.mine} a ${r.theirs} una partida de Truc mallorquí online 🃏 Vols jugar? 👉`
+    :`Hem perdut ${r.mine} a ${r.theirs} al Truc mallorquí online. Qui s'apunta a la revenja? 🃏 👉`;
+  const url=location.origin+'/'+(r.allBots?'?nivell='+r.level:'');
+  track('compartir-resultat');
+  if(navigator.share){navigator.share({text,url}).catch(()=>{});return;}
+  window.open('https://wa.me/?text='+encodeURIComponent(text+' '+url),'_blank','noopener');
 }
 
 // ---------- Estat de la partida (el servidor mana) ----------
@@ -3403,10 +3428,12 @@ function onEvent(e){
       Me.holdGame=true;
       const host=Me.host===Me.seat;
       const acctOn=GCLIENT&&GCLIENT.charAt(0)!=='_';
+      Me.lastResult={won:vteam(e.w)===0,mine,theirs,allBots:Me.players.filter(x=>x.human).length<=1,level:Me.roomLevel||'normal'};
+      const shareBtn='<button class="btn ok" data-share>📤 Comparteix</button>';
       showOverlay(`<h2>${vteam(e.w)===0?'Heu guanyat la partida!':'Heu perdut la partida'}</h2><p>Cantons: ${mine} a ${theirs}.</p>`
         +(acctOn?(Acct.profile?'<div class="ov-xp" id="ovXp"></div>':'<p class="hint">Entra amb Google (a la sala d\'espera) per guardar el teu progrés i pujar de nivell.</p>'):'')
-        +(host?`<div class="row"><button class="btn truc" data-ov="rematch">Revenja!</button><button class="btn ghost" data-ov="backlobby">Tornar a la sala</button></div>`
-              :`<p class="hint">Si l'amfitrió demana la revenja, la partida començarà sola.</p><div class="row"><button class="btn ghost" data-ov="backlobby">Tornar a la sala</button></div>`));
+        +(host?`<div class="row"><button class="btn truc" data-ov="rematch">Revenja!</button>${shareBtn}<button class="btn ghost" data-ov="backlobby">Tornar a la sala</button></div>`
+              :`<p class="hint">Si l'amfitrió demana la revenja, la partida començarà sola.</p><div class="row">${shareBtn}<button class="btn ghost" data-ov="backlobby">Tornar a la sala</button></div>`));
       break;}
   }
 }
@@ -3447,6 +3474,7 @@ document.addEventListener('click',e=>{
   if(pl){if(UI.mode==='turn'&&UI.resolve)UI.resolve({type:'play',idx:Number(pl.dataset.play)});return;}
   const sit=e.target.closest('[data-sit]');
   if(sit){Net.send({t:'sit',seat:+sit.dataset.sit});return;}
+  if(e.target.closest('[data-share]')){shareResult();return;}
   const mt=e.target.closest('[data-mtool]');
   if(mt){const k=mt.dataset.mtool==='talk'?'show-talk':'show-signs';document.body.classList.remove(k==='show-talk'?'show-signs':'show-talk');document.body.classList.toggle(k);syncMtools();return;}
   const tk=e.target.closest('[data-talk]');
