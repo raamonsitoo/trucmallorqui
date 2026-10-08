@@ -32,6 +32,9 @@ const T = {
 <p>El teu nom de jugador i el teu nivell els veuen els altres jugadors de la teva partida.</p>
 <p>Per mantenir la sessió oberta, el teu navegador guarda un testimoni de sessió a l'emmagatzematge local. És imprescindible perquè funcioni el compte i no s'usa per a res més.</p>
 
+<h2>Estadístiques de visites</h2>
+<p>Comptam les visites de manera <b>agregada i anònima</b>: quantes n'hi ha cada dia, de quina web o xarxa venen (per exemple, Instagram o Google), si és un mòbil, una tauleta o un ordinador, quantes partides es juguen i quines opcions del joc es fan servir. Només guardam aquests totals per dia: <b>no feim servir galetes, no guardam la IP</b> i no podem saber qui ets. Perquè una visita no es compti dues vegades, el navegador recorda mentre tens la pestanya oberta que ja s'ha comptat. Ho feim per saber si el joc arriba a la gent i millorar-lo (interès legítim, art. 6.1.f del RGPD).</p>
+
 <h2>Si compres a la botiga</h2>
 <p>Si compres un aspecte, guardam al teu compte quin article has comprat, quan, l'import i la referència del pagament, perquè el tenguis desbloquejat. El pagament el gestiona <b>Stripe</b>, que tracta les dades del pagament (la targeta i el correu per enviar-te el rebut) segons la seva pròpia política de privacitat: nosaltres no veim la teva targeta. La base legal és l'execució del contracte de compra (art. 6.1.b del RGPD). Si esborres el compte, s'esborren també les compres; Stripe conserva el registre del pagament el temps que li exigeix la llei. Vegeu també les <a href="/condicions">condicions de venda</a>.</p>
 
@@ -87,6 +90,9 @@ const T = {
 </ul>
 <p>Tu nombre de jugador y tu nivel los ven los demás jugadores de tu partida.</p>
 <p>Para mantener la sesión abierta, tu navegador guarda un testigo de sesión en el almacenamiento local. Es imprescindible para que funcione la cuenta y no se usa para nada más.</p>
+
+<h2>Estadísticas de visitas</h2>
+<p>Contamos las visitas de forma <b>agregada y anónima</b>: cuántas hay cada día, de qué web o red vienen (por ejemplo, Instagram o Google), si es un móvil, una tableta o un ordenador, cuántas partidas se juegan y qué opciones del juego se usan. Solo guardamos esos totales por día: <b>no usamos cookies, no guardamos la IP</b> y no podemos saber quién eres. Para que una visita no se cuente dos veces, el navegador recuerda mientras tienes la pestaña abierta que ya se ha contado. Lo hacemos para saber si el juego llega a la gente y mejorarlo (interés legítimo, art. 6.1.f del RGPD).</p>
 
 <h2>Si compras en la tienda</h2>
 <p>Si compras un aspecto, guardamos en tu cuenta qué artículo has comprado, cuándo, el importe y la referencia del pago, para que lo tengas desbloqueado. El pago lo gestiona <b>Stripe</b>, que trata los datos del pago (la tarjeta y el correo para enviarte el recibo) según su propia política de privacidad: nosotros no vemos tu tarjeta. La base legal es la ejecución del contrato de compra (art. 6.1.b del RGPD). Si borras la cuenta, se borran también las compras; Stripe conserva el registro del pago el tiempo que le exige la ley. Consulta también las <a href="/condicions">condiciones de venta</a>.</p>

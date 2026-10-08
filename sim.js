@@ -5,6 +5,7 @@ process.env.PORT='0';
 process.env.NODE_ENV='test';process.env.TRUC_TEST_AUTH='1';process.env.GOOGLE_CLIENT_ID='test-client';process.env.SESSION_SECRET='test-secret';delete process.env.DATABASE_URL;
 // botiga oberta amb pagaments simulats (sense Stripe)
 process.env.SHOP='on';process.env.SHOP_SIMULATED='1';delete process.env.STRIPE_SECRET_KEY;
+process.env.STATS_KEY='clau-de-prova';
 const WebSocket=require('ws');
 const {server,rooms}=require('./server.js');
 const assert=require('assert');
@@ -275,10 +276,38 @@ function scenario11(){
   assert(signOf(C(3,'oros'))==='tres');
   console.log('11) senyes: una sola vegada per mà, només quan el company mira');
 }
+// Estadístiques pròpies: visites (d'on venen i quin aparell), accions vàlides, partides i la pàgina privada
+async function scenario12(){
+  const http=require('http'),stats=require('./stats');
+  const req=(method,path,body,ua)=>new Promise((res,rej)=>{const r=http.request({host:'127.0.0.1',port,method,path,headers:ua?{'User-Agent':ua}:{}},x=>{let d='';x.on('data',c=>d+=c);x.on('end',()=>res({code:x.statusCode,body:d}));});r.on('error',rej);if(body)r.write(body);r.end();});
+  const iphone='Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1';
+  const before=await stats.table(1),b=(before[stats.day()]||{});
+  const n=k=>(b[k]||0);
+  assert.equal((await req('POST','/hit',JSON.stringify({t:'v',r:'instagram',b:false}),iphone)).code,204);
+  await req('POST','/hit',JSON.stringify({t:'v',r:'trampa',b:true}),'Mozilla/5.0 (Windows NT 10.0) Chrome/129.0');
+  await req('POST','/hit',JSON.stringify({t:'e',n:'convida-whatsapp'}));
+  await req('POST','/hit',JSON.stringify({t:'e',n:'<script>'}));
+  await req('POST','/hit','no és json');
+  const t=(await stats.table(1))[stats.day()]||{};
+  assert.equal(t.visita-n('visita'),2,'dues visites');
+  assert.equal(t['ref:instagram']-n('ref:instagram'),1,'una ve d\'Instagram');
+  assert.equal(t['ref:altres']-n('ref:altres'),1,'un origen inventat compta com a «altres»');
+  assert.equal(t['aparell:mobil']-n('aparell:mobil'),1,'l\'iPhone és un mòbil');
+  assert.equal(t['visita:nova']-n('visita:nova'),1);assert.equal(t['visita:repetida']-n('visita:repetida'),1);
+  assert.equal(t['accio:convida-whatsapp']-n('accio:convida-whatsapp'),1,'acció vàlida comptada');
+  assert(!Object.keys(t).some(k=>k.includes('script')),'una acció inventada no es compta');
+  assert(t['partida:comencada']>0&&t['partida:acabada']>0&&t['partida:tipus:bots']>0,'les partides dels altres escenaris s\'han comptat');
+  assert.equal((await req('GET','/stats?key=dolenta')).code,404,'sense la clau no es veu');
+  const pg=await req('GET','/stats?key=clau-de-prova');
+  assert(pg.code===200&&pg.body.includes('Estadístiques')&&pg.body.includes('Instagram'),'pàgina d\'estadístiques');
+  const js=JSON.parse((await req('GET','/stats.json?key=clau-de-prova')).body);
+  assert('connexions' in js,'dades en directe en JSON');
+  console.log('12) estadístiques: visites per origen i aparell, accions vàlides, partides i pàgina /stats amb clau');
+}
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();scenario11();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();
+    scenario5();scenario11();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario12();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });

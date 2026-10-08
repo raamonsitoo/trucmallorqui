@@ -2822,6 +2822,11 @@ const store={
   get(k){try{return localStorage.getItem(k);}catch(e){return null;}},
   set(k,v){try{localStorage.setItem(k,v);}catch(e){/* res */}}
 };
+// Estadístiques: una visita per sessió del navegador, amb d'on ve i si ja havia vingut abans
+(function(){
+  try{if(sessionStorage.getItem('truc_v'))return;sessionStorage.setItem('truc_v','1');}catch(_){}
+  hit({t:'v',r:refOf(),b:!!store.get('truc_token')});
+})();
 const Me={seat:-1,code:'',phase:'menu',host:-1,players:[],botLevel:store.get('truc_botlvl')||'normal',roomLevel:'normal',name:store.get('truc_name')||'',look:store.get('truc_look')||'palla',hat:store.get('truc_hat')||'',back:store.get('truc_back')||'llenguesBlau',holdGame:false,lastGaze:-2,signCd:0};
 // ---------- Compte (entrar amb Google) i nivells ----------
 const GCLIENT='__GCLIENT__'; // el posa el servidor; buit si els comptes no estan activats
@@ -3620,7 +3625,24 @@ const Feedback=(function(){
   document.addEventListener('fullscreenchange',fsChange);document.addEventListener('webkitfullscreenchange',fsChange);
 })();
 // ---------- App instal·lable i estadístiques ----------
-function track(name){try{if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:name,title:name,event:true});}catch(_){}}
+// Estadístiques pròpies (/stats): només comptadors, sense galetes
+function hit(o){try{const b=JSON.stringify(o);if(navigator.sendBeacon&&navigator.sendBeacon('/hit',new Blob([b],{type:'text/plain'})))return;fetch('/hit',{method:'POST',body:b,keepalive:true}).catch(()=>{});}catch(_){}}
+function track(name){hit({t:'e',n:name});try{if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:name,title:name,event:true});}catch(_){}}
+// D'on ve la visita: ?ref=instagram (els enllaços de les xarxes), un enllaç de sala o de repte, o la web anterior
+function refOf(){
+  const q=new URLSearchParams(location.search),r=(q.get('ref')||q.get('utm_source')||'').toLowerCase();
+  if(r){for(const [k,re] of [['instagram',/insta|\big\b/],['tiktok',/tiktok|\btt\b/],['facebook',/facebook|\bfb\b/],['whatsapp',/whatsapp|\bwa\b/],['x',/twitter|^x$/],['youtube',/youtube|\byt\b/],['google',/google/]])if(re.test(r))return k;return 'altres';}
+  if(q.get('app'))return 'app';
+  if(q.get('sala'))return 'invitacio';
+  if(q.get('nivell'))return 'repte';
+  let h='';try{h=new URL(document.referrer).hostname.replace(/^www\./,'');}catch(_){}
+  if(!h||h===location.hostname)return 'directe';
+  if(/instagram/.test(h))return 'instagram';if(/tiktok/.test(h))return 'tiktok';if(/google\./.test(h))return 'google';
+  if(/bing\.|duckduckgo|yahoo|ecosia|qwant|brave/.test(h))return 'cercador';
+  if(/facebook|^fb\.|^m\.me$/.test(h))return 'facebook';if(/whatsapp/.test(h))return 'whatsapp';
+  if(/^(t\.co|x\.com|twitter\.com)$/.test(h))return 'x';if(/youtube|youtu\.be/.test(h))return 'youtube';
+  return 'altres';
+}
 if('serviceWorker' in navigator&&location.protocol==='https:'){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{});});}
 (function(){
   const btn=$('#btnInstall');if(!btn)return;

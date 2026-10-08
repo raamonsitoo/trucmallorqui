@@ -9,6 +9,8 @@ const { Game, LEVEL_IDS } = require('./game');
 const acc = require('./accounts');
 const fb = require('./feedback');
 const shop = require('./shop');
+const stats = require('./stats');
+const ipHits = new Map(); // ip -> [marques de temps] (avisos d'estadístiques; com a màxim 120 cada 10 minuts)
 
 const PORT = Number(process.env.PORT) || 3000;
 const SPEED = process.env.TRUC_SPEED ? Number(process.env.TRUC_SPEED) : 1;
@@ -183,12 +185,16 @@ class Room {
     this.searching = false;
     this.phase = 'playing';
     this.humansAtStart = this.seats.filter(x => x.human).length;
+    stats.inc('partida:comencada');
+    stats.inc('partida:tipus:' + (this.humansAtStart <= 1 ? 'bots' : this.humansAtStart === 4 ? 'persones' : 'mixta'));
+    if (this.humansAtStart < 4) stats.inc('partida:nivell:' + this.botLevel);
     this.game = new Game(this, { speed: SPEED, timerMs: TIMER_MS, level: this.botLevel });
     this.broadcastRoom();
     this.game.start();
   }
   onGameOver() {
     counters.gamesFinished++;
+    stats.inc('partida:acabada');
     if (this.game) awardGame(this, this.game);
     this.phase = 'lobby';
     this.game = null;
@@ -287,6 +293,20 @@ const HTML_HEADERS = {
 const server = http.createServer((req, res) => {
   const url = (req.url || '/').split('?')[0];
   if (url === '/health') { res.writeHead(200, { 'Content-Type': 'text/plain' }); return res.end('ok'); }
+  // Avisos d'estadístiques del navegador (visites i accions); només comptadors, sense IP ni galetes
+  if (url === '/hit' && req.method === 'POST') {
+    const chunks = []; let size = 0;
+    req.on('data', d => { size += d.length; if (size > 2048) req.destroy(); else chunks.push(d); });
+    req.on('end', () => {
+      const ip = clientIp(req), now = Date.now(), mine = (ipHits.get(ip) || []).filter(t => now - t < 10 * 60000);
+      if (mine.length < 120) {
+        mine.push(now); ipHits.set(ip, mine);
+        try { stats.hit(JSON.parse(Buffer.concat(chunks).toString('utf8')), req.headers['user-agent']); } catch (e) { /* res */ }
+      }
+      res.writeHead(204); res.end();
+    });
+    return;
+  }
   // Stripe ens avisa quan algú ha pagat (abans de la redirecció al domini: Stripe no segueix redireccions)
   if (url === '/stripe/webhook' && req.method === 'POST') {
     const chunks = []; let size = 0;
@@ -338,17 +358,25 @@ const server = http.createServer((req, res) => {
 <p><a href="?s=${s}&pagar=1" style="display:inline-block;background:#e0a21f;color:#2b1c00;padding:12px 22px;border-radius:999px;font-weight:800;text-decoration:none">Pagar (simulat)</a></p>
 <p><a href="/?compra=cancel" style="color:#8fb0aa">Cancel·lar</a></p></div>`);
   }
-  if (url === '/stats') {
+  // Estadístiques: /stats?key=... (pàgina amb gràfiques) i /stats.json?key=... (dades en directe)
+  if (url === '/stats' || url === '/stats.json') {
     const key = new URL(req.url, 'http://x').searchParams.get('key');
     if (!STATS_KEY || key !== STATS_KEY) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('No trobat'); }
     let humans = 0, playing = 0, searching = 0;
     for (const r of rooms.values()) { humans += r.humans(); if (r.phase === 'playing') playing++; if (r.searching) searching++; }
+    const live = { connexions: wss.clients.size, jugadorsEnSales: humans, sales: rooms.size, partidesEnJoc: playing, salesCercantRivals: searching };
+    if (url === '/stats') {
+      stats.page(live).then(html => {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' });
+        res.end(html);
+      }).catch(e => { console.error('stats', e.message); res.writeHead(500, { 'Content-Type': 'text/plain' }); res.end('Error'); });
+      return;
+    }
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify({
-      connexions: wss.clients.size, jugadorsEnSales: humans, sales: rooms.size, partidesEnJoc: playing, salesCercantRivals: searching,
+    return res.end(JSON.stringify(Object.assign(live, {
       desDeReinici: { partidesComencades: counters.gamesStarted, partidesAcabades: counters.gamesFinished, contraBots: counters.quick, emparellamentsAmbDesconeguts: counters.matched },
       encesDesDe: new Date(STARTED_AT).toISOString(), minutsEnces: Math.round((Date.now() - STARTED_AT) / 60000)
-    }, null, 2));
+    }), null, 2));
   }
   if (url === '/suggeriments') {
     const key = new URL(req.url, 'http://x').searchParams.get('key');
@@ -709,6 +737,7 @@ setInterval(() => {
   try { tryMatch(); } catch (e) { console.error('match', e); }
   for (const [ip, arr] of ipCreates) { const k = arr.filter(t => now - t < 60000); if (k.length) ipCreates.set(ip, k); else ipCreates.delete(ip); }
   for (const [ip, arr] of ipFeedback) { const k = arr.filter(t => now - t < 10 * 60000); if (k.length) ipFeedback.set(ip, k); else ipFeedback.delete(ip); }
+  for (const [ip, arr] of ipHits) { const k = arr.filter(t => now - t < 10 * 60000); if (k.length) ipHits.set(ip, k); else ipHits.delete(ip); }
   for (const room of Array.from(rooms.values())) {
     if (room.humans() === 0 && now - room.lastActive > 10 * 60 * 1000) room.destroy();
   }

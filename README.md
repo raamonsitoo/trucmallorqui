@@ -28,6 +28,7 @@ bots-entrenats.json    paràmetres dels bots difícil i mestre que surten de l'e
 tools/entrena-bots.js  entrena els bots i fa tornejos entre nivells (vegeu «Entrenar els bots»)
 accounts.js            comptes: entrar amb Google, sessions, nivells, compres i base de dades (PostgreSQL)
 shop.js                botiga: catàleg i preus, pagaments amb Stripe, avís de pagament i mode simulat
+stats.js               estadístiques pròpies sense galetes: comptadors per dia (taula stats_daily) i pàgina /stats
 public/condicions.html condicions de venda de la botiga
 public/index.html      el joc (3D amb Three.js, sala, menú)
 public/regles.html     guia «Com es juga al truc mallorquí» (i public/reglas.html, en castellà)
@@ -67,7 +68,7 @@ Cada `git push` a `main` desplega automàticament. Variables d'entorn:
 |---|---|---|
 | `CANONICAL_HOST` | Redirigeix `*.onrender.com` al domini propi | `trucmallorqui.com` |
 | `GOATCOUNTER` | (opcional) Activa les estadístiques de visites sense galetes | codi del compte de goatcounter.com |
-| `STATS_KEY` | (opcional) Activa `/stats?key=...` (dades en directe) i `/suggeriments?key=...` (bústia de suggeriments) | una clau secreta |
+| `STATS_KEY` | (opcional) Activa `/stats?key=...` (estadístiques pròpies amb gràfiques: visites, d'on venen, aparell, partides i accions), `/stats.json?key=...` (dades en directe) i `/suggeriments?key=...` (bústia de suggeriments) | una clau secreta |
 | `GOOGLE_CLIENT_ID` | (comptes) Identificador de client OAuth de Google | `....apps.googleusercontent.com` |
 | `SESSION_SECRET` | (comptes) Clau per signar les sessions; no l'has de canviar mai | una clau secreta llarga |
 | `DATABASE_URL` | (comptes) Base de dades PostgreSQL (p. ex. Neon) | `postgresql://...` |
