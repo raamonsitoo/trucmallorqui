@@ -103,8 +103,8 @@ button{font:inherit}
 .trickhud{position:absolute;left:10px;bottom:44px;display:flex;gap:5px;pointer-events:none;z-index:2;max-width:46%;padding:6px 7px 5px;border-radius:12px;background:rgba(8,20,16,.42)}
 .trickhud:empty{display:none}
 .tc{display:flex;flex-direction:column;align-items:center;gap:3px}
-.tc svg{width:clamp(30px,7vw,42px);height:auto;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.5)}
-.tc span{font-size:.6rem;font-weight:700;color:#fff;border-radius:8px;padding:0 5px;line-height:1.5;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tc svg{width:clamp(40px,9vw,57px);height:auto;border-radius:5px;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.tc span{font-size:.66rem;font-weight:700;color:#fff;border-radius:8px;padding:0 5px;line-height:1.5;max-width:66px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* mode simple 2D: les cartes de la ronda continuen al mig (no hi ha taula 3D) */
 .stage.flat .trickhud{left:50%;top:auto;bottom:35%!important;transform:translateX(-50%);max-width:98%;background:none;padding:0}
 .stage.flat .tc svg{width:clamp(46px,13vw,64px);border-radius:7px}
@@ -2651,7 +2651,7 @@ function renderTrick(){
 function placeTrick(){
   const el=$('#trickhud'),st=$('#stage');if(!el||!st||st.classList.contains('flat'))return;
   const W=st.clientWidth,Hh=st.clientHeight;if(!W||!Hh)return;
-  const free=W/2-0.335*Hh-14,need=Math.max(el.offsetWidth,3*46+24)+10;
+  const free=W/2-0.335*Hh-14,need=Math.max(el.offsetWidth,3*62+24)+10;
   el.style.bottom=(need<=free?44:Math.round(0.30*Hh+6))+'px';
 }
 window.addEventListener('resize',()=>setTimeout(placeTrick,60));
