@@ -322,10 +322,18 @@ body.immersive .band,body.immersive .log,body.immersive .top>div:first-child{dis
   body.immersive .bigbtns .btn{min-height:38px;font-size:.88rem}
   body.immersive #actions .status,body.immersive .respond .q{font-size:.72rem}
 }
-/* mòbil vertical: taula a dalt i botons a davall; per veure senyes, posar el mòbil horitzontal */
+/* Botons «Parlar» i «Fer una seña» (només al mòbil vertical a pantalla completa) */
+.mtools{display:none}
+/* mòbil vertical: taula a dalt i botons a davall; parlar i senyes s'obren amb els botons de davall de la taula */
 @media (orientation:portrait) and (max-width:760px){
   body.immersive .app{max-width:none;margin:0;height:100vh;height:100dvh;padding:6px;display:grid;gap:6px;
-    grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto;grid-template-areas:"top" "score" "stage" "actions"}
+    grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto auto;grid-template-areas:"top" "score" "stage" "mtools" "actions"}
+  body.immersive .mtools{grid-area:mtools;display:flex;gap:6px}
+  body.immersive .mtools .btn{flex:1;min-height:38px}
+  body.immersive .mtools .btn.on{border-color:var(--gold);color:var(--gold)}
+  body.immersive.show-talk #talkBox,body.immersive.show-signs #signBox{display:block;grid-area:stage;align-self:end;z-index:6;margin:0 6px 6px;
+    background:rgba(10,24,21,.92);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  body.immersive.show-signs #signBox h2 label{display:none}
   body.immersive .top{grid-area:top;margin:0}
   body.immersive .top-actions{gap:5px;justify-content:flex-end}
   body.immersive .top-actions .btn.sm{min-height:34px;padding:.2rem .55rem;font-size:.8rem}
@@ -704,6 +712,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
     <div class="nogl" id="nogl" hidden><p>El teu navegador no pot mostrar el 3D.<br>Prova amb un altre navegador o dispositiu.</p></div>
     <div class="t2d" id="t2d" hidden><div class="seats2d" id="seats2d"></div><p class="flatnote">Mode simple (sense 3D)</p><div class="hand2d" id="hand2d"></div></div>
   </section>
+  <div class="mtools" id="mtools" aria-label="Parlar i senyes"><button class="btn ghost sm" data-mtool="talk">💬 Parlar</button><button class="btn ghost sm" data-mtool="signs">😉 Fer una seña</button></div>
   <div class="side side-r">
   <section class="coach" id="coach" aria-live="polite" hidden></section>
   <section class="actions" id="actions" aria-live="polite"></section>
@@ -3393,6 +3402,9 @@ setInterval(()=>{
 },250);
 
 // ---------- Esdeveniments de la pàgina ----------
+// Mòbil vertical a pantalla completa: els panells de parlar i de senyes s'obren amb un botó i es tanquen en fer-ne servir un
+function syncMtools(){document.querySelectorAll('[data-mtool]').forEach(b=>b.classList.toggle('on',document.body.classList.contains(b.dataset.mtool==='talk'?'show-talk':'show-signs')));}
+function closeMtools(){document.body.classList.remove('show-talk','show-signs');syncMtools();}
 document.addEventListener('click',e=>{
   const co=e.target.closest('[data-coach]');
   if(co){if(co.dataset.coach==='stop')Coach.stop();else Coach.next();return;}
@@ -3400,10 +3412,12 @@ document.addEventListener('click',e=>{
   if(pl){if(UI.mode==='turn'&&UI.resolve)UI.resolve({type:'play',idx:Number(pl.dataset.play)});return;}
   const sit=e.target.closest('[data-sit]');
   if(sit){Net.send({t:'sit',seat:+sit.dataset.sit});return;}
+  const mt=e.target.closest('[data-mtool]');
+  if(mt){const k=mt.dataset.mtool==='talk'?'show-talk':'show-signs';document.body.classList.remove(k==='show-talk'?'show-signs':'show-talk');document.body.classList.toggle(k);syncMtools();return;}
   const tk=e.target.closest('[data-talk]');
-  if(tk){humanTalk(tk.dataset.talk);return;}
+  if(tk){humanTalk(tk.dataset.talk);closeMtools();return;}
   const sb=e.target.closest('[data-sign]');
-  if(sb){humanSign(sb.dataset.sign);return;}
+  if(sb){humanSign(sb.dataset.sign);closeMtools();return;}
   const lk=e.target.closest('[data-look]');
   if(lk){View.snap(+lk.dataset.look);return;}
   if(e.target.closest('[data-zoom]')){View.zoom();return;}
@@ -3524,13 +3538,21 @@ const Feedback=(function(){
   const on=()=>document.body.classList.contains('immersive');
   const upd=()=>{btn.innerHTML=on()?'✕<span class="lbl"> Sortir de pantalla completa</span>':'⛶<span class="lbl"> Pantalla completa</span>';btn.title=on()?'Sortir de pantalla completa':'Pantalla completa';};
   const relayout=()=>{window.dispatchEvent(new Event('resize'));};
+  // A l'iPhone el Safari no deixa posar cap web a pantalla completa (només vídeos). Es pot jugar sense barres
+  // obrint el joc des de la pantalla d'inici (com una app); ho explicam la primera vegada.
+  const canFs=!!req&&document.fullscreenEnabled!==false&&document.webkitFullscreenEnabled!==false;
+  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+  const iphone=/iphone|ipod/i.test(navigator.userAgent);
   function enter(){
     document.body.classList.add('immersive');upd();relayout();
-    if(req){try{const r=req.call(de);if(r&&r.catch)r.catch(()=>{});}catch(_){}}
-    // al mòbil vertical, suggerir girar-lo per veure també les senyes
-    if(matchMedia('(orientation:portrait) and (max-width:760px)').matches)setTimeout(()=>View.toast('Gira el mòbil per veure també les senyes',2600),400);
+    if(canFs){try{const r=req.call(de);if(r&&r.catch)r.catch(()=>{});}catch(_){}}
+    else if(iphone&&!standalone&&!store.get('truc_fs_ios'))setTimeout(()=>{store.set('truc_fs_ios','1');showOverlay(`<h2>Pantalla completa a l'iPhone</h2>
+      <p>El Safari de l'iPhone no deixa posar les webs a pantalla completa, però ja tens el joc en mode partida. Per jugar <b>sense les barres del Safari</b>, afegeix el Truc a la pantalla d'inici:</p>
+      <ol><li>Pitja <b>Compartir</b> (el quadrat amb una fletxa cap amunt).</li><li>Tria <b>Afegir a la pantalla d'inici</b> i pitja <b>Afegir</b>.</li><li>Obre el Truc des de la icona nova: es veu a pantalla completa, com una app.</li></ol>
+      <div class="row"><button class="btn ok" data-ov="close">D'acord</button></div>`);},300);
   }
   function leave(){
+    closeMtools();
     document.body.classList.remove('immersive');upd();relayout();
     if(isFs()&&exit){try{const r=exit.call(document);if(r&&r.catch)r.catch(()=>{});}catch(_){}}
   }
