@@ -200,7 +200,14 @@ async function scenario9(){
   const fn=await vs(LEVELS.facil,LEVELS.normal,150),mn=await vs(LEVELS.mestre,LEVELS.normal,60);
   assert(fn<0.45,'el fàcil ha de perdre contra el normal ('+fn+')');
   assert(mn>0.55,'el mestre ha de guanyar el normal ('+mn+')');
-  console.log(`9) nivells: fàcil guanya ${(100*fn).toFixed(0)}% contra normal, mestre ${(100*mn).toFixed(0)}%`);
+  // Paciència: com la gent, la majoria de trucs es canten després de la primera ronda
+  const early=async P=>{let t=0,r1=0;for(let i=0;i<150;i++){let trick=0,called=false;const rm=room();
+    rm.sendAll=m=>{if(m.t!=='ev')return;const e=m.e;if(e.e==='deal'){trick=0;called=false;}else if(e.e==='trick')trick++;
+      else if(e.e==='call'&&e.kind==='truc'&&e.level===1&&!called){called=true;t++;if(trick===0)r1++;}};
+    await new Game(rm,{speed:0,rng:mulberry32(i*31+7),dealRng:mulberry32(i+1),params:[P,P,P,P]}).playCanton();}return r1/t;};
+  const en=await early(LEVELS.normal),ed=await early(LEVELS.dificil);
+  assert(en<0.3&&ed<0.3,`massa trucs a la primera ronda (normal ${en}, difícil ${ed})`);
+  console.log(`9) nivells: fàcil guanya ${(100*fn).toFixed(0)}% contra normal, mestre ${(100*mn).toFixed(0)}%; trucs a la 1a ronda: normal ${(100*en).toFixed(0)}%, difícil ${(100*ed).toFixed(0)}%`);
 }
 // Botiga: no es pot dur un revers sense comprar-lo; comprar (pagament simulat), desbloquejar i veure-ho a la taula
 async function scenario10(){

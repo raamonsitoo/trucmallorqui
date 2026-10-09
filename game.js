@@ -107,7 +107,10 @@ const BASE = {
   trucBase: 3.4, trucStep: 1.15, raiseM: 1.8, accRand: 0.1, callM: 1.0, callP: 0.6, bluff: 0.04,
   envNoise: 1, envAcc: [0, 25, 27, 29, 33], envRai: [0, 30, 32, 34, 99], envAccRand: 0.08,
   envCall: 27, envCallP: 0.65, envBluff: 0.05,
-  lead0: 1, secure: 0, mistake: 0, mc: 0
+  lead0: 1, secure: 0, mistake: 0, mc: 0,
+  // Paciència amb el truc, com la gent: a la primera ronda només el canta amb una mà clarament bona
+  // (early: força de més que li cal, i com a mínim earlyMin) i gairebé no hi fa farols (earlyBluff: part dels farols que hi queden)
+  early: 2, earlyMin: 5, earlyBluff: 0.25
 };
 let TRAINED = {};
 try { TRAINED = require('./bots-entrenats.json'); } catch (e) { /* encara no s'han entrenat */ }
@@ -120,7 +123,7 @@ const FACIL = Object.assign({}, BASE, {
 const DIFICIL = Object.assign({}, BASE, TRAINED.dificil);
 // El mestre juga les cartes i decideix els cants mirant moltes mans possibles dels altres (mc = quantes).
 const MESTRE = Object.assign({}, DIFICIL, {
-  mc: 40, infer: 1, mCall: 0.01, mAcc: 0, mRai: 0.01, mEnvCall: 0, bluffMc: 0.06, envBluffMc: 0.04
+  mc: 40, infer: 1, mCall: 0.01, mAcc: 0, mRai: 0.01, mEnvCall: 0, bluffMc: 0.06, envBluffMc: 0.04, mEarly: 0.01
 }, TRAINED.mestre);
 const LEVELS = { facil: FACIL, normal: BASE, dificil: DIFICIL, mestre: MESTRE };
 const LEVEL_IDS = Object.keys(LEVELS);
@@ -421,9 +424,10 @@ class Game {
     return 'no';
   }
   botWantsTruc(p) {
-    const P = this.bp(p), level = this.H.trucLevel + 1, s = this.teamStrength(p), thr = this.trucThr(p, level, P) + P.callM;
+    const P = this.bp(p), level = this.H.trucLevel + 1, s = this.teamStrength(p), r1 = this.H.trickNo === 0;
+    const base = this.trucThr(p, level, P) + P.callM, thr = r1 ? Math.max(base + P.early, P.earlyMin) : base;
     if (s >= thr && this.rnd() < P.callP) return true;
-    if (level === 1 && s < thr && this.rnd() < P.bluff) return true;
+    if (level === 1 && s < thr && this.rnd() < P.bluff * (r1 ? P.earlyBluff : 1)) return true;
     return false;
   }
   botRespondEnvit(p, level) {
@@ -554,7 +558,9 @@ class Game {
       const L = H.trucLevel + 1, V0 = TRUC_VALUE[L - 1], V = TRUC_VALUE[L];
       const uPass = pw * this.util(p, V0, 0) + (1 - pw) * this.util(p, 0, V0);
       const uCall = Math.min(this.util(p, TRUC_REFUSE[L], 0), pw * this.util(p, V, 0) + (1 - pw) * this.util(p, 0, V));
-      if (uCall > uPass + P.mCall || (L === 1 && pw < 0.35 && this.rnd() < P.bluffMc)) return { type: 'truc' };
+      // A la primera ronda, com la gent, s'espera si no té clarament avantatge (mEarly) i fa menys farols
+      const r1 = H.trickNo === 0;
+      if (uCall > uPass + P.mCall + (r1 ? P.mEarly || 0 : 0) || (L === 1 && pw < 0.35 && this.rnd() < P.bluffMc * (r1 ? P.earlyBluff : 1))) return { type: 'truc' };
     }
     // Si el company humà ha dit «vaig a tu» o «vina a mi», li fa cas.
     if (this.isHuman((p + 2) % 4) && this.intentFor(p)) return { type: 'play', idx: this.botChooseCard(p) };

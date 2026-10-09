@@ -524,20 +524,37 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
 .dur-pick small{font-size:.75rem;opacity:.8}
 .lb-lvl-opts.dur{grid-template-columns:1fr 1fr}
 /* sala d'espera: «Llest» i xat */
-.lb-ready{background:var(--lb-card);border:1px solid var(--lb-line);border-radius:18px;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.lb-ready[hidden],.lb-chat[hidden]{display:none}
-.lb-ready.go{border-color:#5fb86a;background:rgba(95,184,106,.14)}
-.lb-ready p{margin:0;flex:1;min-width:180px;font-size:.9rem;line-height:1.35}
-.lb-ready p small{display:block;color:var(--lb-muted);font-size:.8rem}
-.rdy-btn{font:inherit;font-weight:800;font-size:1rem;border-radius:14px;padding:.6rem 1.1rem;min-height:46px;cursor:pointer;border:2px solid #5fb86a;background:transparent;color:var(--lb-ink)}
+/* barra fixa de la sala: darrer missatge del xat + «Estic llest» */
+.lb-dock{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(560px,100%);z-index:44;display:flex;gap:8px;align-items:stretch;
+  padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:var(--lb-bg1);border:1px solid var(--lb-line);border-bottom:0;border-radius:18px 18px 0 0;box-shadow:0 -8px 24px rgba(0,0,0,.35)}
+.lb-dock[hidden]{display:none}
+.lobby.has-dock .lb-wrap{padding-bottom:96px}
+.dock-chat{flex:1;min-width:0;display:flex;align-items:center;gap:10px;font:inherit;text-align:left;color:var(--lb-ink);background:var(--lb-card2);border:1px solid var(--lb-line);border-radius:14px;padding:8px 12px;cursor:pointer;min-height:54px}
+.dock-chat.unread{border-color:var(--lb-gold);background:rgba(233,179,28,.14)}
+.dock-chat.pulse{animation:dockpulse 1s ease-out}
+@keyframes dockpulse{0%{box-shadow:0 0 0 0 rgba(233,179,28,.7)}100%{box-shadow:0 0 0 12px rgba(233,179,28,0)}}
+@media (prefers-reduced-motion:reduce){.dock-chat.pulse{animation:none}}
+.dock-ico{position:relative;font-size:1.35rem;line-height:1;flex:none}
+.dock-ico i{position:absolute;top:-8px;right:-10px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--lb-red);color:#fff;font:800 .72rem/19px system-ui,sans-serif;font-style:normal;text-align:center}
+.dock-ico i[hidden]{display:none}
+.dock-prev{flex:1;min-width:0;font-size:.88rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.dock-prev b{color:var(--lb-gold)}
+.dock-prev.empty{color:var(--lb-muted)}
+.dock-rdy{flex:none;display:flex}
+.dock-rdy[hidden]{display:none}
+.rdy-btn{font:inherit;color:var(--lb-ink);border-radius:14px;padding:6px 14px;min-height:54px;min-width:104px;cursor:pointer;border:2px solid #5fb86a;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.rdy-btn b{font-size:.98rem;font-weight:800}
+.rdy-btn small{font-size:.72rem;opacity:.85}
 .rdy-btn.on{background:#5fb86a;color:#0b2412}
-.lb-chat{background:var(--lb-card);border:1px solid var(--lb-line);border-radius:18px;padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px}
-.lb-chat h3{margin:0;font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--lb-muted);display:flex;justify-content:space-between;gap:8px}
-.lb-chat h3 span{text-transform:none;letter-spacing:0;font-weight:400}
-.lb-chat h3 button{font:inherit;background:none;border:0;color:var(--lb-gold);text-decoration:underline;cursor:pointer;padding:0}
-.chat-log{max-height:180px;min-height:44px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;font-size:.92rem;line-height:1.35;overscroll-behavior:contain}
+.lb-dock.go{border-color:#5fb86a}
+.lb-dock.go .rdy-btn{background:#5fb86a;color:#0b2412}
+/* finestra del xat */
+.chat-card{height:min(72vh,560px);gap:8px}
+.chat-card .lb-sheet-head p button{font:inherit;background:none;border:0;color:var(--lb-gold);text-decoration:underline;cursor:pointer;padding:0}
+.chat-log{flex:1 1 auto;min-height:60px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;font-size:.95rem;line-height:1.35;overscroll-behavior:contain;padding:4px 0}
 .chat-log .cm{background:var(--lb-card2);border-radius:12px;padding:5px 10px;align-self:flex-start;max-width:88%;overflow-wrap:anywhere}
 .chat-log .cm.me{align-self:flex-end;background:rgba(233,179,28,.18)}
+.chat-log .cm:first-child{margin-top:auto}
 .chat-log .cm b,.chat-log .cm button{font:inherit;font-weight:800;color:var(--lb-gold);margin-right:4px}
 .chat-log .cm button{background:none;border:0;padding:0;cursor:pointer}
 .chat-log .empty{color:var(--lb-muted);font-size:.85rem;margin:auto 0}
@@ -842,14 +859,6 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
     </div>
     <p class="tm-legend"><span class="tA">●</span> Parella A: dalt i baix &nbsp;·&nbsp; <span class="tB">●</span> Parella B: als costats &nbsp;·&nbsp; els companys seuen de cara</p>
     <div id="seatsA" hidden></div><div id="seatsB" hidden></div>
-    <section class="lb-ready" id="readyBox" hidden aria-live="polite"></section>
-    <section class="lb-chat" id="chatBox" hidden aria-label="Xat de la sala">
-      <h3>Xat de la sala<span id="chatMuted"></span></h3>
-      <div class="chat-log" id="chatLog" role="log"></div>
-      <div class="chat-quick" id="chatQuick"></div>
-      <form class="chat-form" id="chatForm" autocomplete="off"><input id="chatIn" maxlength="120" enterkeyhint="send" placeholder="Escriu un missatge…" aria-label="Missatge per a la sala"><button class="lb-chipbtn" type="submit">Enviar</button></form>
-      <p class="chat-note" id="chatNote" role="status"></p>
-    </section>
     <div class="searchbox" id="searchBox"></div>
     <section class="lb-lvl" id="durRoom" aria-label="Durada de la partida"></section>
     <section class="lb-lvl" id="lvlRoom" aria-label="Nivell dels bots"></section>
@@ -888,6 +897,21 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
     <div class="shop-login" id="shopLogin" hidden><p>Per comprar has d'entrar amb Google: així la compra queda guardada al teu compte i la tens a tots els aparells.</p><div id="shopGsi"></div></div>
     <label class="shop-ok" id="shopOkBox"><input type="checkbox" id="shopOk"><span>Vull rebre la compra ara mateix i entenc que, com que és contingut digital, <b>perdo el dret de desistiment</b> de 14 dies. He llegit les <a href="/condicions" target="_blank" rel="noopener">condicions de venda</a>.</span></label>
     <p class="shop-note" id="shopNote" role="status"></p>
+  </div>
+ </div>
+
+ <!-- Sala d'espera: barra fixa a baix amb el darrer missatge del xat i «Estic llest» -->
+ <div class="lb-dock" id="roomDock" hidden>
+  <button type="button" class="dock-chat" id="dockChat" aria-label="Obrir el xat de la sala"><span class="dock-ico" aria-hidden="true">💬<i id="dockBadge" hidden></i></span><span class="dock-prev" id="dockPrev"></span></button>
+  <div class="dock-rdy" id="readyBox" aria-live="polite"></div>
+ </div>
+ <div class="lb-sheet" id="chatSheet" hidden role="dialog" aria-modal="true" aria-label="Xat de la sala">
+  <div class="lb-sheet-card chat-card">
+    <div class="lb-sheet-head"><span class="lvl-ico" aria-hidden="true">💬</span><div><h2>Xat de la sala</h2><p id="chatMuted">Només el veuen els jugadors d'aquesta sala.</p></div><button class="lb-x" data-chatsheet="close" aria-label="Tancar">✕</button></div>
+    <div class="chat-log" id="chatLog" role="log"></div>
+    <div class="chat-quick" id="chatQuick"></div>
+    <form class="chat-form" id="chatForm" autocomplete="off"><input id="chatIn" maxlength="120" enterkeyhint="send" placeholder="Escriu un missatge…" aria-label="Missatge per a la sala"><button class="lb-chipbtn" type="submit">Enviar</button></form>
+    <p class="chat-note" id="chatNote" role="status"></p>
   </div>
  </div>
 
@@ -3217,7 +3241,7 @@ function renderLobby(){
   renderBacks();
   const av=avatarSVG(Me.look,hat);$('#avatar').innerHTML=av;$('#avatarBig').innerHTML=av;
   renderLevels();renderDur();
-  if(!inRoom)return;
+  if(!inRoom){renderChat();return;}
   $('#roomCode').textContent=Me.code;
   $('#shareUrl').value=location.origin+location.pathname+'?sala='+Me.code;
   $('#btnWa').href='https://wa.me/?text='+encodeURIComponent('Vols fer un truc? 🃏 Entra a la meva sala de Truc mallorquí: '+$('#shareUrl').value);
@@ -3244,44 +3268,80 @@ function renderLobby(){
 // ---------- «Llest» i xat de la sala d'espera ----------
 const CHAT_QUICK=['Hola! 👋','Esperam un poc?','Som-hi!','Un moment, ara torn','Bona partida!'];
 const roomHumans=()=>Me.players.filter(x=>x.human&&x.connected).length;
+const isMine=m=>m.s===Me.seat&&Me.players[m.s]&&Me.players[m.s].name===m.n;
+// La barra de baix surt a la sala quan hi ha algú més (o ja hi ha missatges): sempre a la vista, també al mòbil
+const dockOn=()=>!!Me.code&&Me.phase==='lobby'&&(roomHumans()>=2||Me.chat.length>0);
 function renderReady(){
   const el=$('#readyBox');if(!el||!Me.code)return;
   const n=roomHumans();
   el.hidden=Me.phase!=='lobby'||n<2;
+  $('#roomDock').classList.toggle('go',!el.hidden&&Me.startsAt>Date.now());
   if(el.hidden)return;
   const me=Me.players[Me.seat]||{},ok=Me.players.filter(x=>x.human&&x.connected&&x.ready).length;
-  const go=Me.startsAt>Date.now();
-  el.classList.toggle('go',go);
-  const h=go?`<p><b>Tots llestos!</b> Començam en <span id="rdyT">${Math.ceil((Me.startsAt-Date.now())/1000)}</span>…<small>Si algú encara no ho està, pot desfer-ho.</small></p><button class="rdy-btn" data-ready="0">Encara no</button>`
-    :`<p><b>${ok} de ${n}</b> llestos<small>Quan tots ho estigueu, la partida començarà sola (els seients buits, bots).</small></p><button class="rdy-btn${me.ready?' on':''}" data-ready="${me.ready?0:1}" aria-pressed="${!!me.ready}">${me.ready?'✓ Llest':'Estic llest'}</button>`;
+  const h=Me.startsAt>Date.now()?`<button class="rdy-btn" data-ready="0"><b>Encara no</b><small>Comença en <span id="rdyT">${Math.ceil((Me.startsAt-Date.now())/1000)}</span></small></button>`
+    :`<button class="rdy-btn${me.ready?' on':''}" data-ready="${me.ready?0:1}" aria-pressed="${!!me.ready}"><b>${me.ready?'✓ Llest':'Estic llest'}</b><small>${ok} de ${n} llestos</small></button>`;
   if(el._h!==h){el.innerHTML=h;el._h=h;}
 }
 setInterval(()=>{const t=$('#rdyT');if(t&&Me.startsAt)t.textContent=Math.max(0,Math.ceil((Me.startsAt-Date.now())/1000));},250);
 function renderChat(){
-  const box=$('#chatBox');if(!box||!Me.code)return;
-  box.hidden=Me.phase!=='lobby'||(roomHumans()<2&&!Me.chat.length);
-  if(box.hidden)return;
+  const dock=$('#roomDock');if(!dock)return;
+  const on=dockOn();
+  dock.hidden=!on;$('#lobby').classList.toggle('has-dock',on);
+  if(!on){if(!$('#chatSheet').hidden)ChatSheet.close();Me.unread=0;return;}
+  const list=Me.chat.filter(m=>!Me.muted.has(m.n)),last=list[list.length-1];
+  // barra: el darrer missatge i els no llegits
+  const prev=$('#dockPrev');
+  prev.classList.toggle('empty',!last);
+  prev.innerHTML=last?`<b>${isMine(last)?'Tu':esc(last.n)}:</b> ${esc(last.x)}`:'Xat de la sala: digues hola 👋';
+  const badge=$('#dockBadge');badge.hidden=!Me.unread;badge.textContent=Me.unread>9?'9+':Me.unread;
+  $('#dockChat').classList.toggle('unread',Me.unread>0);
+  $('#dockChat').setAttribute('aria-label',Me.unread?`Obrir el xat de la sala: ${Me.unread} missatges nous`:'Obrir el xat de la sala');
+  // finestra del xat
   if(!$('#chatQuick').firstChild)$('#chatQuick').innerHTML=CHAT_QUICK.map(q=>`<button type="button" data-q="${esc(q)}">${esc(q)}</button>`).join('');
   const muted=[...Me.muted];
-  $('#chatMuted').innerHTML=muted.length?`Silenciats: ${muted.map(n=>`${esc(n)} <button type="button" data-unmute="${esc(n)}">desfer</button>`).join(', ')}`:'';
-  const list=Me.chat.filter(m=>!Me.muted.has(m.n));
-  const sig=list.map(m=>m.id).join(',')+'|'+Me.seat;
-  if(box._sig===sig)return;
-  box._sig=sig;
-  const log=$('#chatLog');
-  log.innerHTML=list.length?list.map(m=>{const mine=m.s===Me.seat&&Me.players[m.s]&&Me.players[m.s].name===m.n;
+  $('#chatMuted').innerHTML=muted.length?`Silenciats: ${muted.map(n=>`${esc(n)} <button type="button" data-unmute="${esc(n)}">desfer</button>`).join(', ')}`
+    :"Només el veuen els jugadors d'aquesta sala. Toca un nom per silenciar-lo.";
+  const sig=list.map(m=>m.id).join(',')+'|'+Me.seat,log=$('#chatLog');
+  if(log._sig===sig)return;
+  log._sig=sig;
+  log.innerHTML=list.length?list.map(m=>{const mine=isMine(m);
     return `<div class="cm${mine?' me':''}">${mine?`<b>Tu</b>`:`<button type="button" data-mute="${esc(m.n)}" title="Silenciar">${esc(m.n)}</button>`}${esc(m.x)}</div>`;}).join('')
     :`<p class="empty">Digues hola als altres jugadors 👋</p>`;
   log.scrollTop=log.scrollHeight;
 }
 function chatNote(t){const e=$('#chatNote');if(!e)return;e.textContent=t||'';clearTimeout(chatNote.t);if(t)chatNote.t=setTimeout(()=>{e.textContent='';},3500);}
+// Finestra del xat (s'obre des de la barra de baix). Al mòbil, quan surt el teclat, la finestra puja i s'encongeix.
+const ChatSheet={
+  open(){
+    $('#chatSheet').hidden=false;Me.unread=0;renderChat();chatTitle();
+    const log=$('#chatLog');log.scrollTop=log.scrollHeight;
+    if(matchMedia('(pointer:fine)').matches)$('#chatIn').focus(); // al mòbil no: el teclat taparia els missatges
+    this.fit();
+  },
+  close(){$('#chatSheet').hidden=true;const c=$('#chatSheet .chat-card');c.style.height='';$('#chatSheet').style.paddingBottom='';},
+  fit(){
+    const vv=window.visualViewport;if(!vv||$('#chatSheet').hidden)return;
+    const kb=Math.max(0,innerHeight-vv.height-vv.offsetTop);
+    $('#chatSheet').style.paddingBottom=kb+'px';
+    $('#chatSheet .chat-card').style.height=kb?Math.round(vv.height*0.92)+'px':'';
+    const log=$('#chatLog');log.scrollTop=log.scrollHeight;
+  }
+};
+if(window.visualViewport){visualViewport.addEventListener('resize',()=>ChatSheet.fit());visualViewport.addEventListener('scroll',()=>ChatSheet.fit());}
+// Si la pestanya no es veu, el títol avisa dels missatges nous: «(2) 💬 Truc mallorquí…»
+const BASE_TITLE=document.title;
+function chatTitle(){document.title=Me.unread&&document.hidden?`(${Me.unread}) 💬 ${BASE_TITLE}`:BASE_TITLE;}
+document.addEventListener('visibilitychange',chatTitle);
 function onChat(m){
   if(!m||Me.chat.some(x=>x.id===m.id))return;
   Me.chat.push(m);if(Me.chat.length>30)Me.chat.shift();
-  renderChat();
-  // si el xat no es veu (p. ex. has baixat la pàgina), avisa
-  const box=$('#chatBox'),r=box&&box.getBoundingClientRect();
-  if(m.s!==Me.seat&&!Me.muted.has(m.n)&&r&&(r.bottom<0||r.top>innerHeight))View.toast(`💬 ${m.n}: ${m.x}`,2600);
+  const fromOther=!isMine(m)&&!Me.muted.has(m.n);
+  if(fromOther&&$('#chatSheet').hidden){
+    Me.unread=(Me.unread||0)+1;
+    const b=$('#dockChat');b.classList.remove('pulse');void b.offsetWidth;b.classList.add('pulse');
+    try{if(navigator.vibrate&&isPhone())navigator.vibrate(60);}catch(_){}
+  }
+  renderChat();chatTitle();
 }
 function sendChat(text){
   text=String(text||'').trim();if(!text)return;
@@ -3424,7 +3484,12 @@ function setupLobby(){
     else{if(a==='on')Me.keepWaiting=!!Me.searching;Net.send({t:'search',on:a==='on'});}
   });
   // «Llest» i xat
-  $('#readyBox').addEventListener('click',e=>{const b=e.target.closest('[data-ready]');if(b)Net.send({t:'ready',on:b.dataset.ready==='1'});});
+  $('#readyBox').addEventListener('click',e=>{const b=e.target.closest('[data-ready]');if(!b)return;
+    const on=b.dataset.ready==='1';Net.send({t:'ready',on});
+    if(on&&!Me.readyTip){Me.readyTip=true;View.toast('Quan tots estigueu llests, la partida començarà sola',2600);}});
+  $('#dockChat').addEventListener('click',()=>ChatSheet.open());
+  $('#chatSheet').addEventListener('click',e=>{if(e.target.id==='chatSheet'||e.target.closest('[data-chatsheet="close"]'))ChatSheet.close();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#chatSheet').hidden)ChatSheet.close();});
   $('#chatForm').addEventListener('submit',e=>{e.preventDefault();const i=$('#chatIn');sendChat(i.value);i.value='';});
   $('#chatQuick').addEventListener('click',e=>{const b=e.target.closest('[data-q]');if(b)sendChat(b.dataset.q);});
   $('#chatLog').addEventListener('click',e=>{

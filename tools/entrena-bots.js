@@ -7,6 +7,7 @@
 //   node tools/entrena-bots.js dificil [rondes]         entrena el bot difícil
 //   node tools/entrena-bots.js mestre [rondes]          ajusta els marges del mestre (lent)
 //   node tools/entrena-bots.js variants '[{...}]'       compara variants del mestre contra el difícil
+//   node tools/entrena-bots.js estil [cantons]          quan canten truc els bots de cada nivell (a quina ronda)
 //
 // Els resultats es desen a bots-entrenats.json (game.js els llegeix en arrencar).
 const fs = require('fs');
@@ -58,6 +59,32 @@ async function torneig(n) {
       if (process.env.VERBOSE) console.log(`  ${a}-${b} ${((Date.now() - t0) / 1000).toFixed(1)}s`);
     }
     console.log(row);
+  }
+}
+
+// ---------- Estil: quan canten truc ----------
+// La gent sol esperar a veure la primera ronda; un bot que canta truc a la primera carta queda estrany.
+async function trucStyle(P, n) {
+  const st = { hands: 0, truc: 0, r: [0, 0, 0] };
+  for (let i = 0; i < n; i++) {
+    let H = null;
+    const rm = room();
+    rm.sendAll = m => {
+      if (m.t !== 'ev') return;
+      const e = m.e;
+      if (e.e === 'deal') { st.hands++; H = { trick: 0, called: false }; }
+      else if (e.e === 'trick' && H) H.trick++;
+      else if (e.e === 'call' && e.kind === 'truc' && e.level === 1 && H && !H.called) { H.called = true; st.truc++; st.r[Math.min(2, H.trick)]++; }
+    };
+    await new Game(rm, { speed: 0, rng: mulberry32(i * 31 + 7), dealRng: mulberry32(i + 1), params: [P, P, P, P] }).playCanton();
+  }
+  return { perHand: st.truc / Math.max(1, st.hands), byRound: st.r.map(x => x / Math.max(1, st.truc)) };
+}
+async function estil(n) {
+  console.log(`Quan canten truc (${n} cantons per nivell; el mestre, una quarta part)\n`);
+  for (const id of LEVEL_IDS) {
+    const s = await trucStyle(LEVELS[id], id === 'mestre' ? Math.ceil(n / 4) : n);
+    console.log(`${id.padEnd(8)} truc a ${pct(s.perHand)} de les mans · ronda 1 ${pct(s.byRound[0])} · ronda 2 ${pct(s.byRound[1])} · ronda 3 ${pct(s.byRound[2])}`);
   }
 }
 
@@ -137,6 +164,7 @@ const MESTRE_SPEC = [
   // Sparring: un mestre que mira menys mans (va més aviat)
   const spar = Object.assign({}, LEVELS.mestre, { mc: 12 });
   if (cmd === 'torneig') await torneig(+arg || 300);
+  else if (cmd === 'estil') await estil(+arg || 300);
   else if (cmd === 'dificil') await entrena('dificil', +arg || 150, SPEC, LEVELS.dificil, { vs: 'normal', n: 500, nBase: 2000, edge: 0.012, spar, nSpar: 400 });
   else if (cmd === 'variants') {
     // Prova variants del mestre contra el difícil, amb els mateixos repartiments: node tools/entrena-bots.js variants '[{"infer":0},{"bluffMc":0.15}]'
@@ -150,6 +178,6 @@ const MESTRE_SPEC = [
     const pick = o => Object.fromEntries(MESTRE_SPEC.map(([k]) => [k, o[k]]));
     const best = await entrena('mestre', +arg || 30, MESTRE_SPEC, LEVELS.mestre, { vs: 'dificil', n: 60, nBase: 200, edge: 0.02 });
     save('mestre', pick(best), JSON.parse(fs.readFileSync(OUT, 'utf8')).notes.mestre);
-  } else { console.log('Ordres: torneig | dificil | mestre'); process.exit(1); }
+  } else { console.log('Ordres: torneig | estil | dificil | mestre | variants'); process.exit(1); }
   console.log(`(${((Date.now() - t0) / 1000).toFixed(0)} s)`);
 })();
