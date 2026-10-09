@@ -111,6 +111,7 @@ class Room {
     this.searching = false;   // cercant rivals: surt a la llista de sales obertes i s'emparella sola
     this.searchSince = 0;
     this.botLevel = 'normal'; // nivell dels bots (facil, normal, dificil, mestre); el tria l'amfitrió
+    this.cantons = 2;         // 1 = partida ràpida (un cantó), 2 = llarga (dos cantons); el tria l'amfitrió
     this.seats = [0, 1, 2, 3].map(() => ({ human: false, name: '', look: 'palla', hat: 'palla', back: 'llenguesBlau', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0, badge: '' }));
   }
   sendSeat(s, msg) {
@@ -124,7 +125,7 @@ class Room {
   roster(s) {
     return {
       t: 'room', code: this.code, phase: this.phase, host: this.hostSeat, you: s,
-      searching: this.searching, searchMs: this.searching ? Date.now() - this.searchSince : 0, botLevel: this.botLevel,
+      searching: this.searching, searchMs: this.searching ? Date.now() - this.searchSince : 0, botLevel: this.botLevel, cantons: this.cantons,
       seats: this.seats.map((x, i) => ({
         human: x.human, name: x.human ? x.name : DEF_NAMES[i], look: x.human ? x.look : DEF_LOOKS[i],
         hat: x.human ? x.hat : DEF_HAT[DEF_LOOKS[i]], back: x.human ? x.back : 'llenguesBlau', connected: x.human ? x.connected : true,
@@ -188,13 +189,15 @@ class Room {
     stats.inc('partida:comencada');
     stats.inc('partida:tipus:' + (this.humansAtStart <= 1 ? 'bots' : this.humansAtStart === 4 ? 'persones' : 'mixta'));
     if (this.humansAtStart < 4) stats.inc('partida:nivell:' + this.botLevel);
-    this.game = new Game(this, { speed: SPEED, timerMs: TIMER_MS, level: this.botLevel });
+    stats.inc('partida:durada:' + (this.cantons === 1 ? 'rapida' : 'llarga'));
+    this.game = new Game(this, { speed: SPEED, timerMs: TIMER_MS, level: this.botLevel, cantons: this.cantons });
     this.broadcastRoom();
     this.game.start();
   }
   onGameOver() {
     counters.gamesFinished++;
-    stats.inc('partida:acabada');
+    // Només compta com a acabada si encara hi ha algú jugant (si tothom se n'ha anat, l'han acabada els bots)
+    stats.inc(this.humans() > 0 ? 'partida:acabada' : 'partida:abandonada');
     if (this.game) awardGame(this, this.game);
     this.phase = 'lobby';
     this.game = null;
@@ -500,6 +503,7 @@ function handle(ws, m) {
     room.attach(0, ws, c.token, cleanName(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look), c.owned));
     room.hostSeat = 0;
     if (LEVEL_IDS.includes(m.level)) room.botLevel = m.level;
+    if (m.cantons === 1 || m.cantons === 2) room.cantons = m.cantons;
     if (m.quick) { counters.quick++; room.broadcastRoom(); room.startGame(); }
     else if (m.solo) { room.setSearching(true); room.broadcastRoom(); tryMatch(); }
     else room.broadcastRoom();
@@ -519,7 +523,7 @@ function handle(ws, m) {
     if (room.searching && room.humans() === 4) room.startGame();
     return;
   }
-  if (m.t === 'list') { send(ws, { t: 'list', rooms: openRooms() }); return; }
+  if (m.t === 'list') { send(ws, { t: 'list', rooms: openRooms(), online: wss.clients.size }); return; }
   if (m.t === 'login' || m.t === 'auth' || m.t === 'logout' || m.t === 'prefs' || m.t === 'delete') { accountMsg(ws, m); return; }
   if (m.t === 'feedback') { feedbackMsg(ws, m); return; }
   if (m.t === 'shop') { if (shop.visibleTo(c.uid)) send(ws, { t: 'shop', items: shop.catalog(), test: shop.TEST }); return; }
@@ -564,6 +568,12 @@ function handle(ws, m) {
     case 'botlevel': {
       if (room.phase !== 'lobby' || room.hostSeat !== seat || !LEVEL_IDS.includes(m.level)) return;
       room.botLevel = m.level;
+      room.broadcastRoom();
+      return;
+    }
+    case 'cantons': {
+      if (room.phase !== 'lobby' || room.hostSeat !== seat || (m.n !== 1 && m.n !== 2)) return;
+      room.cantons = m.n;
       room.broadcastRoom();
       return;
     }
@@ -711,7 +721,7 @@ function awardGame(room, g) {
   room.seats.forEach((x, s) => {
     if (!x.human || !x.uid) return;
     const team = s % 2, cantons = g.G.cantons[team];
-    const r = { won: cantons >= 2, cantons, hands: (g.tally && g.tally.hands[team]) || 0, vsBots };
+    const r = { won: cantons >= (g.cantonsToWin || 2), cantons, hands: (g.tally && g.tally.hands[team]) || 0, vsBots };
     r.xp = acc.xpForGame(r);
     const before = x.lvl || 1, uid = x.uid;
     acc.store.addGame(uid, r).then(p => {

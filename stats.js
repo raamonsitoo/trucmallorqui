@@ -148,7 +148,8 @@ h2{font-size:1.05rem;margin:26px 0 10px;color:#e9b31c}.hint{color:#a8c3b9;font-s
 <div><h2>Aparell (30 dies)</h2>${bars(group('aparell:', 0), { mobil: 'Mòbil', ordinador: 'Ordinador', tauleta: 'Tauleta' })}</div>
 </div>
 <div class="two">
-<div><h2>Partides (30 dies)</h2>${bars(group('partida:', 0), { comencada: 'Començades', acabada: 'Acabades', 'tipus:bots': 'Contra bots', 'tipus:persones': 'Només persones', 'tipus:mixta': 'Persones i bots',
+<div><h2>Partides (30 dies)</h2>${bars(group('partida:', 0), { comencada: 'Començades', acabada: 'Acabades (amb algú jugant)', abandonada: 'Abandonades (tothom se\'n va anar)',
+  'durada:rapida': 'Ràpides (1 cantó)', 'durada:llarga': 'Llargues (2 cantons)', 'tipus:bots': 'Contra bots', 'tipus:persones': 'Només persones', 'tipus:mixta': 'Persones i bots',
   'nivell:facil': 'Nivell Fàcil', 'nivell:normal': 'Nivell Normal', 'nivell:dificil': 'Nivell Difícil', 'nivell:mestre': 'Nivell Mestre' })}</div>
 <div><h2>Què fa la gent (30 dies)</h2>${bars(group('accio:', 0), ACC_NAME)}</div>
 </div>

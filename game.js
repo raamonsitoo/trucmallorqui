@@ -184,6 +184,8 @@ class Game {
     this.timerMs = opts.timerMs == null ? 40000 : opts.timerMs;
     // Nivell dels bots rivals; `params` (un per seient) només el fa servir l'entrenament.
     this.level = LEVELS[opts.level] ? opts.level : 'normal';
+    // Partida ràpida: guanya qui guanya un cantó; llarga (la de sempre): dos cantons
+    this.cantonsToWin = opts.cantons === 1 ? 1 : 2;
     this.seatParams = opts.params || null;
     this.rnd = opts.rng || Math.random;
     this.dealRnd = opts.dealRng || Math.random;
@@ -219,7 +221,7 @@ class Game {
   emitTo(s, e) { this.room.sendSeat(s, { t: 'ev', e }); }
   snapFor(s) {
     const H = this.H, G = this.G;
-    const out = { t: 'snap', phase: this.room.phase, g: { cantons: G.cantons, scores: G.scores, dealer: G.dealer }, h: null };
+    const out = { t: 'snap', phase: this.room.phase, g: { cantons: G.cantons, scores: G.scores, dealer: G.dealer, win: this.cantonsToWin }, h: null };
     if (H) {
       const p = this.pending && this.pending.seats.includes(s) && !(s in this.pending.answers) ? this.pending : null;
       out.h = {
@@ -885,11 +887,12 @@ class Game {
   async run() {
     const G = this.G;
     G.cantons = [0, 0];
-    while (G.cantons[0] < 2 && G.cantons[1] < 2) {
+    const W = this.cantonsToWin;
+    while (G.cantons[0] < W && G.cantons[1] < W) {
       const w = await this.playCanton();
       G.cantons[w]++;
       this.snap();
-      const over = G.cantons[w] >= 2;
+      const over = G.cantons[w] >= W;
       this.emit({ e: over ? 'game' : 'canton', w, scores: G.scores.slice(), cantons: G.cantons.slice() });
       if (!over) await this.sleep(4000);
     }

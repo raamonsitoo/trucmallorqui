@@ -515,6 +515,14 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
 .lvl-opt b{font-size:1.02rem}
 .lvl-opt small{color:var(--muted);font-size:.82rem;line-height:1.3}
 .lvl-opt em{font-style:normal;font-weight:800;font-size:.85rem;color:#2b1c00;background:var(--gold);border-radius:999px;padding:.35rem .8rem;flex:none}
+/* durada de la partida: ràpida (1 cantó) o llarga (2 cantons) */
+.dur-pick{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px;padding:4px;border:1px solid var(--line);border-radius:14px}
+.dur-pick button{font:inherit;color:var(--ink);background:transparent;border:0;border-radius:10px;padding:7px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;min-height:48px}
+.dur-pick button.on{background:var(--gold);color:#2b1c00}
+.dur-pick button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.dur-pick b{font-size:.95rem}
+.dur-pick small{font-size:.75rem;opacity:.8}
+.lb-lvl-opts.dur{grid-template-columns:1fr 1fr}
 .lb-linkbtn{font:inherit;font-size:.88rem;background:none;border:0;color:var(--lb-muted);cursor:pointer;padding:6px}
 .lb-linkbtn:hover{color:var(--lb-ink)}
 .lb-learn.done{display:none}
@@ -807,6 +815,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
     <p class="tm-legend"><span class="tA">●</span> Parella A: dalt i baix &nbsp;·&nbsp; <span class="tB">●</span> Parella B: als costats &nbsp;·&nbsp; els companys seuen de cara</p>
     <div id="seatsA" hidden></div><div id="seatsB" hidden></div>
     <div class="searchbox" id="searchBox"></div>
+    <section class="lb-lvl" id="durRoom" aria-label="Durada de la partida"></section>
     <section class="lb-lvl" id="lvlRoom" aria-label="Nivell dels bots"></section>
     <div class="row lb-roomacts"><button class="lb-play sm" id="btnStart"><span class="lb-play-ico" aria-hidden="true">▶</span><span><b>Començar la partida</b><small>Els seients buits els juguen bots</small></span></button><button class="lb-linkbtn" data-ov="ask-leave">Sortir de la sala</button></div>
     <p class="hint" id="waitMsg">Esperant que l'amfitrió comenci la partida…</p>
@@ -848,7 +857,8 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
 
  <div class="lb-sheet" id="lvlSheet" hidden role="dialog" aria-modal="true" aria-label="Nivell dels bots">
   <div class="lb-sheet-card lvl-card">
-    <div class="lb-sheet-head"><span class="lvl-ico" aria-hidden="true">🤖</span><div><h2>Contra bots</h2><p>Tria el nivell. Tots els bots, també el teu company, hi jugaran.</p></div><button class="lb-x" data-lvlsheet="close" aria-label="Tancar">✕</button></div>
+    <div class="lb-sheet-head"><span class="lvl-ico" aria-hidden="true">🤖</span><div><h2>Contra bots</h2><p>Tria la durada i el nivell. Tots els bots, també el teu company, hi jugaran.</p></div><button class="lb-x" data-lvlsheet="close" aria-label="Tancar">✕</button></div>
+    <div class="dur-pick" id="durPick" role="radiogroup" aria-label="Durada de la partida"></div>
     <div class="lvl-list" id="lvlList"></div>
   </div>
  </div>
@@ -1611,7 +1621,7 @@ const Coach=(function(){
     if(e.e==='sign'&&P(e.p)===2)tip('sign','Una seña de la teva companya',`${NAMES[2]} t'ha fet una seña: <b>${SIGNS[e.id].tw}</b> vol dir <b>${SIGNS[e.id].sub}</b>. Les senyes només les veus si mires qui les fa. Tu també pots fer-ne amb els botons de «Fer una seña» de davall.`);
     if(e.e==='trick'&&!seen.trick)tip('trick','Ronda acabada',e.tie?'Les dues cartes més altes eren iguals: ronda empatada.':`La ronda ha estat per a <b>${tl(vteam(e.team))}</b>, perquè hi havia la carta més alta. Ara surt qui l'ha guanyada.`);
     if(e.e==='result'){hands++;
-      if(hands===1)tip('result','Mà acabada',`Els punts es van sumant al marcador de dalt. Qui arriba a <b>24</b> guanya un <b>cantó</b>, i qui guanya 2 cantons guanya la partida. També pots parlar amb ${NAMES[2]}: «Vaig a tu» vol dir que tiri ella la bona.`);
+      if(hands===1)tip('result','Mà acabada',`Els punts es van sumant al marcador de dalt. Qui arriba a <b>24</b> guanya un <b>cantó</b>${G.win===1?', i aquí el cantó ja és la partida':', i qui guanya 2 cantons guanya la partida'}. També pots parlar amb ${NAMES[2]}: «Vaig a tu» vol dir que tiri ella la bona.`);
       if(hands===2){tip('end','Ja en saps prou!','Ja coneixes el més important. Continua aquesta partida tant com vulguis, o torna al menú per jugar amb amics o desconeguts. Sort!');try{localStorage.setItem('truc_tuto','1');}catch(_){}}
     }
   }
@@ -1623,7 +1633,7 @@ const Coach=(function(){
 })();
 
 // ---------- Estat ----------
-const G={cantons:[0,0],scores:[0,0],dealer:0,log:[],status:''};
+const G={cantons:[0,0],scores:[0,0],win:2,dealer:0,log:[],status:''};
 let H=null;
 const UI={mode:'idle',resolve:null,reject:null,resp:null,foldArm:false,ovResolve:null,ovReject:null};
 
@@ -2665,12 +2675,12 @@ function renderScore(){
   const el=$('#score');if(!el)return;
   const block=t=>{
     const pts=G.scores[t];
-    const dots=[0,1].map(i=>`<span class="dot${i<G.cantons[t]?' on':''}"></span>`).join('');
+    const W=G.win||2,dots=Array.from({length:W},(_,i)=>`<span class="dot${i<G.cantons[t]?' on':''}"></span>`).join('');
     return `<div class="team t${t}"><div class="tname">${t===0?'Nosaltres':'Ells'}</div>`
       +`<div class="tsub">${t===0?esc(NAMES[0])+' i '+esc(NAMES[2]):esc(NAMES[1])+' i '+esc(NAMES[3])}</div>`
       +`<div class="pts"><b>${pts}</b><span>/24</span></div>`
       +`<div class="bar"><i style="width:${pts/24*100}%"></i></div>`
-      +`<div class="cant" role="img" aria-label="${G.cantons[t]} cantons guanyats de 2">Cantons ${dots}</div></div>`;
+      +`<div class="cant" role="img" aria-label="${G.cantons[t]} cantons guanyats de ${W}">${W===1?'Cantó':'Cantons'} ${dots}</div></div>`;
   };
   const marks=[0,1,2].map(i=>{
     const r=H?H.tricks[i]:undefined;
@@ -2788,7 +2798,7 @@ function rulesHTML(backAttr,backLabel){
   <tr><td>2 més</td><td>6</td><td>4</td></tr>
   <tr><td>Envit tots</td><td>el que falta per arribar a 24 a la parella que va davant</td><td>6</td></tr></table>
   <h3>Cantó i partida</h3>
-  <p>Un cantó es juga a 24 punts. Guanya la partida qui guanya dos cantons.</p>
+  <p>Un cantó es juga a 24 punts. A la partida llarga guanya qui guanya dos cantons; a la ràpida, amb un cantó n'hi ha prou.</p>
   ${signsGuideHTML()}
   <h3>Coses que he suposat</h3>
   <ul>
@@ -2827,7 +2837,8 @@ const store={
   try{if(sessionStorage.getItem('truc_v'))return;sessionStorage.setItem('truc_v','1');}catch(_){}
   hit({t:'v',r:refOf(),b:!!store.get('truc_token')});
 })();
-const Me={seat:-1,code:'',phase:'menu',host:-1,players:[],botLevel:store.get('truc_botlvl')||'normal',roomLevel:'normal',name:store.get('truc_name')||'',look:store.get('truc_look')||'palla',hat:store.get('truc_hat')||'',back:store.get('truc_back')||'llenguesBlau',holdGame:false,lastGaze:-2,signCd:0};
+const Me={seat:-1,code:'',phase:'menu',host:-1,players:[],botLevel:store.get('truc_botlvl')||'normal',roomLevel:'normal',
+  cantons:String(store.get('truc_cantons'))==='2'?2:1,roomCantons:2,online:null,keepWaiting:false,name:store.get('truc_name')||'',look:store.get('truc_look')||'palla',hat:store.get('truc_hat')||'',back:store.get('truc_back')||'llenguesBlau',holdGame:false,lastGaze:-2,signCd:0};
 // ---------- Compte (entrar amb Google) i nivells ----------
 const GCLIENT='__GCLIENT__'; // el posa el servidor; buit si els comptes no estan activats
 const Acct={profile:null,session:store.get('truc_session')||'',gsi:false,lastPrefs:'',on:false};
@@ -3038,7 +3049,9 @@ function onMsg(m){
     case 'err':lobbyError(m.m);View.toast(m.m);Shop.onErr(m.m);break;
     case 'shop':case 'buy':case 'bought':Shop.onMsg(m);break;
     case 'info':lobbyError(m.m);break;
-    case 'list':renderOpenRooms(m.rooms);break;
+    case 'list':renderOpenRooms(m.rooms);
+      if(typeof m.online==='number'){Me.online=m.online;if(Me.code&&Me.searching&&Me.phase==='lobby')renderSearch();}
+      break;
     case 'left':resetToMenu('');break;
     case 'login':Acct.session=m.session;store.set('truc_session',m.session);acctProfile(m.profile,true);
       View.toast(`Has entrat! Nivell ${m.profile.level} · ${m.profile.title}`,2600);break;
@@ -3050,7 +3063,7 @@ function onMsg(m){
 }
 function resetToMenu(msg){
   Coach.reset();
-  Me.code='';Me.phase='menu';Me.seat=-1;Me.players=[];Me.holdGame=false;Me.searching=false;
+  Me.code='';Me.phase='menu';Me.seat=-1;Me.players=[];Me.holdGame=false;Me.searching=false;Me.keepWaiting=false;
   H=null;UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();
   G.cantons=[0,0];G.scores=[0,0];G.status='';G.log=[];
   NAMES=['Tu','Toni','Catalina','Miquel'];
@@ -3059,12 +3072,14 @@ function resetToMenu(msg){
 
 // ---------- Sala ----------
 function onRoom(m){
-  Me.code=m.code;Me.phase=m.phase;Me.host=m.host;Me.seat=m.you;Me.players=m.seats;Me.roomLevel=m.botLevel||'normal';
+  Me.code=m.code;Me.phase=m.phase;Me.host=m.host;Me.seat=m.you;Me.players=m.seats;Me.roomLevel=m.botLevel||'normal';Me.roomCantons=m.cantons||2;
   if(m.phase==='lobby'&&Me.rematch){Me.rematch=false;Net.send({t:'start'});}
   // ha començat una partida nova (p. ex. la revenja de l'amfitrió): tanca el resum de l'anterior
   if(m.phase==='playing'&&Me.holdGame){Me.holdGame=false;hideOverlay();}
   const was=Me.searching;Me.searching=!!m.searching;
   if(Me.searching&&(!was||m.searchMs<1500))Me.searchStart=Date.now()-(m.searchMs||0);
+  if(Me.searching&&!was)Net.send({t:'list'}); // quanta gent hi ha connectada ara mateix
+  if(!Me.searching)Me.keepWaiting=false;
   updateRoster();routeScreen();
 }
 function updateRoster(){
@@ -3121,10 +3136,20 @@ function lvlHTML(cur,editable,note){
     `<button type="button" role="radio" aria-checked="${id===cur}" class="${id===cur?'on':''}" data-lvl="${id}"${editable?'':' disabled'}><i aria-hidden="true">${'●'.repeat(i+1)}${'○'.repeat(3-i)}</i><b>${n}</b><small>${d}</small></button>`).join('')}</div>`;
 }
 const LVL_DESC={facil:"S'arrisquen poc i s'equivoquen sovint. Per aprendre.",normal:'El bot de sempre.',dificil:'Entrenat jugant milers de cantons contra altres bots.',mestre:"Endevina les vostres cartes pel que s'ha tirat i cantat, i pensa cada jugada."};
+// Durada: 1 = ràpida (guanya qui fa un cantó), 2 = llarga (dos cantons, la de sempre)
+const DURS=[[1,'Ràpida','1 cantó'],[2,'Llarga','2 cantons']];
+const durBtns=(cur,editable)=>DURS.map(([n,t,d])=>`<button type="button" role="radio" aria-checked="${n===cur}" class="${n===cur?'on':''}" data-dur="${n}"${editable?'':' disabled'}><b>${t}</b><small>${d}</small></button>`).join('');
+function setCantons(n){Me.cantons=n===2?2:1;store.set('truc_cantons',String(Me.cantons));}
+function renderDur(){
+  const r=$('#durRoom');if(!r||!Me.code)return;
+  const host=Me.host===Me.seat;
+  r.innerHTML=`<h3>Durada de la partida<span>${host?'':"la tria l'amfitrió"}</span></h3><div class="lb-lvl-opts dur" role="radiogroup">${durBtns(Me.roomCantons,host)}</div>`;
+}
 // Finestra per triar el nivell en jugar contra bots; `onPick` rep el nivell triat.
 const LvlSheet={onPick:null,
   open(onPick){
     this.onPick=onPick;
+    $('#durPick').innerHTML=durBtns(Me.cantons,true);
     $('#lvlList').innerHTML=BOT_LEVELS.map(([id,n],i)=>`<button type="button" class="lvl-opt${id===Me.botLevel?' on':''}" data-lvl="${id}"><i aria-hidden="true">${'●'.repeat(i+1)}${'○'.repeat(3-i)}</i><span><b>${n}</b><small>${LVL_DESC[id]}</small></span><em>Jugar ▶</em></button>`).join('');
     $('#lvlSheet').hidden=false;
     const on=$('#lvlList .on');if(on)on.focus();
@@ -3151,7 +3176,7 @@ function renderLobby(){
   document.querySelectorAll('#hats .chip').forEach(c=>c.classList.toggle('on',c.dataset.hat===hat));
   renderBacks();
   const av=avatarSVG(Me.look,hat);$('#avatar').innerHTML=av;$('#avatarBig').innerHTML=av;
-  renderLevels();
+  renderLevels();renderDur();
   if(!inRoom)return;
   $('#roomCode').textContent=Me.code;
   $('#shareUrl').value=location.origin+location.pathname+'?sala='+Me.code;
@@ -3176,8 +3201,15 @@ function renderLobby(){
   renderSearch();
 }
 // ---------- Cercar rivals / sales obertes ----------
-const SEARCH_WAIT=60;
+const SEARCH_WAIT=20;
 function fmtSecs(t){t=Math.max(0,Math.floor(t));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');}
+// Persones connectades a la web que no són a la sala (null si encara no ho sabem)
+function othersOnline(){
+  if(typeof Me.online!=='number')return null;
+  return Math.max(0,Me.online-Me.players.filter(x=>x.human&&x.connected).length);
+}
+// S'ofereixen els bots si ja fa una estona que cercam o si no hi ha ningú més connectat
+function searchLate(secs){return secs>=SEARCH_WAIT||(othersOnline()===0&&!Me.keepWaiting);}
 function renderSearch(){
   const el=$('#searchBox');if(!el)return;
   const host=Me.host===Me.seat,full=Me.players.filter(x=>x.human).length>=4;
@@ -3188,23 +3220,29 @@ function renderSearch(){
     el.innerHTML=host
       ?`<p><b>Voleu jugar contra persones?</b> Cercau rivals i la sala sortirà a la llista de sales obertes.</p><div class="row"><button class="btn envit" data-search="on">Buscar rivals</button></div>`
       :`<p class="hint">L'amfitrió pot cercar rivals perquè s'hi afegeixin desconeguts.</p>`;
+    el._h='';
     return;
   }
   const secs=(Date.now()-(Me.searchStart||Date.now()))/1000;
-  const late=secs>=SEARCH_WAIT;
-  let h=late?`<p><b>No hi ha ningú ara mateix.</b> Podeu seguir esperant o jugar contra bots.</p>`
-            :`<p><span class="spin" aria-hidden="true"></span><b>Cercant rivals…</b> <span id="searchT">${fmtSecs(secs)}</span></p><p class="hint">Els seients lliures els ocuparan altres jugadors. Si s'omple la sala, la partida comença sola.</p>`;
+  const late=searchLate(secs),others=othersOnline();
+  const who=others==null?'':others===0?'Ara mateix no hi ha ningú més a la web.'
+    :`Ara mateix hi ha <b>${others}</b> ${others===1?'persona més':'persones més'} a la web.`;
+  let h=late?(others===0?`<p><b>No hi ha ningú més connectat ara mateix.</b> Jugau contra bots o esperau que entri algú.</p>`
+                        :`<p><b>Encara no ha entrat ningú.</b> Podeu seguir esperant o jugar contra bots.</p>${who?`<p class="hint">👥 ${who}</p>`:''}`)
+            :`<p><span class="spin" aria-hidden="true"></span><b>Cercant rivals…</b> <span id="searchT"></span></p>${who?`<p class="hint">👥 ${who}</p>`:''}<p class="hint">Els seients lliures els ocuparan altres jugadors. Si s'omple la sala, la partida comença sola.</p>`;
   if(host){
     h+=late?`<div class="row"><button class="btn ghost" data-search="on">Seguir esperant</button><button class="btn ok" data-search="bots">Jugar contra bots</button></div>`
            :`<div class="row"><button class="btn ghost sm" data-search="off">Cancel·lar la cerca</button></div>`;
   }else if(late)h+=`<p class="hint">L'amfitrió decideix si seguir esperant o jugar amb bots.</p>`;
-  el.innerHTML=h;
+  // només es torna a pintar si canvia (així els botons no desapareixen mentre els toques)
+  if(el._h!==h){el.innerHTML=h;el._h=h;}
+  const st=$('#searchT');if(st)st.textContent=fmtSecs(secs);
   el.dataset.late=late?'1':'';
 }
 setInterval(()=>{
   if(!Me.code||Me.phase!=='lobby'||!Me.searching)return;
   const secs=(Date.now()-(Me.searchStart||Date.now()))/1000;
-  const late=secs>=SEARCH_WAIT;
+  const late=searchLate(secs);
   if(late!==!!($('#searchBox').dataset.late))renderSearch();
   else{const t=$('#searchT');if(t)t.textContent=fmtSecs(secs);}
 },1000);
@@ -3213,7 +3251,8 @@ function renderOpenRooms(list){
   if(!list||!list.length){el.innerHTML='<p class="hint">Ara mateix no hi ha cap sala oberta. Pitja «Jugar ara» i la teva sala sortirà aquí perquè s\'hi afegeixin altres jugadors.</p>';return;}
   el.innerHTML=list.map(r=>{const f=4-r.humans;return `<div class="oroom"><span>Sala de <b>${esc(r.host)}</b> <small>· ${r.humans} ${r.humans===1?'jugador':'jugadors'}, ${f===1?'falta 1':'falten '+f}</small></span><button class="btn sm ok" data-joincode="${esc(r.code)}">Entrar</button></div>`;}).join('');
 }
-function pollRooms(){if(!Me.code&&!$('#lobby').hidden)Net.send({t:'list'});}
+// Fora de sala: llista de sales obertes. Dins una sala que cerca rivals: quanta gent hi ha connectada.
+function pollRooms(){if(!$('#lobby').hidden&&(!Me.code||(Me.searching&&Me.phase==='lobby')))Net.send({t:'list'});}
 setInterval(pollRooms,4000);
 function readProfile(){
   const n=($('#nameIn').value||'').replace(/[<>&"'`]/g,'').trim().slice(0,16)||'Jugador';
@@ -3258,11 +3297,20 @@ function setupLobby(){
     if(Me.code){const p=readProfile();Net.send(Object.assign({t:'profile'},p));}
   }));
   $('#nameIn').addEventListener('change',()=>{if(Me.code){const p=readProfile();Net.send(Object.assign({t:'profile'},p));}});
-  $('#btnCreate').addEventListener('click',()=>{lobbyError('');track('sala-creada');const p=readProfile();Net.send(Object.assign({t:'create',level:Me.botLevel},p));});
-  $('#btnQuick').addEventListener('click',()=>{lobbyError('');LvlSheet.open(lvl=>{track('partida-bots-'+lvl);const p=readProfile();Net.send(Object.assign({t:'create',quick:true,level:lvl},p));});});
+  $('#btnCreate').addEventListener('click',()=>{lobbyError('');track('sala-creada');const p=readProfile();Net.send(Object.assign({t:'create',level:Me.botLevel,cantons:Me.cantons},p));});
+  $('#btnQuick').addEventListener('click',()=>{lobbyError('');LvlSheet.open(lvl=>{track('partida-bots-'+lvl);const p=readProfile();Net.send(Object.assign({t:'create',quick:true,level:lvl,cantons:Me.cantons},p));});});
   $('#lvlSheet').addEventListener('click',e=>{
     if(e.target.id==='lvlSheet'||e.target.closest('[data-lvlsheet="close"]'))return LvlSheet.close();
+    const d=e.target.closest('[data-dur]');
+    if(d){setCantons(+d.dataset.dur);$('#durPick').innerHTML=durBtns(Me.cantons,true);const on=$('#durPick .on');if(on)on.focus();return;}
     const b=e.target.closest('[data-lvl]');if(b)LvlSheet.pick(b.dataset.lvl);
+  });
+  // A la sala, l'amfitrió tria la durada
+  $('#durRoom').addEventListener('click',e=>{
+    const b=e.target.closest('[data-dur]');if(!b||b.disabled)return;
+    setCantons(+b.dataset.dur);Me.roomCantons=Me.cantons;
+    Net.send({t:'cantons',n:Me.cantons});
+    renderDur();
   });
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#lvlSheet').hidden)LvlSheet.close();});
   // A la sala, l'amfitrió pot canviar el nivell
@@ -3279,14 +3327,14 @@ function setupLobby(){
     Net.send(Object.assign({t:'join',code},p));
   });
   $('#btnStart').addEventListener('click',()=>Net.send({t:'start'}));
-  $('#btnLearn').addEventListener('click',()=>{lobbyError('');track('tutorial');const p=readProfile();Coach.start();Net.send(Object.assign({t:'create',quick:true,level:'facil'},p));});
+  $('#btnLearn').addEventListener('click',()=>{lobbyError('');track('tutorial');const p=readProfile();Coach.start();Net.send(Object.assign({t:'create',quick:true,level:'facil',cantons:1},p));});
   if(store.get('truc_tuto'))$('#learnBox').classList.add('done');
-  $('#btnSolo').addEventListener('click',()=>{lobbyError('');track('jugar-desconeguts');const p=readProfile();Net.send(Object.assign({t:'create',solo:true,level:Me.botLevel},p));});
+  $('#btnSolo').addEventListener('click',()=>{lobbyError('');track('jugar-desconeguts');const p=readProfile();Net.send(Object.assign({t:'create',solo:true,level:Me.botLevel,cantons:Me.cantons},p));});
   $('#searchBox').addEventListener('click',e=>{
     const b=e.target.closest('[data-search]');if(!b)return;
     const a=b.dataset.search;
-    if(a==='bots')LvlSheet.open(lvl=>{Net.send({t:'botlevel',level:lvl});Net.send({t:'start'});});
-    else Net.send({t:'search',on:a==='on'});
+    if(a==='bots')LvlSheet.open(lvl=>{Net.send({t:'botlevel',level:lvl});Net.send({t:'cantons',n:Me.cantons});Net.send({t:'start'});});
+    else{if(a==='on')Me.keepWaiting=!!Me.searching;Net.send({t:'search',on:a==='on'});}
   });
   $('#openRooms').addEventListener('click',e=>{
     const b=e.target.closest('[data-joincode]');if(!b)return;
@@ -3307,7 +3355,7 @@ function setupLobby(){
   if(nv&&BOT_LEVELS.some(x=>x[0]===nv)){
     Me.botLevel=nv;store.set('truc_botlvl',nv);track('repte-obert');
     qs.delete('nivell');history.replaceState(null,'',location.pathname+(qs.toString()?'?'+qs:'')+location.hash);
-    setTimeout(()=>{if(!Me.code)LvlSheet.open(lvl=>{track('partida-bots-'+lvl);const p=readProfile();Net.send(Object.assign({t:'create',quick:true,level:lvl},p));});},700);
+    setTimeout(()=>{if(!Me.code)LvlSheet.open(lvl=>{track('partida-bots-'+lvl);const p=readProfile();Net.send(Object.assign({t:'create',quick:true,level:lvl,cantons:Me.cantons},p));});},700);
   }
 }
 // En acabar la partida: compartir el resultat (al mòbil, el menú de compartir; a l'ordinador, WhatsApp)
@@ -3330,6 +3378,7 @@ function applySnap(s){
   const par=Me.seat%2;
   G.cantons=[s.g.cantons[par],s.g.cantons[1-par]];
   G.scores=[s.g.scores[par],s.g.scores[1-par]];
+  G.win=s.g.win||2;
   const h=s.h;
   if(!h){H=null;UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();render();return;}
   const prev=H?H.bubbles:{};
@@ -3429,13 +3478,14 @@ function onEvent(e){
       showBanner(`Cantó per a ${tl(vteam(e.w))}<br>${mine} a ${theirs}`,3800);
       log(`Cantó per a ${tl(vteam(e.w))}: ${mine} a ${theirs}`);break;}
     case 'game':{track('partida-acabada');
-      const par=Me.seat%2,mine=e.cantons[par],theirs=e.cantons[1-par];
+      // a la partida ràpida (un sol cantó) el resultat són els punts; a la llarga, els cantons
+      const par=Me.seat%2,quick=G.win===1,mine=(quick?e.scores:e.cantons)[par],theirs=(quick?e.scores:e.cantons)[1-par];
       Me.holdGame=true;
       const host=Me.host===Me.seat;
       const acctOn=GCLIENT&&GCLIENT.charAt(0)!=='_';
       Me.lastResult={won:vteam(e.w)===0,mine,theirs,allBots:Me.players.filter(x=>x.human).length<=1,level:Me.roomLevel||'normal'};
       const shareBtn='<button class="btn ok" data-share>📤 Comparteix</button>';
-      showOverlay(`<h2>${vteam(e.w)===0?'Heu guanyat la partida!':'Heu perdut la partida'}</h2><p>Cantons: ${mine} a ${theirs}.</p>`
+      showOverlay(`<h2>${vteam(e.w)===0?'Heu guanyat la partida!':'Heu perdut la partida'}</h2><p>${quick?'Punts':'Cantons'}: ${mine} a ${theirs}.</p>`
         +(acctOn?(Acct.profile?'<div class="ov-xp" id="ovXp"></div>':'<p class="hint">Entra amb Google (a la sala d\'espera) per guardar el teu progrés i pujar de nivell.</p>'):'')
         +(host?`<div class="row"><button class="btn truc" data-ov="rematch">Revenja!</button>${shareBtn}<button class="btn ghost" data-ov="backlobby">Tornar a la sala</button></div>`
               :`<p class="hint">Si l'amfitrió demana la revenja, la partida començarà sola.</p><div class="row">${shareBtn}<button class="btn ghost" data-ov="backlobby">Tornar a la sala</button></div>`));

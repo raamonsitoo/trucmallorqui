@@ -304,10 +304,46 @@ async function scenario12(){
   assert('connexions' in js,'dades en directe en JSON');
   console.log('12) estadístiques: visites per origen i aparell, accions vàlides, partides i pàgina /stats amb clau');
 }
+// Partida ràpida (un cantó), durada triada a la sala, gent connectada i partides que acaben sense ningú
+async function scenario13(){
+  const stats=require('./stats');
+  const today=async k=>((await stats.table(1))[stats.day()]||{})[k]||0;
+  const a=new Bot('A');await a.connect();
+  const r0=await today('partida:durada:rapida');
+  a.send({t:'create',name:'Rapida',look:'palla',quick:true,cantons:1});
+  const ok=await a.until(()=>a.events.some(e=>e.e==='game'),60000);
+  assert(ok,'la partida ràpida no ha acabat');
+  const g=a.events.find(e=>e.e==='game');
+  assert.deepEqual(g.cantons.slice().sort(),[0,1],'la partida ràpida acaba en un sol cantó');
+  assert(!a.events.some(e=>e.e==='canton'),'sense cantó entremig');
+  assert.equal(a.snap.g.win,1,'el marcador sap que es juga a un cantó');
+  assert.equal(await today('partida:durada:rapida')-r0,1,'comptada com a ràpida');
+  a.ws.close();
+  // a la sala, l'amfitrió canvia la durada (un valor inventat no val)
+  const b=new Bot('B');await b.connect();
+  b.send({t:'create',name:'Llarga',look:'palla'});await b.until(()=>b.room);
+  assert.equal(b.room.cantons,2,'per defecte, la llarga');
+  b.send({t:'cantons',n:3});b.send({t:'cantons',n:1});
+  await b.until(()=>b.room.cantons===1,3000);
+  assert.equal(b.room.cantons,1,"l'amfitrió tria la ràpida");
+  b.send({t:'list'});
+  await b.until(()=>(b.msgs||[]).some(m=>m.t==='list'),3000);
+  assert(b.msgs.find(m=>m.t==='list').online>=1,'diu quanta gent hi ha connectada');
+  // si tothom se'n va a mitja partida i l'acaben els bots, compta com a abandonada (no com a acabada)
+  const ab0=await today('partida:abandonada'),ac0=await today('partida:acabada');
+  b.send({t:'start'});
+  await b.until(()=>b.snap&&b.snap.h&&b.snap.h.dealt,10000);
+  b.ws.close();
+  let ab=ab0;
+  for(let i=0;i<600&&ab===ab0;i++){await new Promise(r=>setTimeout(r,200));ab=await today('partida:abandonada');}
+  assert.equal(ab-ab0,1,'partida sense ningú: abandonada');
+  assert.equal(await today('partida:acabada'),ac0,'i no compta com a acabada');
+  console.log('13) partida ràpida d\'un cantó, durada triada a la sala, gent connectada i partides abandonades');
+}
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();scenario11();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario12();
+    scenario5();scenario11();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario12();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });
