@@ -10,7 +10,13 @@ const acc = require('./accounts');
 const fb = require('./feedback');
 const shop = require('./shop');
 const stats = require('./stats');
+const handoff = require('./handoff');
 const ipHits = new Map(); // ip -> [marques de temps] (avisos d'estadístiques; com a màxim 120 cada 10 minuts)
+// En aturar el servidor (una actualització): temps màxim per acabar les mans en joc abans de passar les sales al
+// servidor nou. Render dona 30 s per defecte (o el que digui maxShutdownDelaySeconds); ha de ser una mica menys.
+const DRAIN_MS = Number(process.env.TRUC_DRAIN_MS) || 25000;
+const RESUME_MS = Number(process.env.TRUC_RESUME_MS) || 2500; // una partida recuperada es reprèn al cap d'aquest temps
+let moving = false; // el servidor s'atura i passa les sales al nou
 
 const PORT = Number(process.env.PORT) || 3000;
 const SPEED = process.env.TRUC_SPEED ? Number(process.env.TRUC_SPEED) : 1;
@@ -189,7 +195,53 @@ class Room {
       }))
     };
   }
-  broadcastRoom() { this.checkReady(); for (let s = 0; s < 4; s++) this.sendSeat(s, this.roster(s)); }
+  broadcastRoom() { this.checkReady(); for (let s = 0; s < 4; s++) this.sendSeat(s, this.roster(s)); this.persist(); }
+  // ---------- Sobreviure als reinicis del servidor (vegeu handoff.js) ----------
+  tokens() { return this.seats.filter(x => x.human && x.token).map(x => x.token); }
+  // Tot el que cal per refer la sala en un altre servidor; d'una partida, el marcador d'abans de la mà en joc.
+  // El xat no s'hi desa (la política de privacitat diu que els missatges no es guarden enlloc).
+  state() {
+    const playing = this.phase === 'playing' && !!this.checkpoint;
+    return {
+      v: 1, phase: playing ? 'playing' : 'lobby', hostSeat: this.hostSeat, botLevel: this.botLevel, cantons: this.cantons,
+      chatSeq: this.chatSeq, humansAtStart: this.humansAtStart || 0, game: playing ? this.checkpoint : null,
+      seats: this.seats.map(x => (x.human && x.token ? { name: x.name, look: x.look, hat: x.hat, back: x.back, token: x.token, uid: x.uid || null, lvl: x.lvl || 0, badge: x.badge || '' } : null))
+    };
+  }
+  persist() {
+    if (this.moved || !handoff.ENABLED || !rooms.has(this.code)) return;
+    const tokens = this.tokens();
+    if (tokens.length) handoff.save(this.code, this.state(), tokens, false); else handoff.remove(this.code);
+  }
+  // El joc la crida abans de cada mà: es desa el marcador i, si el servidor s'atura, la sala passa aquí al nou
+  onHandStart(game) {
+    this.checkpoint = game.checkpoint();
+    this.persist();
+    if (moving && handoff.ENABLED) { this.handOver(); return false; }
+    return true;
+  }
+  // Deixa la sala al servidor nou: la desa com a lliure i diu als jugadors que tornin a entrar (aniran al nou)
+  handOver() {
+    if (this.moved) return;
+    this.moved = true;
+    if (this.game) { this.game.stop(); this.game = null; }
+    if (this.readyTimer) { clearTimeout(this.readyTimer); this.readyTimer = null; }
+    if (this.resumeTimer) { clearTimeout(this.resumeTimer); this.resumeTimer = null; }
+    const tokens = this.tokens();
+    if (handoff.ENABLED && tokens.length) handoff.save(this.code, this.state(), tokens, true);
+    const socks = this.seats.filter(x => x.human && x.ws).map(x => x.ws);
+    for (const ws of socks) { send(ws, { t: 'moving' }); ws.ctx = null; }
+    handoff.flush().catch(() => {}).then(() => { for (const ws of socks) { try { ws.close(4000, 'actualitzant'); } catch (e) { /* res */ } } });
+  }
+  // Partida recuperada d'un altre servidor: continua des del marcador desat
+  resumeGame() {
+    this.resumeTimer = null;
+    if (!rooms.has(this.code) || this.moved || this.phase !== 'playing' || this.game || !this.checkpoint) return;
+    const ck = this.checkpoint;
+    this.game = new Game(this, { speed: SPEED, timerMs: TIMER_MS, level: ck.level, cantons: ck.win, resume: ck });
+    this.broadcastRoom();
+    this.game.start();
+  }
   humans() { return this.seats.filter(x => x.human && x.connected).length; }
   freeSeat(prefer) {
     for (const s of prefer) if (!this.seats[s].human) return s;
@@ -248,6 +300,7 @@ class Room {
     stats.inc('partida:tipus:' + (this.humansAtStart <= 1 ? 'bots' : this.humansAtStart === 4 ? 'persones' : 'mixta'));
     if (this.humansAtStart < 4) stats.inc('partida:nivell:' + this.botLevel);
     stats.inc('partida:durada:' + (this.cantons === 1 ? 'rapida' : 'llarga'));
+    this.checkpoint = null;
     this.game = new Game(this, { speed: SPEED, timerMs: TIMER_MS, level: this.botLevel, cantons: this.cantons });
     this.broadcastRoom();
     this.game.start();
@@ -259,6 +312,7 @@ class Room {
     if (this.game) awardGame(this, this.game);
     this.phase = 'lobby';
     this.game = null;
+    this.checkpoint = null;
     for (const x of this.seats) x.ready = false;
     for (let s = 0; s < 4; s++) if (this.seats[s].human && !this.seats[s].connected) this.freeSeatNow(s);
     this.pickHost();
@@ -267,7 +321,9 @@ class Room {
   destroy() {
     if (this.game) { this.game.stop(); this.game = null; }
     if (this.readyTimer) { clearTimeout(this.readyTimer); this.readyTimer = null; }
+    if (this.resumeTimer) { clearTimeout(this.resumeTimer); this.resumeTimer = null; }
     for (const x of this.seats) { if (x.freeTimer) clearTimeout(x.freeTimer); if (x.token) sessions.delete(x.token); }
+    if (!this.moved) handoff.remove(this.code);
     rooms.delete(this.code);
   }
 }
@@ -525,26 +581,90 @@ function ctxRoom(ws) {
   const r = rooms.get(c.code);
   return r && r.seats[c.seat] && r.seats[c.seat].ws === ws ? r : null;
 }
+// Torna a entrar al seient que tenia (després d'un tall de connexió o d'una actualització del servidor)
+function resumeSeat(ws, room, seat, tk) {
+  ws.ctx.token = tk;
+  room.attach(seat, ws, tk, null, null);
+  send(ws, { t: 'hello', token: tk, resumed: true, shop: shop.visibleTo(null) });
+  room.broadcastRoom();
+  if (room.game) room.game.onReconnect(seat);
+}
+function newSession(ws) {
+  ws.ctx.token = newToken();
+  send(ws, { t: 'hello', token: ws.ctx.token, resumed: false, shop: shop.visibleTo(null) });
+}
+// Refà una sala desada per un servidor anterior (vegeu handoff.js). Els jugadors hi tornen a entrar amb el seu testimoni.
+function restoreRoom(code, d) {
+  if (rooms.has(code)) return rooms.get(code); // ja l'ha recuperada un altre jugador de la sala
+  const room = new Room(code);
+  rooms.set(code, room);
+  room.botLevel = LEVEL_IDS.includes(d.botLevel) ? d.botLevel : 'normal';
+  room.cantons = d.cantons === 1 ? 1 : 2;
+  room.chatSeq = Number(d.chatSeq) || 0;
+  room.humansAtStart = Number(d.humansAtStart) || 0;
+  (Array.isArray(d.seats) ? d.seats : []).slice(0, 4).forEach((s, i) => {
+    if (!s || typeof s.token !== 'string') return;
+    Object.assign(room.seats[i], { human: true, connected: false, ws: null, token: s.token, name: cleanName(s.name, 'Jugador'), look: cleanLook(s.look),
+      hat: s.hat, back: s.back, uid: s.uid || null, lvl: s.lvl || 0, badge: s.badge || '', ready: false, chatTimes: [] });
+    sessions.set(s.token, { code, seat: i });
+    // Qui no torni en dos minuts deixa el seient lliure (a la sala d'espera); a la partida, mentrestant hi juga un bot
+    const x = room.seats[i];
+    x.freeTimer = setTimeout(() => {
+      x.freeTimer = null;
+      if (x.connected || rooms.get(code) !== room || room.phase !== 'lobby') return;
+      room.freeSeatNow(i);
+      if (room.humans() === 0) room.destroy(); else room.broadcastRoom();
+    }, 120000);
+  });
+  room.hostSeat = room.seats[d.hostSeat] && room.seats[d.hostSeat].human ? d.hostSeat : -1;
+  if (room.hostSeat < 0) room.pickHost();
+  if (room.hostSeat < 0) room.hostSeat = room.seats.findIndex(x => x.human);
+  if (d.phase === 'playing' && d.game && Array.isArray(d.game.scores)) {
+    room.phase = 'playing';
+    room.checkpoint = d.game;
+    // Es reprèn al cap d'un moment, perquè els altres jugadors també tenguin temps de tornar a entrar
+    room.resumeTimer = setTimeout(() => room.resumeGame(), RESUME_MS);
+  }
+  console.log(`sala ${code} recuperada (${room.phase === 'playing' ? 'partida ' + d.game.scores.join('-') : "sala d'espera"})`);
+  return room;
+}
 
 function handle(ws, m) {
   const c = ws.ctx;
   if (m.t === 'hello') {
-    const tk = typeof m.token === 'string' ? m.token : null;
+    if (c.token || c.helloWait) return;
+    // El servidor s'atura: que torni a entrar, i anirà al servidor nou
+    if (moving) { send(ws, { t: 'moving' }); ws.ctx = null; setTimeout(() => { try { ws.close(4000); } catch (e) { /* res */ } }, 200); return; }
+    const tk = typeof m.token === 'string' && /^[0-9a-f]{32}$/.test(m.token) ? m.token : null;
     const s = tk && sessions.get(tk);
     if (s) {
       const room = rooms.get(s.code);
-      if (room && room.seats[s.seat] && room.seats[s.seat].token === tk) {
-        c.token = tk;
-        room.attach(s.seat, ws, tk, null, null);
-        send(ws, { t: 'hello', token: tk, resumed: true, shop: shop.visibleTo(null) });
-        room.broadcastRoom();
-        if (room.game) room.game.onReconnect(s.seat);
-        return;
-      }
+      if (room && room.seats[s.seat] && room.seats[s.seat].token === tk) return resumeSeat(ws, room, s.seat, tk);
     }
-    c.token = newToken();
-    send(ws, { t: 'hello', token: c.token, resumed: false, shop: shop.visibleTo(null) });
-    return;
+    // Pot ser que la seva sala vengui d'un servidor anterior (s'ha actualitzat el joc): es recupera
+    if (tk && handoff.ENABLED) {
+      c.helloWait = true;
+      handoff.claim(tk).then(res => {
+        c.helloWait = false;
+        if (ws.readyState !== 1 || ws.ctx !== c || moving) return;
+        if (res && res.code && res.data) {
+          const room = restoreRoom(res.code, res.data), seat = room.seats.findIndex(x => x.human && x.token === tk);
+          if (seat >= 0) return resumeSeat(ws, room, seat, tk);
+        } else if (res && res.busy) {
+          // La sala encara la duu el servidor vell, que l'acaba de passar: que ho torni a provar d'aquí a un moment
+          send(ws, { t: 'wait', ms: 2500 });
+          setTimeout(() => { try { ws.close(4001); } catch (e) { /* res */ } }, 100);
+          return;
+        }
+        newSession(ws);
+      }).catch(e => {
+        c.helloWait = false;
+        console.error('sala no recuperada', e.message);
+        if (ws.readyState === 1 && ws.ctx === c) newSession(ws);
+      });
+      return;
+    }
+    return newSession(ws);
   }
   if (!c.token) return;
 
@@ -834,7 +954,42 @@ setInterval(() => {
   }
 }, 30000);
 
+// Les sales d'aquest servidor continuen essent seves (si s'aturàs de cop, un altre les podria agafar al cap de LEASE_MS)
+setInterval(() => { handoff.renew(Array.from(rooms.values()).filter(r => !r.moved).map(r => r.code)); }, Math.max(1000, Math.floor(handoff.LEASE_MS / 3))).unref();
+
+// ---------- Aturada per actualització ----------
+// Render engega el servidor nou, hi envia les connexions noves i, un minut després, avisa el vell (SIGTERM).
+// El vell deixa acabar les mans en joc (com a màxim DRAIN_MS), passa cada sala al nou i s'atura.
+// Els jugadors tornen a entrar sols i continuen la partida; només noten una pausa entre dues mans.
+function startMoving() {
+  if (moving) return;
+  moving = true;
+  console.log(`aturada: passam les sales al servidor nou (com a màxim ${Math.round(DRAIN_MS / 1000)} s)`);
+  // Qui no és a cap sala, que torni a entrar ara (anirà al servidor nou)
+  wss.clients.forEach(ws => {
+    if (!ws.ctx || ws.ctx.code) return;
+    send(ws, { t: 'moving' }); ws.ctx = null;
+    setTimeout(() => { try { ws.close(4000); } catch (e) { /* res */ } }, 200);
+  });
+  const until = Date.now() + DRAIN_MS;
+  const step = () => {
+    // Les sales d'espera passen ara; les partides, en acabar la mà (sense on desar-les, en acabar la partida)
+    for (const r of Array.from(rooms.values())) if (!r.moved && (r.phase !== 'playing' || !r.game || Date.now() >= until)) r.handOver();
+    if (Array.from(rooms.values()).every(r => r.moved)) { clearInterval(iv); finishMoving(); }
+  };
+  const iv = setInterval(step, 250);
+  step();
+}
+let finishing = false;
+function finishMoving() {
+  if (finishing) return;
+  finishing = true;
+  setTimeout(() => process.exit(0), 8000).unref(); // per si la base de dades no contesta
+  handoff.flush().catch(() => {}).then(() => stats.flush()).catch(() => {}).then(() => setTimeout(() => process.exit(0), 600));
+}
 if (require.main === module) {
   server.listen(PORT, () => console.log(`Truc mallorquí en línia escoltant al port ${PORT}`));
+  process.once('SIGTERM', startMoving);
+  process.on('message', m => { if (m === 'drain') startMoving(); }); // les proves (a Windows no hi ha SIGTERM)
 }
 module.exports = { server, rooms, tryMatch, cleanChat };

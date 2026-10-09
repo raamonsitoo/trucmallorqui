@@ -82,6 +82,15 @@ Cada `git push` a `main` desplega automàticament. Variables d'entorn:
 
 Els comptes només s'activen si hi ha `GOOGLE_CLIENT_ID`, `SESSION_SECRET` i `DATABASE_URL`. Sense elles, el joc funciona igual però sense comptes.
 
+### Actualitzar sense tallar partides
+
+Amb `DATABASE_URL`, cada sala es desa (taula `room_state`, mòdul `handoff.js`) quan canvia la sala d'espera i a l'inici de cada mà. Així es pot fer `git push` sempre que es vulgui:
+
+- **Actualització**: Render engega el servidor nou i, un minut després, avisa el vell (SIGTERM). El vell deixa acabar la mà en joc (com a màxim `TRUC_DRAIN_MS`, per defecte 25 s), passa cada sala al nou i s'atura. Els jugadors veuen «Actualitzant el joc…», tornen a entrar sols i la partida continua amb el mateix marcador. Si la mà no s'ha acabat a temps, es torna a repartir.
+- **Aturada de cop** (un reinici del pla gratuït): el servidor nou recupera la sala quan el vell ja no la renova (30 s); la mà que es jugava es torna a repartir.
+- Per deixar acabar sempre les mans: `maxShutdownDelaySeconds: 300` a `render.yaml` i `TRUC_DRAIN_MS=280000` a les variables d'entorn.
+- El xat no es desa. Les còpies s'esborren en tancar la sala i, com a màxim, al cap de 6 hores.
+
 ### Botiga
 
 Necessita els comptes activats (per comprar s'ha d'entrar amb Google). Variables:

@@ -19,6 +19,7 @@ const T = {
 
 <h2>Si jugues sense compte</h2>
 <p>No et demanam cap dada personal. El nom i l'aspecte que tries es guarden <b>només al teu navegador</b> (emmagatzematge local) perquè no els hagis de tornar a escriure, i s'envien al servidor mentre jugues perquè els altres jugadors els vegin. Quan acaba la partida, el servidor no els conserva.</p>
+<p>Mentre una sala està oberta, el servidor en desa una còpia a la base de dades (els noms i l'aspecte dels jugadors, el marcador i un testimoni de sessió per a cada jugador) perquè la partida no es perdi si el servidor es reinicia o s'actualitza. La còpia s'esborra quan es tanca la sala i, com a màxim, al cap de 6 hores. Els missatges del xat no s'hi desen.</p>
 <p>Els missatges del <b>xat de la sala d'espera</b> només els veuen els jugadors de la sala. El servidor en guarda els darrers en memòria mentre la sala existeix, perquè els vegi qui hi entra, i desapareixen quan es tanca. No els desam enlloc.</p>
 <p>El servidor, com qualsevol web, rep l'adreça IP de la connexió. La feim servir només mentre estàs connectat, per evitar abusos (per exemple, que algú obri centenars de sales). No la guardam.</p>
 
@@ -79,6 +80,7 @@ const T = {
 
 <h2>Si juegas sin cuenta</h2>
 <p>No te pedimos ningún dato personal. El nombre y el aspecto que eliges se guardan <b>solo en tu navegador</b> (almacenamiento local) para que no tengas que volver a escribirlos, y se envían al servidor mientras juegas para que los demás jugadores los vean. Cuando termina la partida, el servidor no los conserva.</p>
+<p>Mientras una sala está abierta, el servidor guarda una copia en la base de datos (los nombres y el aspecto de los jugadores, el marcador y un testigo de sesión para cada jugador) para que la partida no se pierda si el servidor se reinicia o se actualiza. La copia se borra cuando se cierra la sala y, como máximo, a las 6 horas. Los mensajes del chat no se guardan en ella.</p>
 <p>Los mensajes del <b>chat de la sala de espera</b> solo los ven los jugadores de la sala. El servidor guarda los últimos en memoria mientras la sala existe, para que los vea quien entra, y desaparecen cuando se cierra. No los guardamos en ningún sitio.</p>
 <p>El servidor, como cualquier web, recibe la dirección IP de la conexión. La usamos solo mientras estás conectado, para evitar abusos (por ejemplo, que alguien abra cientos de salas). No la guardamos.</p>
 

@@ -3194,25 +3194,35 @@ function updateStatus(){
 }
 
 // ---------- Connexió ----------
-function showConn(on){const c=$('#conn');if(c)c.hidden=!on;}
+// Avís de connexió. Quan el servidor s'actualitza (avisa amb «moving» o «wait»), es diu així i es torna a entrar de seguida:
+// el servidor nou recupera la sala i la partida continua.
+function showConn(on,txt){const c=$('#conn');if(!c)return;c.hidden=!on;c.textContent=txt||(Net.updating?'Actualitzant el joc… tornam en un moment':'Connexió perduda. Tornant a connectar…');}
 const Net={
-  ws:null,tries:0,timer:null,
+  ws:null,tries:0,timer:null,updating:false,next:0,
   connect(){
     const proto=location.protocol==='https:'?'wss':'ws';
     let ws;
     try{ws=new WebSocket(`${proto}://${location.host}/ws`);}catch(e){this.retry();return;}
     this.ws=ws;
-    ws.onopen=()=>{this.tries=0;showConn(false);ws.send(JSON.stringify({t:'hello',token:store.get('truc_token')}));};
+    ws.onopen=()=>{this.tries=0;if(!this.updating)showConn(false);ws.send(JSON.stringify({t:'hello',token:store.get('truc_token')}));};
     ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data);}catch(e){return;}onMsg(m);};
     ws.onclose=()=>{showConn(true);this.retry();};
     ws.onerror=()=>{};
   },
-  retry(){clearTimeout(this.timer);this.tries++;this.timer=setTimeout(()=>this.connect(),Math.min(8000,500*this.tries));},
+  retry(){
+    clearTimeout(this.timer);this.tries++;
+    // en una actualització es torna a provar de pressa; si el servidor nou tarda a arrencar, cada vegada més a poc a poc
+    const ms=this.next||Math.min(8000,(this.updating?300:500)*this.tries);this.next=0;
+    this.timer=setTimeout(()=>this.connect(),ms);
+  },
   send(o){if(this.ws&&this.ws.readyState===1)this.ws.send(JSON.stringify(o));}
 };
 function onMsg(m){
   switch(m.t){
+    case 'moving':Net.updating=true;showConn(true);break;
+    case 'wait':Net.updating=true;Net.next=Math.min(10000,Math.max(500,Number(m.ms)||2500));showConn(true);break;
     case 'hello':
+      if(Net.updating){Net.updating=false;showConn(false);}
       store.set('truc_token',m.token);
       Shop.anon=!!m.shop;Shop.update();
       if(Acct.session&&GCLIENT&&GCLIENT.charAt(0)!=='_')Net.send({t:'auth',session:Acct.session});

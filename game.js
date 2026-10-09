@@ -209,6 +209,18 @@ class Game {
     this.finished = false;
     this.stats = { hands: 0, timeouts: 0 };
     this.tally = { hands: [0, 0] }; // mans guanyades per cada parella (per a l'experiència)
+    // Partida recuperada després d'un reinici del servidor: continua amb el marcador d'abans de la mà que es jugava
+    this.resume = opts.resume || null;
+    if (this.resume) {
+      const r = this.resume;
+      this.G.scores = r.scores.slice(); this.G.cantons = r.cantons.slice(); this.G.dealer = r.dealer;
+      if (r.tally) this.tally.hands = r.tally.slice();
+    }
+  }
+  // Marcador abans de començar una mà: és el que es desa per poder continuar la partida si el servidor es reinicia
+  checkpoint() {
+    const G = this.G;
+    return { scores: G.scores.slice(), cantons: G.cantons.slice(), dealer: G.dealer, win: this.cantonsToWin, level: this.level, tally: this.tally.hands.slice() };
   }
 
   // ---------- Utilitats ----------
@@ -882,11 +894,14 @@ class Game {
 
   // ---------- Partida ----------
   // Un cantó a 24; torna la parella que el guanya.
-  async playCanton() {
+  // (keep: no torna el marcador a zero, perquè és un cantó a mitges d'una partida recuperada)
+  async playCanton(keep) {
     const G = this.G;
-    G.scores = [0, 0];
+    if (!keep) G.scores = [0, 0];
     this.snap();
     while (G.scores[0] < 24 && G.scores[1] < 24) {
+      // Abans de cada mà, la sala desa l'estat; si el servidor s'atura, pot demanar d'acabar aquí la partida (false)
+      if (this.room.onHandStart && this.room.onHandStart(this) === false) throw new Abort();
       await this.playHand();
       G.dealer = (G.dealer + 1) % 4;
     }
@@ -894,10 +909,12 @@ class Game {
   }
   async run() {
     const G = this.G;
-    G.cantons = [0, 0];
+    let keep = !!this.resume;
+    if (!keep) G.cantons = [0, 0];
     const W = this.cantonsToWin;
     while (G.cantons[0] < W && G.cantons[1] < W) {
-      const w = await this.playCanton();
+      const w = await this.playCanton(keep);
+      keep = false;
       G.cantons[w]++;
       this.snap();
       const over = G.cantons[w] >= W;
@@ -907,4 +924,4 @@ class Game {
   }
 }
 
-module.exports = { Game, makeDeck, cardRank, envitValue, trickWinner, handDecision, signOf, SIGN_DUR, LEVELS, LEVEL_IDS, BASE, mulberry32, solveHand };
+module.exports = { Game, Abort, makeDeck, cardRank, envitValue, trickWinner, handDecision, signOf, SIGN_DUR, LEVELS, LEVEL_IDS, BASE, mulberry32, solveHand };

@@ -12,8 +12,8 @@ const assert=require('assert');
 let port;
 class Bot{
   constructor(name,policy='play'){this.name=name;this.policy=policy;this.events=[];this.snap=null;this.room=null;this.token=null;this.errors=[];this.acts=0;}
-  connect(token){return new Promise(res=>{
-    this.ws=new WebSocket('ws://127.0.0.1:'+port+'/ws');
+  connect(token,p){return new Promise(res=>{
+    this.ws=new WebSocket('ws://127.0.0.1:'+(p||port)+'/ws');
     this.ws.on('open',()=>this.send({t:'hello',token}));
     this.ws.on('message',d=>{const m=JSON.parse(d);this.onMsg(m,res);});
   });}
@@ -23,7 +23,7 @@ class Bot{
     else if(m.t==='room')this.room=m;
     else if(m.t==='err')this.errors.push(m.m);
     else if(m.t==='ev'){this.events.push(m.e);}
-    else if(m.t==='snap'){this.snap=m;this.react(m);}
+    else if(m.t==='snap'){if(!this.firstSnap)this.firstSnap=m;this.snap=m;this.react(m);}
     else{(this.msgs=this.msgs||[]).push(m);}
   }
   react(m){
@@ -410,10 +410,67 @@ async function scenario15(){
   assert(checked>3,"s'han comprovat les mans");
   console.log(`15) historial de la mà: cartes de cada ronda guardades i enviades (${checked} mans)`);
 }
+// Actualitzacions sense tallar partides, amb servidors de veres (processos a part, com a Render):
+// el vell passa la sala al nou i la partida continua amb el mateix marcador; i si un servidor s'atura de cop,
+// el següent recupera la partida quan el vell ja no la renova
+async function scenario16(){
+  const {fork}=require('child_process'),os=require('os'),path=require('path'),fs=require('fs');
+  const file=path.join(os.tmpdir(),'truc-sales-prova-'+process.pid+'.json');
+  try{fs.unlinkSync(file);}catch(_){}
+  const kids=[];
+  const start=p=>new Promise((res,rej)=>{
+    const ch=fork(path.join(__dirname,'server.js'),[],{stdio:['ignore','pipe','pipe','ipc'],env:Object.assign({},process.env,{PORT:String(p),TRUC_SPEED:'0.05',TRUC_TIMER_MS:'500',
+      TRUC_HANDOFF_FILE:file,TRUC_DRAIN_MS:'6000',TRUC_LEASE_MS:'1500',TRUC_RESUME_MS:'600'})});
+    kids.push(ch);let out='';
+    ch.stdout.on('data',d=>{out+=d;if(/escoltant/.test(out))res(ch);});ch.stderr.on('data',d=>{out+=d;});
+    ch.on('exit',c=>rej(new Error('el servidor ha sortit ('+c+'): '+out)));
+    setTimeout(()=>rej(new Error('el servidor no arrenca: '+out)),15000);
+  });
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const pA=39000+Math.floor(Math.random()*800);
+  try{
+    // 1) Actualització: el servidor vell rep l'avís d'aturar-se
+    const A=await start(pA);
+    const a=new Bot('A');await a.connect(undefined,pA);
+    a.send({t:'create',name:'Joana',look:'mocador',quick:true,cantons:2});
+    assert(await a.until(()=>a.snap&&a.snap.g.scores[0]+a.snap.g.scores[1]>=3,40000),'es juguen unes quantes mans');
+    const tok=a.token,exitA=new Promise(r=>A.once('exit',r));
+    A.send('drain');
+    assert(await a.until(()=>(a.msgs||[]).some(m=>m.t==='moving'),15000),'el servidor vell avisa que es passa al nou');
+    await exitA;
+    const rec=Object.values(JSON.parse(fs.readFileSync(file,'utf8')))[0];
+    assert(rec&&rec.released&&rec.data.phase==='playing','la sala queda desada i lliure per al servidor nou');
+    const saved=rec.data.game;
+    const B=await start(pA+1);
+    const b=new Bot('B');await b.connect(tok,pA+1);
+    assert(b.resumed,'el servidor nou reconeix el jugador');
+    assert(await b.until(()=>b.firstSnap&&b.room&&b.room.phase==='playing',8000),'i la partida continua');
+    assert.deepEqual(b.firstSnap.g.cantons,saved.cantons,'amb els mateixos cantons');
+    assert.deepEqual(b.firstSnap.g.scores,saved.scores,'i el mateix marcador');
+    // 2) Aturada de cop (sense passar la sala): el servidor següent l'agafa quan el vell ja no la renova
+    assert(await b.until(()=>b.snap&&b.snap.h&&b.snap.h.dealt,8000));
+    const exitB=new Promise(r=>B.once('exit',r));B.kill();await exitB;
+    const C=await start(pA+2);
+    let c=null,waits=0;
+    for(let i=0;i<12&&!c;i++){
+      const x=new Bot('C');
+      await Promise.race([x.connect(tok,pA+2),wait(2500)]);
+      if(x.resumed)c=x;else{if((x.msgs||[]).some(m=>m.t==='wait'))waits++;try{x.ws.close();}catch(_){}await wait(700);}
+    }
+    assert(c,'el servidor nou recupera la partida després d\'una aturada de cop');
+    assert(await c.until(()=>c.events.some(e=>e.e==='game'),90000),'i la partida arriba al final');
+    console.log(`16) actualitzacions: la partida passa al servidor nou amb el marcador ${saved.scores.join('-')} i sobreviu a una aturada de cop (${waits} esperes)`);
+    for(const x of [a,b,c])try{x.ws.close();}catch(_){}
+    C.kill();
+  }finally{
+    for(const k of kids)try{k.kill();}catch(_){}
+    try{fs.unlinkSync(file);}catch(_){}
+  }
+}
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();scenario11();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario12();
+    scenario5();scenario11();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario16();await scenario12();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });

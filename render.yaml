@@ -6,3 +6,6 @@ services:
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
+    # En una actualització, el servidor vell té fins a 5 minuts per acabar les mans en joc i passar les sales al nou
+    # (perquè els aprofiti, posau també TRUC_DRAIN_MS=280000 a les variables d'entorn)
+    maxShutdownDelaySeconds: 300

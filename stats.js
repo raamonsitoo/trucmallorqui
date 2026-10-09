@@ -80,7 +80,7 @@ function flush() {
   return saving;
 }
 setInterval(flush, 60e3).unref();
-process.once('SIGTERM', () => { flush().finally(() => process.exit(0)); setTimeout(() => process.exit(0), 5000).unref(); });
+// En aturar-se, el servidor (server.js) passa les sales al nou i llavors crida flush() abans de sortir
 
 // Taula {dia: {clau: n}} dels darrers «days» dies (amb el que encara no s'ha desat)
 async function table(days) {
