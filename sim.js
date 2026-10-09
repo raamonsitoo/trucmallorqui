@@ -340,10 +340,56 @@ async function scenario13(){
   assert.equal(await today('partida:acabada'),ac0,'i no compta com a acabada');
   console.log('13) partida ràpida d\'un cantó, durada triada a la sala, gent connectada i partides abandonades');
 }
+// Xat de la sala (filtre i límit) i «Llest»: quan tots ho estan, la partida comença sola (i es pot desfer)
+async function scenario14(){
+  const {cleanChat}=require('./server.js');
+  assert.equal(cleanChat('  Hola,   què tal?  '),'Hola, què tal?');
+  assert.equal(cleanChat('ets un puta'),'ets un •••');
+  assert.equal(cleanChat('Conoces el truc? Som de la selecció española'),'Conoces el truc? Som de la selecció española','paraules normals no es tapen');
+  assert.equal(cleanChat('avui hi ha pollastre'),'avui hi ha pollastre');
+  assert.equal(cleanChat('f i l l d e p u t a'),null,'un insult amb les lletres separades no passa');
+  assert.equal(cleanChat('   '),null);
+  assert.equal(cleanChat('x'.repeat(300)).length,120);
+  // les sales buides dels altres escenaris (el servidor les tanca als 10 minuts) compten per al límit de sales per IP
+  for(const r of Array.from(rooms.values()))if(r.humans()===0)r.destroy();
+  const a=new Bot('A'),b=new Bot('B');await a.connect();await b.connect();
+  const got=(x,t)=>(x.msgs||[]).filter(m=>m.t===t);
+  a.send({t:'create',name:'Aina',look:'palla'});await a.until(()=>a.room);
+  b.send({t:'join',code:a.room.code,name:'Biel',look:'palla'});await b.until(()=>b.room&&a.room.seats.filter(s=>s.human).length===2);
+  a.send({t:'chat',text:'Hola! <b>Som-hi</b>'});
+  await b.until(()=>got(b,'chat').length,3000);
+  assert.equal(got(b,'chat')[0].m.x,'Hola! <b>Som-hi</b>','el text arriba tal qual (la web l\'escapa en pintar-lo)');
+  assert.equal(got(b,'chat')[0].m.n,'Aina');
+  for(let i=0;i<6;i++)a.send({t:'chat',text:'missatge '+i});
+  await a.until(()=>got(a,'chatno').length,3000);
+  assert.equal(got(a,'chat').length,5,'màxim 5 missatges cada 10 s');
+  // «Llest»: un sol no basta; tots dos sí, i es pot desfer durant el compte enrere
+  a.send({t:'ready',on:true});
+  await b.until(()=>b.room.seats.some(s=>s.ready),3000);
+  assert.equal(b.room.startsIn,0,'amb un sol llest no comença');
+  b.send({t:'ready',on:true});
+  await a.until(()=>a.room.startsIn>0,3000);
+  assert(a.room.startsIn>0,'tots llestos: compte enrere');
+  b.send({t:'ready',on:false});
+  await a.until(()=>a.room.startsIn===0,3000);
+  await new Promise(r=>setTimeout(r,3500));
+  assert.equal(a.room.phase,'lobby','desfet: no comença');
+  b.send({t:'ready',on:true});
+  const ok=await a.until(()=>a.room.phase==='playing',6000);
+  assert(ok,'tots llestos: la partida comença sola');
+  assert(a.room.seats.every(s=>!s.ready),'en començar, ningú queda llest');
+  const n=got(b,'chat').length;
+  a.send({t:'chat',text:'durant la partida'});
+  await new Promise(r=>setTimeout(r,300));
+  assert.equal(got(b,'chat').length,n,'durant la partida no hi ha xat');
+  assert.equal(a.room.chat.length,5,'el xat queda a la sala');
+  console.log('14) xat de la sala (filtre, límit) i «Llest» amb inici automàtic');
+  a.ws.close();b.ws.close();
+}
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();scenario11();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario12();
+    scenario5();scenario11();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario12();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });

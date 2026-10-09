@@ -82,6 +82,35 @@ function isBadName(s) {
   return BAD_ANY.some(b => joined.includes(b.replace(/(.)\1+/g, '$1')));
 }
 const cleanName = (s, def) => { const n = clean(s, def); return isBadName(n) ? def : n; };
+// ---------- Xat de la sala d'espera ----------
+// Les paraules ofensives es tapen (•••). Al xat, una paraula curta només compta si és la paraula sola o amb poca cosa més
+// («puta», «putes», «fucking»), perquè paraules normals més llargues no quedin tapades.
+const CHAT_MAX = 120, CHAT_KEEP = 30;
+const CHAT_OK = ['conoc', 'conoz', 'dicke', 'cockta', 'coctel', 'culpa', 'chupach', 'chupit', 'xupit', 'polast', 'polet', 'polac', 'polar', 'raper'];
+const chatOk = n => CHAT_OK.some(o => n.startsWith(o.replace(/(.)\1+/g, '$1')));
+// Dins una paraula només es cerquen les llargues (així «española» no cau per «polla»); les curtes, a l'inici
+const ANY_ALL = BAD_ANY.filter(b => b !== 'tumare' && b !== 'tumadre').map(b => b.replace(/(.)\1+/g, '$1')); // «tu mare» és massa normal
+const CHAT_ANY = ANY_ALL.filter(b => b.length >= 6);
+const CHAT_START = BAD_START.concat(ANY_ALL.filter(b => b.length < 6)).map(b => b.replace(/(.)\1+/g, '$1'));
+function badWord(w) {
+  const n = normName(w).replace(/[^a-z]/g, '');
+  if (!n || chatOk(n)) return false;
+  if (CHAT_ANY.some(b => n.includes(b))) return true;
+  return CHAT_START.some(b => n.startsWith(b) && n.length <= b.length + 3);
+}
+// Caràcters de control i invisibles (espais d'amplada zero, canvis de direcció del text)
+const CHAT_STRIP = new RegExp('[' + [[0, 0x1f], [0x7f, 0x7f], [0x200b, 0x200f], [0x2028, 0x202e]]
+  .map(([a, b]) => String.fromCharCode(a) + '-' + String.fromCharCode(b)).join('') + ']', 'g');
+// Torna el text net i tapat, o null si no s'ha d'enviar (buit, o un insult escrit separat: «f i l l d e p u t a»)
+function cleanChat(s) {
+  s = String(s == null ? '' : s).replace(CHAT_STRIP, ' ').replace(/\s+/g, ' ').trim().slice(0, CHAT_MAX);
+  if (!s) return null;
+  const words = s.split(' '), out = words.map(w => (badWord(w) ? '•••' : w));
+  const joined = normName(out.filter(w => w !== '•••' && !chatOk(normName(w).replace(/[^a-z]/g, ''))).join('')).replace(/[^a-z]/g, '');
+  if (CHAT_ANY.some(b => joined.includes(b))) return null;
+  return out.join(' ');
+}
+const READY_MS = 3000; // quan tots estan llests, la partida comença al cap de 3 s (encara es pot desfer)
 const cleanLook = l => (LOOKS.includes(l) ? l : 'palla');
 // Aspectes («El meu aspecte»): capell i revers de cartes. Llista blanca: el servidor no accepta res més.
 const HATS = ['palla', 'pallaAmple', 'pallaNegre', 'gorra', 'barretina', 'mocador', 'res'];
@@ -112,7 +141,32 @@ class Room {
     this.searchSince = 0;
     this.botLevel = 'normal'; // nivell dels bots (facil, normal, dificil, mestre); el tria l'amfitrió
     this.cantons = 2;         // 1 = partida ràpida (un cantó), 2 = llarga (dos cantons); el tria l'amfitrió
-    this.seats = [0, 1, 2, 3].map(() => ({ human: false, name: '', look: 'palla', hat: 'palla', back: 'llenguesBlau', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0, badge: '' }));
+    this.chat = [];           // darrers missatges del xat (només en memòria: desapareixen amb la sala)
+    this.chatSeq = 0;
+    this.readyTimer = null;   // tots llestos: compte enrere per començar
+    this.readyAt = 0;
+    this.seats = [0, 1, 2, 3].map(() => ({ human: false, name: '', look: 'palla', hat: 'palla', back: 'llenguesBlau', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0, badge: '', ready: false, chatTimes: [] }));
+  }
+  // Si tots els que hi són (dos o més) estan llests, comença la partida al cap de READY_MS; si algú ho desfà, s'atura
+  checkReady() {
+    const hs = this.seats.filter(x => x.human && x.connected);
+    const all = this.phase === 'lobby' && hs.length >= 2 && hs.every(x => x.ready);
+    if (all && !this.readyTimer) {
+      this.readyAt = Date.now() + READY_MS;
+      this.readyTimer = setTimeout(() => {
+        this.readyTimer = null; this.readyAt = 0;
+        if (!rooms.has(this.code) || this.phase !== 'lobby') return;
+        const now = this.seats.filter(x => x.human && x.connected);
+        if (now.length >= 2 && now.every(x => x.ready)) { stats.inc('accio:inici-llestos'); this.startGame(); }
+        else this.broadcastRoom();
+      }, READY_MS);
+    } else if (!all && this.readyTimer) { clearTimeout(this.readyTimer); this.readyTimer = null; this.readyAt = 0; }
+  }
+  addChat(seat, text) {
+    const msg = { id: ++this.chatSeq, s: seat, n: this.seats[seat].name, x: text };
+    this.chat.push(msg);
+    if (this.chat.length > CHAT_KEEP) this.chat.shift();
+    this.sendAll({ t: 'chat', m: msg });
   }
   sendSeat(s, msg) {
     const x = this.seats[s];
@@ -126,14 +180,16 @@ class Room {
     return {
       t: 'room', code: this.code, phase: this.phase, host: this.hostSeat, you: s,
       searching: this.searching, searchMs: this.searching ? Date.now() - this.searchSince : 0, botLevel: this.botLevel, cantons: this.cantons,
+      startsIn: this.readyAt ? Math.max(0, this.readyAt - Date.now()) : 0, chat: this.chat,
       seats: this.seats.map((x, i) => ({
+        ready: x.human ? !!x.ready : false,
         human: x.human, name: x.human ? x.name : DEF_NAMES[i], look: x.human ? x.look : DEF_LOOKS[i],
         hat: x.human ? x.hat : DEF_HAT[DEF_LOOKS[i]], back: x.human ? x.back : 'llenguesBlau', connected: x.human ? x.connected : true,
         lvl: x.human && x.uid ? x.lvl : 0, badge: x.human && x.uid ? x.badge || '' : ''
       }))
     };
   }
-  broadcastRoom() { for (let s = 0; s < 4; s++) this.sendSeat(s, this.roster(s)); }
+  broadcastRoom() { this.checkReady(); for (let s = 0; s < 4; s++) this.sendSeat(s, this.roster(s)); }
   humans() { return this.seats.filter(x => x.human && x.connected).length; }
   freeSeat(prefer) {
     for (const s of prefer) if (!this.seats[s].human) return s;
@@ -144,7 +200,7 @@ class Room {
     if (x.freeTimer) { clearTimeout(x.freeTimer); x.freeTimer = null; }
     if (x.ws && x.ws !== ws) { try { x.ws.ctx = null; x.ws.close(); } catch (e) { /* res */ } }
     x.human = true; x.connected = true; x.ws = ws; x.token = token;
-    if (name) x.name = name;
+    if (name) { x.name = name; x.ready = false; } // entra de nou (en reprendre la connexió, es manté)
     if (look) x.look = look;
     if (style) { x.hat = style.hat; x.back = style.back; }
     if (ws.ctx.uid) { x.uid = ws.ctx.uid; x.lvl = ws.ctx.lvl || 1; x.badge = ws.ctx.badge || ''; }
@@ -169,7 +225,7 @@ class Room {
   freeSeatNow(seat) {
     const x = this.seats[seat];
     if (x.token) sessions.delete(x.token);
-    x.human = false; x.connected = false; x.ws = null; x.token = null; x.name = ''; x.freeTimer = null; x.uid = null; x.lvl = 0; x.badge = '';
+    x.human = false; x.connected = false; x.ws = null; x.token = null; x.name = ''; x.freeTimer = null; x.uid = null; x.lvl = 0; x.badge = ''; x.ready = false; x.chatTimes = [];
     if (this.hostSeat === seat) this.pickHost();
   }
   pickHost() {
@@ -185,6 +241,8 @@ class Room {
     counters.gamesStarted++;
     this.searching = false;
     this.phase = 'playing';
+    for (const x of this.seats) x.ready = false;
+    if (this.readyTimer) { clearTimeout(this.readyTimer); this.readyTimer = null; this.readyAt = 0; }
     this.humansAtStart = this.seats.filter(x => x.human).length;
     stats.inc('partida:comencada');
     stats.inc('partida:tipus:' + (this.humansAtStart <= 1 ? 'bots' : this.humansAtStart === 4 ? 'persones' : 'mixta'));
@@ -201,12 +259,14 @@ class Room {
     if (this.game) awardGame(this, this.game);
     this.phase = 'lobby';
     this.game = null;
+    for (const x of this.seats) x.ready = false;
     for (let s = 0; s < 4; s++) if (this.seats[s].human && !this.seats[s].connected) this.freeSeatNow(s);
     this.pickHost();
     this.broadcastRoom();
   }
   destroy() {
     if (this.game) { this.game.stop(); this.game = null; }
+    if (this.readyTimer) { clearTimeout(this.readyTimer); this.readyTimer = null; }
     for (const x of this.seats) { if (x.freeTimer) clearTimeout(x.freeTimer); if (x.token) sessions.delete(x.token); }
     rooms.delete(this.code);
   }
@@ -238,10 +298,10 @@ function mergeInto(A, B, rot) {
     const x = B.seats[s];
     if (!x.human) continue;
     const t = (s + rot) % 4, y = A.seats[t];
-    Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null, uid: x.uid, lvl: x.lvl, badge: x.badge });
+    Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null, uid: x.uid, lvl: x.lvl, badge: x.badge, ready: false, chatTimes: x.chatTimes });
     if (x.ws && x.ws.ctx) { x.ws.ctx.code = A.code; x.ws.ctx.seat = t; }
     sessions.set(x.token, { code: A.code, seat: t });
-    Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0, badge: '' });
+    Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0, badge: '', ready: false, chatTimes: [] });
   }
   B.searching = false;
   B.destroy();
@@ -540,8 +600,8 @@ function handle(ws, m) {
       const to = m.seat;
       if (!Number.isInteger(to) || to < 0 || to > 3 || room.seats[to].human) return;
       const x = room.seats[seat], y = room.seats[to];
-      Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null, uid: x.uid, lvl: x.lvl, badge: x.badge });
-      Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0, badge: '' });
+      Object.assign(y, { human: true, name: x.name, look: x.look, hat: x.hat, back: x.back, connected: true, ws: x.ws, token: x.token, freeTimer: null, uid: x.uid, lvl: x.lvl, badge: x.badge, ready: x.ready, chatTimes: x.chatTimes });
+      Object.assign(x, { human: false, name: '', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0, badge: '', ready: false, chatTimes: [] });
       c.seat = to;
       sessions.set(y.token, { code: room.code, seat: to });
       if (room.hostSeat === seat) room.hostSeat = to;
@@ -575,6 +635,27 @@ function handle(ws, m) {
       if (room.phase !== 'lobby' || room.hostSeat !== seat || (m.n !== 1 && m.n !== 2)) return;
       room.cantons = m.n;
       room.broadcastRoom();
+      return;
+    }
+    case 'ready': {
+      if (room.phase !== 'lobby') return;
+      const x = room.seats[seat];
+      if (!!m.on === x.ready) return;
+      x.ready = !!m.on;
+      if (x.ready) stats.inc('accio:llest');
+      room.broadcastRoom();
+      return;
+    }
+    case 'chat': {
+      if (room.phase !== 'lobby') return;
+      const x = room.seats[seat], now = Date.now();
+      x.chatTimes = (x.chatTimes || []).filter(t => now - t < 10000);
+      if (x.chatTimes.length >= 5) return send(ws, { t: 'chatno', m: 'Massa missatges seguits. Espera un moment.' });
+      const text = cleanChat(m.text);
+      if (text === null) return send(ws, { t: 'chatno', m: m.text && String(m.text).trim() ? 'Aquest missatge no s\'ha enviat.' : '' });
+      x.chatTimes.push(now);
+      stats.inc('accio:xat-missatge');
+      room.addChat(seat, text);
       return;
     }
     case 'search': {
@@ -756,4 +837,4 @@ setInterval(() => {
 if (require.main === module) {
   server.listen(PORT, () => console.log(`Truc mallorquí en línia escoltant al port ${PORT}`));
 }
-module.exports = { server, rooms, tryMatch };
+module.exports = { server, rooms, tryMatch, cleanChat };

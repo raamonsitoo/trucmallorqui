@@ -8,6 +8,7 @@ Web per jugar al Truc mallorquí per internet, en 3D i amb senyes: **https://tru
 - **Quatre nivells de bots**: Fàcil, Normal, Difícil (entrenat jugant milers de cantons) i Mestre (s'imagina les cartes dels altres i decideix segons el marcador). Tots els bots d'una partida, també el company, juguen al nivell triat.
 - **Partida ràpida o llarga**: la ràpida la guanya qui fa un cantó; la llarga, qui en fa dos. Es tria a la finestra «Contra bots» i, a la sala, l'amfitrió.
 - **Sales mixtes**: «Buscar rivals» dins una sala, «Jugar amb desconeguts» per anar sol i llista de **sales obertes**. Mentre cerca diu quanta gent hi ha a la web; si en 20 s no ha entrat ningú (o no hi ha ningú més connectat), s'ofereix jugar contra bots.
+- **Xat a la sala d'espera** (frases ràpides i text lliure amb filtre de paraulotes, màxim 5 missatges cada 10 s, es pot silenciar algú) i botó **«Estic llest»**: quan tots els jugadors de la sala ho estan, la partida comença sola al cap de 3 s. Els missatges només es guarden en memòria mentre la sala existeix.
 - **Senyes amb la cara** i frases al company («Vaig a tu», «Vina a mi», «Demana envit»).
 - **Resposta en parella**: als cants contesten els dos de la parella i mana el que més vol (pujar > vull > no vull).
 - **Baralla espanyola clàssica** dibuixada (36 cartes, sense 2, 8 ni 9, amb els talls al marc i l'índex a les cantonades) i **aspectes** per jugador: personatge, capell i revers de les cartes.

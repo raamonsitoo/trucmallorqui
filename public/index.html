@@ -523,6 +523,34 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
 .dur-pick b{font-size:.95rem}
 .dur-pick small{font-size:.75rem;opacity:.8}
 .lb-lvl-opts.dur{grid-template-columns:1fr 1fr}
+/* sala d'espera: «Llest» i xat */
+.lb-ready{background:var(--lb-card);border:1px solid var(--lb-line);border-radius:18px;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.lb-ready[hidden],.lb-chat[hidden]{display:none}
+.lb-ready.go{border-color:#5fb86a;background:rgba(95,184,106,.14)}
+.lb-ready p{margin:0;flex:1;min-width:180px;font-size:.9rem;line-height:1.35}
+.lb-ready p small{display:block;color:var(--lb-muted);font-size:.8rem}
+.rdy-btn{font:inherit;font-weight:800;font-size:1rem;border-radius:14px;padding:.6rem 1.1rem;min-height:46px;cursor:pointer;border:2px solid #5fb86a;background:transparent;color:var(--lb-ink)}
+.rdy-btn.on{background:#5fb86a;color:#0b2412}
+.lb-chat{background:var(--lb-card);border:1px solid var(--lb-line);border-radius:18px;padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px}
+.lb-chat h3{margin:0;font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--lb-muted);display:flex;justify-content:space-between;gap:8px}
+.lb-chat h3 span{text-transform:none;letter-spacing:0;font-weight:400}
+.lb-chat h3 button{font:inherit;background:none;border:0;color:var(--lb-gold);text-decoration:underline;cursor:pointer;padding:0}
+.chat-log{max-height:180px;min-height:44px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;font-size:.92rem;line-height:1.35;overscroll-behavior:contain}
+.chat-log .cm{background:var(--lb-card2);border-radius:12px;padding:5px 10px;align-self:flex-start;max-width:88%;overflow-wrap:anywhere}
+.chat-log .cm.me{align-self:flex-end;background:rgba(233,179,28,.18)}
+.chat-log .cm b,.chat-log .cm button{font:inherit;font-weight:800;color:var(--lb-gold);margin-right:4px}
+.chat-log .cm button{background:none;border:0;padding:0;cursor:pointer}
+.chat-log .empty{color:var(--lb-muted);font-size:.85rem;margin:auto 0}
+.chat-quick{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chat-quick::-webkit-scrollbar{display:none}
+.chat-quick button{font:inherit;font-size:.85rem;white-space:nowrap;color:var(--lb-ink);background:var(--lb-card2);border:1px solid var(--lb-line);border-radius:999px;padding:.4rem .8rem;cursor:pointer;flex:none}
+.chat-quick button:hover{border-color:var(--lb-gold)}
+.chat-form{display:flex;gap:6px}
+.chat-form input{flex:1;min-width:0;font:inherit;font-size:16px;color:var(--lb-ink);background:var(--lb-card2);border:1px solid var(--lb-line);border-radius:12px;padding:.55rem .75rem}
+.chat-form input:focus{outline:none;border-color:var(--lb-gold)}
+.chat-note{margin:0;min-height:0;font-size:.82rem;color:#ff9d93}
+.chat-note:empty{display:none}
+.tm-seat.ready .av{box-shadow:0 0 0 3px #5fb86a}
 .lb-linkbtn{font:inherit;font-size:.88rem;background:none;border:0;color:var(--lb-muted);cursor:pointer;padding:6px}
 .lb-linkbtn:hover{color:var(--lb-ink)}
 .lb-learn.done{display:none}
@@ -814,6 +842,14 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
     </div>
     <p class="tm-legend"><span class="tA">●</span> Parella A: dalt i baix &nbsp;·&nbsp; <span class="tB">●</span> Parella B: als costats &nbsp;·&nbsp; els companys seuen de cara</p>
     <div id="seatsA" hidden></div><div id="seatsB" hidden></div>
+    <section class="lb-ready" id="readyBox" hidden aria-live="polite"></section>
+    <section class="lb-chat" id="chatBox" hidden aria-label="Xat de la sala">
+      <h3>Xat de la sala<span id="chatMuted"></span></h3>
+      <div class="chat-log" id="chatLog" role="log"></div>
+      <div class="chat-quick" id="chatQuick"></div>
+      <form class="chat-form" id="chatForm" autocomplete="off"><input id="chatIn" maxlength="120" enterkeyhint="send" placeholder="Escriu un missatge…" aria-label="Missatge per a la sala"><button class="lb-chipbtn" type="submit">Enviar</button></form>
+      <p class="chat-note" id="chatNote" role="status"></p>
+    </section>
     <div class="searchbox" id="searchBox"></div>
     <section class="lb-lvl" id="durRoom" aria-label="Durada de la partida"></section>
     <section class="lb-lvl" id="lvlRoom" aria-label="Nivell dels bots"></section>
@@ -2838,7 +2874,7 @@ const store={
   hit({t:'v',r:refOf(),b:!!store.get('truc_token')});
 })();
 const Me={seat:-1,code:'',phase:'menu',host:-1,players:[],botLevel:store.get('truc_botlvl')||'normal',roomLevel:'normal',
-  cantons:String(store.get('truc_cantons'))==='2'?2:1,roomCantons:2,online:null,keepWaiting:false,name:store.get('truc_name')||'',look:store.get('truc_look')||'palla',hat:store.get('truc_hat')||'',back:store.get('truc_back')||'llenguesBlau',holdGame:false,lastGaze:-2,signCd:0};
+  cantons:String(store.get('truc_cantons'))==='2'?2:1,roomCantons:2,online:null,keepWaiting:false,chat:[],muted:new Set(),startsAt:0,name:store.get('truc_name')||'',look:store.get('truc_look')||'palla',hat:store.get('truc_hat')||'',back:store.get('truc_back')||'llenguesBlau',holdGame:false,lastGaze:-2,signCd:0};
 // ---------- Compte (entrar amb Google) i nivells ----------
 const GCLIENT='__GCLIENT__'; // el posa el servidor; buit si els comptes no estan activats
 const Acct={profile:null,session:store.get('truc_session')||'',gsi:false,lastPrefs:'',on:false};
@@ -3049,6 +3085,8 @@ function onMsg(m){
     case 'err':lobbyError(m.m);View.toast(m.m);Shop.onErr(m.m);break;
     case 'shop':case 'buy':case 'bought':Shop.onMsg(m);break;
     case 'info':lobbyError(m.m);break;
+    case 'chat':onChat(m.m);break;
+    case 'chatno':chatNote(m.m);break;
     case 'list':renderOpenRooms(m.rooms);
       if(typeof m.online==='number'){Me.online=m.online;if(Me.code&&Me.searching&&Me.phase==='lobby')renderSearch();}
       break;
@@ -3063,7 +3101,7 @@ function onMsg(m){
 }
 function resetToMenu(msg){
   Coach.reset();
-  Me.code='';Me.phase='menu';Me.seat=-1;Me.players=[];Me.holdGame=false;Me.searching=false;Me.keepWaiting=false;
+  Me.code='';Me.phase='menu';Me.seat=-1;Me.players=[];Me.holdGame=false;Me.searching=false;Me.keepWaiting=false;Me.chat=[];Me.muted.clear();Me.startsAt=0;
   H=null;UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();
   G.cantons=[0,0];G.scores=[0,0];G.status='';G.log=[];
   NAMES=['Tu','Toni','Catalina','Miquel'];
@@ -3073,6 +3111,8 @@ function resetToMenu(msg){
 // ---------- Sala ----------
 function onRoom(m){
   Me.code=m.code;Me.phase=m.phase;Me.host=m.host;Me.seat=m.you;Me.players=m.seats;Me.roomLevel=m.botLevel||'normal';Me.roomCantons=m.cantons||2;
+  if(Array.isArray(m.chat))Me.chat=m.chat.slice(-30);
+  Me.startsAt=m.startsIn?Date.now()+m.startsIn:0;
   if(m.phase==='lobby'&&Me.rematch){Me.rematch=false;Net.send({t:'start'});}
   // ha començat una partida nova (p. ex. la revenja de l'amfitrió): tanca el resum de l'anterior
   if(m.phase==='playing'&&Me.holdGame){Me.holdGame=false;hideOverlay();}
@@ -3191,14 +3231,61 @@ function renderLobby(){
   };
   for(let i=0;i<4;i++){
     const x=Me.players[i],mine=i===Me.seat,el=$('#seat'+i);if(!el||!x)continue;
-    el.className='tm-seat '+['s-bottom','s-right','s-top','s-left'][i]+' '+(i%2?'tB':'tA')+(mine?' me':'')+(x.human?'':' empty');
-    const sub=x.human?((mine?'Tu':i%2===Me.seat%2?'Company':'Rival')+(i===Me.host?' · amfitrió':'')+(x.connected?'':' · desconnectat')):'Bot si queda buit';
+    el.className='tm-seat '+['s-bottom','s-right','s-top','s-left'][i]+' '+(i%2?'tB':'tA')+(mine?' me':'')+(x.human?'':' empty')+(x.ready?' ready':'');
+    const sub=x.human?((mine?'Tu':i%2===Me.seat%2?'Company':'Rival')+(i===Me.host?' · amfitrió':'')+(x.connected?'':' · desconnectat')+(x.ready?' · ✓ llest':'')):'Bot si queda buit';
     el.innerHTML=`<span class="av">${avatarSVG(x.look,x.hat,i)}</span><span class="nm2"><b>${esc(x.human?x.name:'Lliure')}${x.human?bdTag(x.badge)+lvTag(x.lvl):''}</b><small>${sub}</small>${(!x.human&&!mine)?`<button class="sitbtn" data-sit="${i}">Seure aquí</button>`:''}</span>`;
   }
   const host=Me.host===Me.seat;
   $('#btnStart').hidden=!host;
   $('#waitMsg').hidden=host;
   renderSearch();
+  renderReady();renderChat();
+}
+// ---------- «Llest» i xat de la sala d'espera ----------
+const CHAT_QUICK=['Hola! 👋','Esperam un poc?','Som-hi!','Un moment, ara torn','Bona partida!'];
+const roomHumans=()=>Me.players.filter(x=>x.human&&x.connected).length;
+function renderReady(){
+  const el=$('#readyBox');if(!el||!Me.code)return;
+  const n=roomHumans();
+  el.hidden=Me.phase!=='lobby'||n<2;
+  if(el.hidden)return;
+  const me=Me.players[Me.seat]||{},ok=Me.players.filter(x=>x.human&&x.connected&&x.ready).length;
+  const go=Me.startsAt>Date.now();
+  el.classList.toggle('go',go);
+  const h=go?`<p><b>Tots llestos!</b> Començam en <span id="rdyT">${Math.ceil((Me.startsAt-Date.now())/1000)}</span>…<small>Si algú encara no ho està, pot desfer-ho.</small></p><button class="rdy-btn" data-ready="0">Encara no</button>`
+    :`<p><b>${ok} de ${n}</b> llestos<small>Quan tots ho estigueu, la partida començarà sola (els seients buits, bots).</small></p><button class="rdy-btn${me.ready?' on':''}" data-ready="${me.ready?0:1}" aria-pressed="${!!me.ready}">${me.ready?'✓ Llest':'Estic llest'}</button>`;
+  if(el._h!==h){el.innerHTML=h;el._h=h;}
+}
+setInterval(()=>{const t=$('#rdyT');if(t&&Me.startsAt)t.textContent=Math.max(0,Math.ceil((Me.startsAt-Date.now())/1000));},250);
+function renderChat(){
+  const box=$('#chatBox');if(!box||!Me.code)return;
+  box.hidden=Me.phase!=='lobby'||(roomHumans()<2&&!Me.chat.length);
+  if(box.hidden)return;
+  if(!$('#chatQuick').firstChild)$('#chatQuick').innerHTML=CHAT_QUICK.map(q=>`<button type="button" data-q="${esc(q)}">${esc(q)}</button>`).join('');
+  const muted=[...Me.muted];
+  $('#chatMuted').innerHTML=muted.length?`Silenciats: ${muted.map(n=>`${esc(n)} <button type="button" data-unmute="${esc(n)}">desfer</button>`).join(', ')}`:'';
+  const list=Me.chat.filter(m=>!Me.muted.has(m.n));
+  const sig=list.map(m=>m.id).join(',')+'|'+Me.seat;
+  if(box._sig===sig)return;
+  box._sig=sig;
+  const log=$('#chatLog');
+  log.innerHTML=list.length?list.map(m=>{const mine=m.s===Me.seat&&Me.players[m.s]&&Me.players[m.s].name===m.n;
+    return `<div class="cm${mine?' me':''}">${mine?`<b>Tu</b>`:`<button type="button" data-mute="${esc(m.n)}" title="Silenciar">${esc(m.n)}</button>`}${esc(m.x)}</div>`;}).join('')
+    :`<p class="empty">Digues hola als altres jugadors 👋</p>`;
+  log.scrollTop=log.scrollHeight;
+}
+function chatNote(t){const e=$('#chatNote');if(!e)return;e.textContent=t||'';clearTimeout(chatNote.t);if(t)chatNote.t=setTimeout(()=>{e.textContent='';},3500);}
+function onChat(m){
+  if(!m||Me.chat.some(x=>x.id===m.id))return;
+  Me.chat.push(m);if(Me.chat.length>30)Me.chat.shift();
+  renderChat();
+  // si el xat no es veu (p. ex. has baixat la pàgina), avisa
+  const box=$('#chatBox'),r=box&&box.getBoundingClientRect();
+  if(m.s!==Me.seat&&!Me.muted.has(m.n)&&r&&(r.bottom<0||r.top>innerHeight))View.toast(`💬 ${m.n}: ${m.x}`,2600);
+}
+function sendChat(text){
+  text=String(text||'').trim();if(!text)return;
+  Net.send({t:'chat',text});
 }
 // ---------- Cercar rivals / sales obertes ----------
 const SEARCH_WAIT=20;
@@ -3336,6 +3423,16 @@ function setupLobby(){
     if(a==='bots')LvlSheet.open(lvl=>{Net.send({t:'botlevel',level:lvl});Net.send({t:'cantons',n:Me.cantons});Net.send({t:'start'});});
     else{if(a==='on')Me.keepWaiting=!!Me.searching;Net.send({t:'search',on:a==='on'});}
   });
+  // «Llest» i xat
+  $('#readyBox').addEventListener('click',e=>{const b=e.target.closest('[data-ready]');if(b)Net.send({t:'ready',on:b.dataset.ready==='1'});});
+  $('#chatForm').addEventListener('submit',e=>{e.preventDefault();const i=$('#chatIn');sendChat(i.value);i.value='';});
+  $('#chatQuick').addEventListener('click',e=>{const b=e.target.closest('[data-q]');if(b)sendChat(b.dataset.q);});
+  $('#chatLog').addEventListener('click',e=>{
+    const b=e.target.closest('[data-mute]');if(!b)return;
+    const n=b.dataset.mute;
+    if(confirm(`Vols silenciar ${n}? No veuràs els seus missatges en aquesta sala.`)){Me.muted.add(n);renderChat();}
+  });
+  $('#chatMuted').addEventListener('click',e=>{const b=e.target.closest('[data-unmute]');if(b){Me.muted.delete(b.dataset.unmute);renderChat();}});
   $('#openRooms').addEventListener('click',e=>{
     const b=e.target.closest('[data-joincode]');if(!b)return;
     lobbyError('');const p=readProfile();

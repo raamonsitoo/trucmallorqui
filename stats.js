@@ -99,7 +99,8 @@ const ACC_NAME = { 'partida-bots-facil': 'Contra bots · Fàcil', 'partida-bots-
   'partida-bots-mestre': 'Contra bots · Mestre', 'sala-creada': 'Sala amb amics', 'jugar-desconeguts': 'Jugar ara (desconeguts)', tutorial: 'Partida guiada',
   'convida-whatsapp': 'Convidar per WhatsApp', 'compartir-resultat': 'Compartir el resultat', 'repte-obert': 'Repte obert', 'canto-acabat': 'Cantons acabats',
   'partida-acabada': 'Partides acabades (al navegador)', revenja: 'Revenges', suggeriment: 'Suggeriments enviats', botiga: 'Botiga oberta',
-  'obert-com-app': 'Obert com a app', 'app-installada': 'App instal·lada' };
+  'obert-com-app': 'Obert com a app', 'app-installada': 'App instal·lada',
+  'xat-missatge': 'Missatges al xat de la sala', llest: 'Jugadors que han dit «Llest»', 'inici-llestos': 'Partides començades perquè tots estaven llests' };
 async function page(live) {
   const t = await table(30);
   const days = Array.from({ length: 30 }, (_, i) => day(new Date(Date.now() - (29 - i) * 864e5)));
