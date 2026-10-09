@@ -228,7 +228,7 @@ class Game {
     if (H) {
       const p = this.pending && this.pending.seats.includes(s) && !(s in this.pending.answers) ? this.pending : null;
       out.h = {
-        mano: H.mano, turn: H.turn, over: H.over, trickNo: H.trickNo, tricks: H.tricks, played: H.played,
+        mano: H.mano, turn: H.turn, over: H.over, trickNo: H.trickNo, tricks: H.tricks, played: H.played, past: H.past,
         trucLevel: H.trucLevel, trucOwner: H.trucOwner, envitLevel: H.envitLevel, envitDone: H.envitDone,
         envitPending: H.envitPending, winPlayer: H.winPlayer, dealt: H.dealt,
         envitFalta: this.envitFalta(), envitMax: this.maxEnvitLevel(),
@@ -840,7 +840,7 @@ class Game {
     const G = this.G, deck = shuffle(makeDeck(), this.dealRnd);
     const H = this.H = {
       hands: [[], [], [], []], initial: [], mano: (G.dealer + 1) % 4, trucLevel: 0, trucOwner: null,
-      envitLevel: 0, envitDone: false, envitPending: false, tricks: [], played: [], trickNo: 0, turn: null,
+      envitLevel: 0, envitDone: false, envitPending: false, tricks: [], played: [], past: [], trickNo: 0, turn: null,
       over: false, winPlayer: null, dealt: false, result: null, gone: [], acts: [],
       info: [[], [], [], []], caught: [[], []], say: [null, null, null, null], ask: [false, false, false, false]
     };
@@ -866,6 +866,8 @@ class Game {
       H.tricks.push(w.team); H.winPlayer = w.tie ? null : w.player;
       this.snap(); this.emit({ e: 'trick', team: w.team, tie: w.tie });
       await this.sleep(1500);
+      // Les cartes de les rondes jugades queden a la vista (com a la taula de veres): qui les ha tirades i qui ha guanyat
+      H.past.push({ played: H.played.slice(), team: w.team, winner: w.tie ? null : w.player });
       leader = w.player; H.played = []; H.winPlayer = null;
       winnerTeam = handDecision(H.tricks, H.mano % 2);
       if (winnerTeam !== undefined) break;

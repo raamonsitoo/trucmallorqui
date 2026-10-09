@@ -393,10 +393,27 @@ async function scenario14(){
   console.log('14) xat de la sala (filtre, límit) i «Llest» amb inici automàtic');
   a.ws.close();b.ws.close();
 }
+// Historial de la mà: el servidor guarda les cartes de cada ronda acabada i les envia a la instantània
+async function scenario15(){
+  const {Game,LEVELS,mulberry32}=require('./game.js');
+  let checked=0,g=null;
+  const room={seats:[0,1,2,3].map(()=>({human:false})),sendSeat(){},phase:'playing',sendAll(m){
+    if(m.t!=='ev'||m.e.e!=='result')return;
+    const H=g.H;
+    assert.equal(H.past.length,H.tricks.length,'una entrada per cada ronda acabada');
+    H.past.forEach((t,i)=>{assert.equal(t.played.length,4,'les quatre cartes de la ronda');assert.equal(t.team,H.tricks[i],'qui la guanya');});
+    assert.deepEqual(g.snapFor(0).h.past,H.past,'la instantània duu les rondes');
+    checked++;
+  }};
+  g=new Game(room,{speed:0,rng:mulberry32(5),dealRng:mulberry32(6),params:[LEVELS.normal,LEVELS.normal,LEVELS.normal,LEVELS.normal]});
+  await g.playCanton();
+  assert(checked>3,"s'han comprovat les mans");
+  console.log(`15) historial de la mà: cartes de cada ronda guardades i enviades (${checked} mans)`);
+}
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();scenario11();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario12();
+    scenario5();scenario11();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario12();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });

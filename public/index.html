@@ -100,8 +100,36 @@ button{font:inherit}
 .bub{background:var(--card);color:#1b1b1b;padding:.25rem .65rem;border-radius:12px;font-weight:700;font-size:.9rem;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.4)}
 .bub0{position:absolute;left:10px;bottom:52px;display:none}
 /* a baix a l'esquerra, damunt «Tu» (si a la pantalla no hi cap devora les teves cartes, el JS l'apuja just per damunt d'elles) */
-.trickhud{position:absolute;left:10px;bottom:44px;display:flex;gap:5px;pointer-events:none;z-index:2;max-width:46%;padding:6px 7px 5px;border-radius:12px;background:rgba(8,20,16,.42)}
-.trickhud:empty{display:none}
+.trickhud{position:absolute;left:10px;bottom:44px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;pointer-events:none;z-index:2;max-width:46%;padding:6px 7px 5px;border-radius:12px;background:rgba(8,20,16,.42)}
+.trickhud:empty,.trickhud.empty{display:none}
+.tcur{display:flex;gap:5px}
+.tcur:empty,.th-more[hidden],.th-past[hidden]{display:none}
+/* rondes anteriors: es despleguen davall la ronda en joc */
+.th-more{pointer-events:auto;align-self:stretch;font:inherit;font-size:.66rem;font-weight:700;color:#fff;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);border-radius:999px;padding:.25rem .6rem;cursor:pointer;white-space:nowrap}
+.th-more:hover,.th-more:focus-visible{background:rgba(255,255,255,.24);outline:none}
+.th-past{display:flex;flex-direction:column;gap:6px;padding-top:2px}
+.th-row{display:flex;flex-direction:column;gap:3px;border-left:3px solid #8a8a8a;padding-left:5px}
+.th-row.us{border-left-color:#5b80e0}.th-row.them{border-left-color:#e0574b}
+.th-row b{font-size:.6rem;color:#e3ece7;white-space:nowrap}
+.th-row b small{font:inherit}
+.th-row .tc svg{width:clamp(26px,6vw,36px)}
+/* ordinador: cada ronda en una línia (etiqueta a l'esquerra) perquè les tres càpiguen damunt la taula */
+body:not(.phone) .th-row{flex-direction:row;align-items:center;gap:6px}
+body:not(.phone) .th-row b{width:4.6em;white-space:normal;line-height:1.3}
+body:not(.phone) .th-row b span{display:none}
+body:not(.phone) .th-row b small{display:block;color:#c5d4cd}
+body:not(.phone) .th-row .tc svg{width:30px}
+body:not(.phone).immersive .th-row .tc svg{width:clamp(34px,min(4vw,7vh),56px)}
+body:not(.phone).immersive .th-row b{font-size:.7rem}
+.th-past.scroll{overflow-y:auto;pointer-events:auto;overscroll-behavior:contain}
+/* ordinador: les rondes de la mà en un requadre al costat (el CSS de pantalla ampla i completa el mostra) */
+.lcol{display:contents}
+.hist{display:none}
+.hist-list{display:flex;flex-direction:column;gap:8px}
+.hist-empty{margin:0;font-size:.78rem;color:var(--muted)}
+.hist .th-row b{font-size:.68rem}
+.hist-tog{display:none;font:inherit;font-size:.78rem;font-weight:700;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:.35rem .8rem;cursor:pointer;white-space:nowrap}
+.hist-tog:hover,.hist-tog:focus-visible{background:rgba(255,255,255,.2);outline:none}
 .tc{display:flex;flex-direction:column;align-items:center;gap:3px}
 .tc svg{width:clamp(30px,7vw,42px);height:auto;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.5)}
 .tc span{font-size:.6rem;font-weight:700;color:#fff;border-radius:8px;padding:0 5px;line-height:1.5;max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -297,6 +325,15 @@ body.immersive .band,body.immersive .log,body.immersive .top>div:first-child{dis
   body.immersive .bigbtns .btn.ok{background:rgba(47,138,78,.82)}
   body.immersive .bigbtns .btn.ghost{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22)}
   body.immersive .side .coach{margin:0;font-size:.82rem;padding:8px 10px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);background:rgba(40,30,5,.55)}
+  /* a l'ordinador, les rondes de la mà van a baix a la dreta (damunt el rellotge); només quan ja s'ha jugat alguna ronda */
+  body.immersive:not(.phone) .hist{display:flex;flex-direction:column-reverse;gap:8px;position:fixed;right:10px;bottom:54px;z-index:4;width:max-content;max-width:min(330px,40vw);max-height:56vh;overflow:auto;scrollbar-width:none}
+  body.immersive:not(.phone) .hist.empty{display:none}
+  body.immersive:not(.phone) .hist h2{display:none}
+  body.immersive:not(.phone) .hist-tog{display:block}
+  body.immersive:not(.phone) .hist:not(.open) .hist-list{display:none}
+  body.immersive:not(.phone) .hist:not(.open){padding:4px}
+  body.immersive .hist .th-row .tc svg{width:clamp(30px,2.6vw,44px)}
+  body.immersive:not(.phone) .th-more,body.immersive:not(.phone) .th-past{display:none!important}
 }
 /* pantalles baixes (mòbil horitzontal): tot més compacte */
 @media (orientation:landscape) and (max-height:520px){
@@ -347,6 +384,9 @@ body.phone #btnFs,body.phone #btnFs2{display:none!important}
   body.phone.immersive .trickhud{top:58px;right:8px;left:auto;bottom:auto!important;padding:4px 5px 3px;gap:3px;max-width:62%}
   body.phone.immersive .tc svg{width:27px;border-radius:3px}
   body.phone.immersive .tc span{font-size:.52rem;max-width:50px;padding:0 3px}
+  body.phone.immersive .th-row .tc svg{width:25px}
+  body.phone.immersive .th-more{font-size:.58rem;padding:.2rem .45rem}
+  body.phone.immersive .th-row b{font-size:.52rem}
   body.immersive .top{grid-area:top;margin:0}
   body.immersive .top-actions{gap:5px;justify-content:flex-end}
   body.immersive .top-actions .btn.sm{min-height:34px;padding:.2rem .55rem;font-size:.8rem}
@@ -691,7 +731,10 @@ body:not(.immersive) #btnFs{display:none!important}
   body:not(.immersive) .app>*{grid-column:2}
   body:not(.immersive) .side-l{display:contents}
   body:not(.immersive) #talkBox,body:not(.immersive) #signBox{grid-row:3/span 2;margin-top:0;width:100%;max-width:250px}
-  body:not(.immersive) #talkBox{grid-column:1;justify-self:end}
+  body:not(.immersive) .lcol{display:flex;flex-direction:column;gap:14px;grid-column:1;grid-row:3/span 2;justify-self:end;width:100%;max-width:250px}
+  body:not(.immersive) #talkBox{margin-top:0}
+  body:not(.immersive) .hist{display:block;margin:0}
+  body:not(.immersive) .th-more,body:not(.immersive) .th-past{display:none!important}
   body:not(.immersive) #signBox{grid-column:3;justify-self:start}
   body:not(.immersive) .tgrid{grid-template-columns:1fr}
   body:not(.immersive) .sgrid{grid-template-columns:1fr 1fr}
@@ -786,6 +829,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
   <section class="actions" id="actions" aria-live="polite"></section>
   </div>
   <div class="side side-l">
+  <div class="lcol">
   <section class="signs talk" id="talkBox" aria-label="Parlar amb Catalina">
     <h2 id="talkTitle">Parlar amb el teu company</h2>
     <div class="tgrid">
@@ -794,6 +838,13 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
       <button class="sbtn" data-talk="envit">Demana envit<small>que el canti ella</small></button>
     </div>
   </section>
+  <!-- Ordinador (pantalla ampla o completa): les rondes d'aquesta mà, sempre a la vista. Al mòbil hi ha el desplegable. -->
+  <section class="signs hist" id="histBox" aria-label="Rondes d'aquesta mà">
+    <h2>Rondes d'aquesta mà</h2>
+    <button type="button" class="hist-tog" data-rounds aria-expanded="false"></button>
+    <div class="hist-list" id="histList"></div>
+  </section>
+  </div>
   <section class="signs" id="signBox" aria-label="Senyes a Catalina">
     <h2><span id="signTitle">Fer una seña al teu company</span>
       <label><input type="checkbox" id="help" checked> Ajuda: mostra què vol dir cada seña</label></h2>
@@ -1695,7 +1746,9 @@ const Coach=(function(){
 // ---------- Estat ----------
 const G={cantons:[0,0],scores:[0,0],win:2,dealer:0,log:[],status:''};
 let H=null;
-const UI={mode:'idle',resolve:null,reject:null,resp:null,foldArm:false,ovResolve:null,ovReject:null};
+const UI={mode:'idle',resolve:null,reject:null,resp:null,foldArm:false,ovResolve:null,ovReject:null,roundsOpen:false};
+// Rondes anteriors: es despleguen davall les cartes de la ronda en joc
+document.addEventListener('click',e=>{if(e.target.closest('[data-rounds]')){UI.roundsOpen=!UI.roundsOpen;renderTrick();}});
 
 const TRUC_CALL=['','Truc!','Retruc!','Val 9!','Tots!'];
 const ENVIT_CALL=['','Envit!','Jo envit!','2 més!','Envit tots!'];
@@ -2485,27 +2538,40 @@ const View=(function(){
   // ----- Cartes a la taula -----
   const playedMap={},tweens=[];
   const ringGeo=new THREE.PlaneGeometry(0.16,0.225);
+  // La ronda en joc va al mig. Quan s'acaba, cada carta llisca cap a la vora de la taula, davant de qui l'ha tirada
+  // (més petita i en ordre de rondes), com a la taula de veres: així es veu com han anat les rondes. La guanyadora duu la vora daurada.
+  function playedSlot(o,p,r){
+    const P=SEAT[p],len=Math.hypot(P[0],P[1]),dx=P[0]/len,dz=P[1]/len;
+    if(r<0){const rad=p===0?0.36:0.42;return {to:new THREE.Vector3(dx*rad+o.jx,0.772,dz*rad+o.jz),sc:1.3};}
+    const rad=p===0?0.6:0.57,side=(r-0.5)*0.25;
+    return {to:new THREE.Vector3(dx*rad-dz*side,0.7705+r*0.0008,dz*rad+dx*side),sc:1.1};
+  }
   function syncPlayed(){
-    const keys={};
-    const list=H?H.played:[];
-    for(const x of list){
-      const k=keyOf(x.card);keys[k]=1;
+    const keys={},list=[];
+    if(H){
+      (H.past||[]).forEach((t,r)=>t.played.forEach(x=>list.push({x,r,win:t.winner===x.p})));
+      H.played.forEach(x=>list.push({x,r:-1,win:H.winPlayer===x.p}));
+    }
+    for(const it of list){
+      const x=it.x,k=keyOf(x.card);keys[k]=1;
       let o=playedMap[k];
       if(!o){
-        const m=makeCard(x.card);
-        const P=SEAT[x.p],len=Math.hypot(P[0],P[1]);
-        const rad=x.p===0?0.36:0.42;
-        const to=new THREE.Vector3(P[0]/len*rad+(Math.random()-0.5)*0.04,0.772,P[1]/len*rad+(Math.random()-0.5)*0.04);
+        const m=makeCard(x.card),P=SEAT[x.p];
         m.scale.setScalar(1.3);m.rotation.order='YXZ';m.rotation.x=-Math.PI/2;m.rotation.y=Math.atan2(P[0],P[1])+(Math.random()-0.5)*0.25;
         let from=flyFrom[k];
         if(!from){from=new THREE.Vector3();if(chars[x.p])chars[x.p].cardsGroup.getWorldPosition(from);else from.set(0,1.0,1.0);}
         delete flyFrom[k];
         m.position.copy(from);scene.add(m);
-        tweens.push({m,from:from.clone(),to,t:0,dur:0.34});
         const ring=new THREE.Mesh(ringGeo,MB(0xe0a21f));ring.position.z=-0.004;ring.visible=false;m.add(ring);
-        o=playedMap[k]={m,ring};
+        o=playedMap[k]={m,ring,jx:(Math.random()-0.5)*0.04,jz:(Math.random()-0.5)*0.04,r:null};
       }
-      o.ring.visible=H.winPlayer===x.p;
+      if(o.r!==it.r){
+        const s=playedSlot(o,x.p,it.r),first=o.r===null;
+        for(let i=tweens.length-1;i>=0;i--)if(tweens[i].m===o.m)tweens.splice(i,1);
+        tweens.push({m:o.m,from:o.m.position.clone(),to:s.to,t:0,dur:first?0.34:0.5,s0:o.m.scale.x,s1:s.sc,hop:first?0.14:0.04});
+        o.r=it.r;
+      }
+      o.ring.visible=it.win;
     }
     for(const k in playedMap)if(!keys[k]){scene.remove(playedMap[k].m);delete playedMap[k];}
   }
@@ -2695,7 +2761,8 @@ const View=(function(){
     // tweens
     for(let i=tweens.length-1;i>=0;i--){
       const tw=tweens[i];tw.t+=dt;const k=Math.min(1,tw.t/tw.dur),e=1-Math.pow(1-k,3);
-      tw.m.position.lerpVectors(tw.from,tw.to,e);tw.m.position.y+=Math.sin(Math.PI*k)*0.14;
+      tw.m.position.lerpVectors(tw.from,tw.to,e);tw.m.position.y+=Math.sin(Math.PI*k)*(tw.hop==null?0.14:tw.hop);
+      if(tw.s1!=null)tw.m.scale.setScalar(tw.s0+(tw.s1-tw.s0)*e);
       if(k>=1)tweens.splice(i,1);
     }
     // senyes i mirades
@@ -2752,17 +2819,67 @@ function renderScore(){
   if(H&&H.envitPending)stake+=`<br>Envit: ${envitPts(H.envitLevel)>=24?'el cantó':envitPts(H.envitLevel)}`;
   el.innerHTML=block(0)+`<div class="mid"><div class="stake">${stake}</div><div class="tricks" aria-label="Rondes guanyades">${marks}</div></div>`+block(1);
 }
+// A l'ordinador (pantalla ampla o completa) l'historial va en un requadre a part; al mòbil, en un desplegable davall la ronda
+function histAside(){
+  const B=document.body.classList;
+  return B.contains('immersive')?!B.contains('phone')&&matchMedia('(orientation:landscape),(min-width:761px)').matches:matchMedia('(min-width:1240px)').matches;
+}
+// Cartes de la ronda en joc i, davall, un desplegable amb les rondes ja jugades d'aquesta mà
+// (cada ronda amb les seves cartes, qui les ha tirades i la guanyadora marcada)
 function renderTrick(){
   const el=$('#trickhud');if(!el)return;
-  el.innerHTML=H?H.played.map(x=>`<div class="tc ${team(x.p)===0?'us':'them'}${H.winPlayer===x.p?' win':''}">${cardSVG(x.card)}<span>${esc(NAMES[x.p])}</span></div>`).join(''):'';
+  // L'estructura és fixa i només se'n canvia el contingut: així el botó no es refà i cap toc no es perd
+  if(!el.querySelector('.th-more'))el.innerHTML='<div class="tcur"></div><button type="button" class="th-more" data-rounds hidden></button><div class="th-past" hidden></div>';
+  const [curEl,btn,pastEl]=el.children;
+  const set=(n,h)=>{if(n._h!==h){n.innerHTML=h;n._h=h;}};
+  const all=H&&H.past||[];
+  if(!all.length)UI.roundsOpen=false; // cada mà comença tancat; l'obre qui vol
+  // La darrera ronda és la que es veu en viu: quan s'acaba la mà, les seves cartes es queden al requadre de la ronda
+  // fins a la mà següent i no surten a l'historial (així no es repeteix res)
+  const done=!!(H&&H.over&&!H.played.length&&all.length),live=done?all[all.length-1]:null,past=done?all.slice(0,-1):all;
+  const tc=(x,win)=>`<div class="tc ${team(x.p)===0?'us':'them'}${win?' win':''}">${cardSVG(x.card)}<span>${esc(NAMES[x.p])}</span></div>`;
+  set(curEl,!H?'':live?live.played.map(x=>tc(x,live.winner===x.p)).join(''):H.played.map(x=>tc(x,H.winPlayer===x.p)).join(''));
+  btn.hidden=!past.length;
+  set(btn,UI.roundsOpen?'▴ Amaga les rondes':`▾ Rondes anteriors (${past.length})`);
+  btn.setAttribute('aria-expanded',!!UI.roundsOpen);
+  pastEl.hidden=!(UI.roundsOpen&&past.length);
+  // L'historial es dibuixa només on es veu: al mòbil, al desplegable; a l'ordinador, al requadre del costat.
+  // (Cada carta duu els seus colors dins el dibuix; si n'hi hagués una còpia amagada, el navegador agafaria els colors
+  // de la còpia amagada i la carta sortiria sense color.) Només es torna a dibuixar quan canvien les rondes.
+  const desk=histAside();
+  const sig=past.map(t=>t.played.map(x=>x.p+':'+x.card.n+x.card.s).join(',')+'|'+t.winner+'|'+t.team).join(';')+'|'+NAMES.join(',');
+  const rowsHTML=()=>past.map((t,i)=>`<div class="th-row ${t.team===0?'us':t.team===1?'them':'tie'}"><b>${i+1}a ronda<span> · </span><small>${t.team===0?'Nosaltres':t.team===1?'Ells':'Parda'}</small></b><div class="tcur">${t.played.map(x=>tc(x,t.winner===x.p)).join('')}</div></div>`).join('');
+  const fill=(n,on,empty)=>{const k=on?sig:'-';if(n._k!==k){n._k=k;n.innerHTML=on?(past.length?rowsHTML():empty||''):'';}};
+  fill(pastEl,!desk&&!pastEl.hidden);
+  const hl=$('#histList');
+  if(hl){
+    const hb=$('#histBox'),tg=hb.querySelector('.hist-tog');
+    fill(hl,desk,'<p class="hist-empty">Aquí sortiran les cartes de cada ronda, a mesura que es juguin.</p>');
+    hb.classList.toggle('empty',!past.length);hb.classList.toggle('open',!!UI.roundsOpen);
+    // a pantalla completa és un desplegable (cap amunt): tancat a cada mà nova
+    set(tg,`${UI.roundsOpen?'▾':'▴'} Rondes d'aquesta mà (${past.length})`);tg.setAttribute('aria-expanded',!!UI.roundsOpen);
+  }
+  el.classList.toggle('empty',!curEl.firstChild&&(desk||!past.length));
   placeTrick();
 }
+window.addEventListener('resize',()=>setTimeout(renderTrick,80)); // en canviar de mida (o entrar a pantalla completa) l'historial pot canviar de lloc
 // Les teves cartes ocupen el 30 % de baix de la taula, centrades. Si a l'esquerra no hi ha lloc per a les cartes
 // de la ronda (mòbil vertical), les posam just per damunt de les teves; si n'hi ha, a baix de tot.
 function placeTrick(){
   const el=$('#trickhud'),st=$('#stage');if(!el||!st||st.classList.contains('flat'))return;
-  if(document.body.classList.contains('phone')){el.style.bottom='';return;} // al mòbil va a dalt a la dreta (CSS)
+  if(document.body.classList.contains('phone')){el.style.bottom=el.style.top='';return;} // al mòbil va a dalt a la dreta (CSS)
   const W=st.clientWidth,Hh=st.clientHeight;if(!W||!Hh)return;
+  // amb les rondes anteriors obertes, a dalt a l'esquerra i cap avall (si no, amb tres rondes sortiria per dalt);
+  // si la taula és massa baixa perquè hi càpiguen, les rondes es poden desplaçar
+  const pastEl=el.querySelector('.th-past');
+  if(pastEl){pastEl.style.maxHeight='';pastEl.classList.remove('scroll');}
+  if(UI.roundsOpen&&!histAside()){
+    el.style.top='8px';el.style.bottom='auto';
+    const over=el.offsetTop+el.offsetHeight-(Hh-8);
+    if(pastEl&&over>0){pastEl.style.maxHeight=Math.max(60,pastEl.offsetHeight-over)+'px';pastEl.classList.add('scroll');}
+    return;
+  }
+  el.style.top='';
   const cw=document.body.classList.contains('immersive')?78:46;
   const free=W/2-0.335*Hh-14,need=Math.max(el.offsetWidth,3*cw+24)+10;
   el.style.bottom=(need<=free?44:Math.round(0.30*Hh+6))+'px';
@@ -3549,6 +3666,7 @@ function applySnap(s){
   initial[0]=h.init;
   H={hands,initial,mano:rel(h.mano),turn:h.turn==null?null:rel(h.turn),over:h.over,trickNo:h.trickNo,
      tricks:h.tricks.map(t=>vteam(t)),played:h.played.map(x=>({p:rel(x.p),card:x.card})),
+     past:(h.past||[]).map(t=>({played:t.played.map(x=>({p:rel(x.p),card:x.card})),team:vteam(t.team),winner:t.winner==null?null:rel(t.winner)})),
      trucLevel:h.trucLevel,trucOwner:vteam(h.trucOwner),envitLevel:h.envitLevel,envitDone:h.envitDone,envitPending:h.envitPending,envitFalta:h.envitFalta,envitMax:h.envitMax,
      winPlayer:h.winPlayer==null?null:rel(h.winPlayer),dealt:h.dealt,bubbles:prev};
   const was=UI.mode;
