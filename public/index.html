@@ -353,7 +353,7 @@ body.immersive .band,body.immersive .log,body.immersive .top>div:first-child{dis
   body.immersive .side .sbtn small{display:none}
   body.immersive .side .signs{padding:6px}
   body.immersive .side .signs h2{display:none}
-  body.immersive .tgrid{grid-template-columns:repeat(3,1fr)}
+  body.immersive .tgrid{grid-template-columns:repeat(2,1fr)}
   body.immersive .side .sbtn{min-height:27px;font-size:.66rem;padding:.1rem .2rem}
   body.immersive .side-l{max-height:calc(100% - 140px)}
   body.immersive .bigbtns .btn{min-height:38px;font-size:.88rem}
@@ -408,7 +408,7 @@ body.phone #btnFs,body.phone #btnFs2{display:none!important}
 .signs h2{font-size:.95rem;margin:0 0 6px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .signs label{font-size:.82rem;font-weight:400;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
 .sgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
 .signs.talk{margin-bottom:0}
 .sbtn{min-height:48px;border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:4px 2px;cursor:pointer;line-height:1.15;font-size:.8rem;font-weight:700}
 .sbtn small{display:block;font-weight:400;font-size:.68rem;color:var(--muted)}
@@ -836,6 +836,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
       <button class="sbtn" data-talk="tu">Vaig a tu<small>tira tu la bona</small></button>
       <button class="sbtn" data-talk="mi">Vina a mi<small>la tir jo</small></button>
       <button class="sbtn" data-talk="envit">Demana envit<small>que el canti ella</small></button>
+      <button class="sbtn" data-talk="truc">Demana truc<small>que el canti ella</small></button>
     </div>
   </section>
   <!-- Ordinador (pantalla ampla o completa): les rondes d'aquesta mà, sempre a la vista. Al mòbil hi ha el desplegable. -->
@@ -3751,11 +3752,11 @@ function onEvent(e){
     case 'talk':{const t=e.w==='tu'?'Vaig a tu':'Vina a mi';say(P(e.p),t);log(`${nm(P(e.p))}: ${t.toLowerCase()}`);break;}
     case 'ok':say(P(e.p),'Entès');break;
     case 'yes':say(P(e.p),'Va!');break;
-    case 'ask':
-      say(P(e.p),`${NAMES[P(e.to)]}, demana envit!`);log(`${nm(P(e.p))}: ${nm(P(e.to))}, demana envit`);
-      if(e.to===Me.seat)View.toast(`${NAMES[P(e.p)]} et demana que cantis envit`,2600);
-      break;
-    case 'deny':View.toast(e.why==='tirat'?'El teu company ja ha tirat carta':'Ja no es pot cantar envit');break;
+    case 'ask':{const w=e.k==='truc'?'truc':'envit';
+      say(P(e.p),`${NAMES[P(e.to)]}, demana ${w}!`);log(`${nm(P(e.p))}: ${nm(P(e.to))}, demana ${w}`);
+      if(e.to===Me.seat)View.toast(`${NAMES[P(e.p)]} et demana que cantis ${w}`,2600);
+      break;}
+    case 'deny':View.toast(e.why==='tirat'?'El teu company ja ha tirat carta':e.why==='truc'?'Ara el teu company no pot cantar truc':'Ja no es pot cantar envit');break;
     case 'sign':
       if(P(e.p)===0)break;
       if(View.ready)View.emit(P(e.p),e.id);

@@ -794,7 +794,7 @@ function handle(ws, m) {
       return;
     }
     case 'act': if (room.game) room.game.handleAct(seat, m.a); return;
-    case 'talk': if (room.game && (m.kind === 'tu' || m.kind === 'mi' || m.kind === 'envit')) room.game.onTalk(seat, m.kind); return;
+    case 'talk': if (room.game && (m.kind === 'tu' || m.kind === 'mi' || m.kind === 'envit' || m.kind === 'truc')) room.game.onTalk(seat, m.kind); return;
     case 'sign': if (room.game && typeof m.id === 'string') room.game.onSign(seat, m.id); return;
     case 'gaze': if (room.game) room.game.onGaze(seat, m.target); return;
     default: return;

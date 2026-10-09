@@ -120,7 +120,8 @@ const FACIL = Object.assign({}, BASE, {
   noise: 6, trucBase: 5.5, raiseM: 3, accRand: 0.25, callM: 2, callP: 0.3, bluff: 0.01,
   envNoise: 8, envAccRand: 0.35, envCall: 29, envCallP: 0.4, envBluff: 0.02, lead0: 2, mistake: 0.4
 });
-const DIFICIL = Object.assign({}, BASE, TRAINED.dificil);
+// sureTruc: amb una carta que ja no pot perdre i que s'endú la mà, canta truc abans de tirar-la (el mestre també)
+const DIFICIL = Object.assign({}, BASE, TRAINED.dificil, { sureTruc: 1 });
 // El mestre juga les cartes i decideix els cants mirant moltes mans possibles dels altres (mc = quantes).
 const MESTRE = Object.assign({}, DIFICIL, {
   mc: 40, infer: 1, mCall: 0.01, mAcc: 0, mRai: 0.01, mEnvCall: 0, bluffMc: 0.06, envBluffMc: 0.04, mEarly: 0.01
@@ -428,6 +429,7 @@ class Game {
   }
   botRespondTruc(p, level) {
     const P = this.bp(p);
+    if (P.sureTruc && this.sureWinNow(p)) return level < 4 ? 'raise' : 'vull';
     if (P.mc) return this.mcRespond(p, 'truc', level);
     const s = this.teamStrength(p), thr = this.trucThr(p, level, P);
     if (level < 4 && s >= thr + P.raiseM) return 'raise';
@@ -616,12 +618,32 @@ class Game {
     if (equal && H.trickNo === 0) return equal.i;
     return lowest.i;
   }
+  // Té una carta que ja no pot perdre (l'amo, o la més alta de les que queden per sortir) i, guanyant aquesta ronda,
+  // s'endú la mà. Llavors el difícil i el mestre canten truc abans de tirar-la: si no volen, guanya el mateix; si volen, més.
+  sureWinNow(p) {
+    const H = this.H, hand = H.hands[p];
+    if (!hand || !hand.length) return false;
+    const key = c => c.n + c.s, seen = new Set(hand.map(key));
+    for (const t of H.past || []) for (const x of t.played) seen.add(key(x.card));
+    for (const x of H.played) seen.add(key(x.card));
+    let top = -1;
+    for (const c of makeDeck()) if (!seen.has(key(c))) top = Math.max(top, cardRank(c));
+    for (const x of H.played) if (x.p % 2 !== p % 2) top = Math.max(top, cardRank(x.card));
+    if (Math.max(...hand.map(cardRank)) <= top) return false;
+    return handDecision(H.tricks.concat([p % 2]), H.mano % 2) === p % 2;
+  }
   botTurn(p) {
     const H = this.H;
     if (H.ask[p]) {
       H.ask[p] = false;
       if (this.canCallEnvit(p)) return { type: 'envit' };
     }
+    // El company li ha demanat truc
+    if (H.askTruc && H.askTruc[p]) {
+      H.askTruc[p] = false;
+      if (this.canCallTruc(p)) return { type: 'truc' };
+    }
+    if (this.bp(p).sureTruc && this.canCallTruc(p) && this.sureWinNow(p)) return { type: 'truc' };
     if (this.bp(p).mc) return this.mcTurn(p);
     if (this.canCallEnvit(p) && this.botWantsEnvit(p)) return { type: 'envit' };
     if (this.canCallTruc(p) && this.botWantsTruc(p)) return { type: 'truc' };
@@ -739,6 +761,14 @@ class Game {
         setTimeout(() => { if (this.H === H && !H.over && H.ask[q]) this.emit({ e: 'yes', p: q }); }, 800 * this.speed);
       }
       this.emit({ e: 'ask', p: seat, to: q });
+    } else if (kind === 'truc') {
+      // «Demana truc»: el company el canta al seu torn (si encara el pot cantar)
+      if (!this.canCallTruc(q)) { this.emitTo(seat, { e: 'deny', why: 'truc' }); return; }
+      if (this.isBot(q)) {
+        H.askTruc[q] = true;
+        setTimeout(() => { if (this.H === H && !H.over && H.askTruc[q]) this.emit({ e: 'yes', p: q }); }, 800 * this.speed);
+      }
+      this.emit({ e: 'ask', p: seat, to: q, k: 'truc' });
     }
   }
   forgetSign(seat, card) {
@@ -854,7 +884,7 @@ class Game {
       hands: [[], [], [], []], initial: [], mano: (G.dealer + 1) % 4, trucLevel: 0, trucOwner: null,
       envitLevel: 0, envitDone: false, envitPending: false, tricks: [], played: [], past: [], trickNo: 0, turn: null,
       over: false, winPlayer: null, dealt: false, result: null, gone: [], acts: [],
-      info: [[], [], [], []], caught: [[], []], say: [null, null, null, null], ask: [false, false, false, false]
+      info: [[], [], [], []], caught: [[], []], say: [null, null, null, null], ask: [false, false, false, false], askTruc: [false, false, false, false]
     };
     for (let p = 0; p < 4; p++) {
       H.hands[p] = deck.splice(0, 3).sort((a, b) => cardRank(b) - cardRank(a));

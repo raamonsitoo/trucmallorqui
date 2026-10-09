@@ -410,6 +410,39 @@ async function scenario15(){
   assert(checked>3,"s'han comprovat les mans");
   console.log(`15) historial de la mà: cartes de cada ronda guardades i enviades (${checked} mans)`);
 }
+// «Demana truc» i truc segur: el difícil i el mestre, amb una carta que ja no pot perdre i que s'endú la mà, canten truc abans de tirar-la
+function scenario17(){
+  const {Game}=require('./game.js');
+  const C=(n,s)=>({n,s});
+  const mk=level=>{
+    const sent=[];
+    const room={seats:[0,1,2,3].map(()=>({human:false})),sendAll(m){if(m.t==='ev')sent.push(m.e);},sendSeat(){},phase:'playing'};
+    const g=new Game(room,{speed:0,level});
+    // La parella 0 ja ha guanyat la primera ronda; el seient 0 té l'amo (11 de bastos) i és el seu torn a la segona
+    g.H={over:false,dealt:true,trickNo:1,mano:0,turn:0,trucLevel:0,trucOwner:null,envitDone:true,
+      hands:[[C(11,'bastos'),C(4,'copes')],[C(5,'copes'),C(6,'oros')],[C(1,'espases'),C(4,'bastos')],[C(10,'oros'),C(12,'copes')]],
+      past:[{played:[{p:0,card:C(3,'oros')},{p:1,card:C(7,'copes')},{p:2,card:C(5,'espases')},{p:3,card:C(4,'oros')}],team:0,winner:0}],
+      played:[],tricks:[0],info:[[],[],[],[]],caught:[[],[]],say:[null,null,null,null],ask:[false,false,false,false],askTruc:[false,false,false,false],initial:[]};
+    return {g,sent};
+  };
+  for(const lvl of ['dificil','mestre']){
+    const {g}=mk(lvl);
+    assert(g.sureWinNow(0),'amb l\'amo i una ronda guanyada, la mà és seva');
+    assert.deepEqual(g.botTurn(0),{type:'truc'},`el ${lvl} canta truc abans de tirar l'amo`);
+    assert.equal(g.botRespondTruc(0,1),'raise',`i si li canten truc, puja (${lvl})`);
+  }
+  const {g:n}=mk('dificil');n.H.hands[0]=[C(4,'espases'),C(4,'copes')];
+  assert(!n.sureWinNow(0),'sense cap carta segura, no');
+  // «Demana truc»: el company bot el canta al seu torn; si no el pot cantar, ho diu
+  const {g,sent}=mk('normal');g.H.tricks=[];g.H.past=[];g.H.trickNo=0;
+  g.onTalk(0,'truc');
+  assert(sent.some(e=>e.e==='ask'&&e.k==='truc'&&e.to===2),'demana truc al company');
+  assert.deepEqual(g.botTurn(2),{type:'truc'},'el company canta truc');
+  g.H.trucOwner=1;g.H.trucLevel=1;
+  const before=sent.length;g.onTalk(0,'truc');
+  assert(!sent.slice(before).some(e=>e.e==='ask'),'si ja no el pot cantar, no se li demana');
+  console.log('17) «Demana truc» i truc segur del difícil i el mestre (amb una carta que ja no pot perdre)');
+}
 // Actualitzacions sense tallar partides, amb servidors de veres (processos a part, com a Render):
 // el vell passa la sala al nou i la partida continua amb el mateix marcador; i si un servidor s'atura de cop,
 // el següent recupera la partida quan el vell ja no la renova
@@ -470,7 +503,7 @@ async function scenario16(){
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();scenario11();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario16();await scenario12();
+    scenario5();scenario11();scenario17();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario16();await scenario12();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });
