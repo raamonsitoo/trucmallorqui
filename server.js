@@ -151,6 +151,13 @@ class Room {
     this.chatSeq = 0;
     this.readyTimer = null;   // tots llestos: compte enrere per començar
     this.readyAt = 0;
+    // Seure a una partida contra bots: algú ho demana, l'amfitrió diu que sí o que no, i entra a l'inici de la mà següent.
+    // Si ja hi juguen dues persones o més, ho han de voler totes i entra quan acaba la partida (next).
+    this.ask = null;          // petició pendent {ws, name, look, style, seat, repte, next, voters, who, timer}
+    this.joining = [];        // qui ja té el sí i espera que comenci la mà (o la partida, si next): {ws, seat, name, look, style, next}
+    this.restartPending = false; // l'amfitrió ha dit «començam de nou»
+    this.noAsk = false;       // «No em tornis a preguntar»
+    this.noJoin = false;      // la partida guiada no s'ofereix
     this.seats = [0, 1, 2, 3].map(() => ({ human: false, name: '', look: 'palla', hat: 'palla', back: 'llenguesBlau', connected: false, ws: null, token: null, freeTimer: null, uid: null, lvl: 0, badge: '', ready: false, chatTimes: [] }));
   }
   // Si tots els que hi són (dos o més) estan llests, comença la partida al cap de READY_MS; si algú ho desfà, s'atura
@@ -185,7 +192,7 @@ class Room {
   roster(s) {
     return {
       t: 'room', code: this.code, phase: this.phase, host: this.hostSeat, you: s,
-      searching: this.searching, searchMs: this.searching ? Date.now() - this.searchSince : 0, botLevel: this.botLevel, cantons: this.cantons,
+      searching: this.searching, searchMs: this.searching ? Date.now() - this.searchSince : 0, botLevel: this.botLevel, cantons: this.cantons, noJoin: this.noJoin,
       startsIn: this.readyAt ? Math.max(0, this.readyAt - Date.now()) : 0, chat: this.chat,
       seats: this.seats.map((x, i) => ({
         ready: x.human ? !!x.ready : false,
@@ -204,7 +211,7 @@ class Room {
     const playing = this.phase === 'playing' && !!this.checkpoint;
     return {
       v: 1, phase: playing ? 'playing' : 'lobby', hostSeat: this.hostSeat, botLevel: this.botLevel, cantons: this.cantons,
-      chatSeq: this.chatSeq, humansAtStart: this.humansAtStart || 0, game: playing ? this.checkpoint : null,
+      chatSeq: this.chatSeq, humansAtStart: this.humansAtStart || 0, noJoin: this.noJoin, noAsk: this.noAsk, game: playing ? this.checkpoint : null,
       seats: this.seats.map(x => (x.human && x.token ? { name: x.name, look: x.look, hat: x.hat, back: x.back, token: x.token, uid: x.uid || null, lvl: x.lvl || 0, badge: x.badge || '' } : null))
     };
   }
@@ -215,10 +222,65 @@ class Room {
   }
   // El joc la crida abans de cada mà: es desa el marcador i, si el servidor s'atura, la sala passa aquí al nou
   onHandStart(game) {
+    // Qui ha rebut el sí de l'amfitrió s'asseu ara, a l'inici de la mà (mai a mitja mà)
+    if (this.joining.some(j => !j.next) && !moving) {
+      const restart = this.restartPending;
+      this.restartPending = false;
+      this.seatJoiners(!restart, true);
+      if (restart) {
+        // «Començam de nou»: aquesta partida s'atura aquí i en comença una altra, 0 a 0, amb qui ha entrat
+        setImmediate(() => { if (rooms.has(this.code) && !this.moved && this.phase === 'playing') { if (this.game) this.game.stop(); this.startGame(); } });
+        return false;
+      }
+    }
+    // Qui espera la partida següent veu com va aquesta
+    const t = this.hostSeat % 2;
+    for (const j of this.joining) if (j.next) send(j.ws, { t: 'joinWait', mine: game.G.scores[t], theirs: game.G.scores[1 - t] });
     this.checkpoint = game.checkpoint();
     this.persist();
     if (moving && handoff.ENABLED) { this.handOver(); return false; }
     return true;
+  }
+  // Asseu els que esperaven als seients dels bots. late: entren a una partida començada (si la perden, no els compta).
+  // hand: és l'inici d'una mà (els que esperen la partida següent encara no entren)
+  seatJoiners(late, hand) {
+    const go = hand ? this.joining.filter(j => !j.next) : this.joining.slice();
+    this.joining = this.joining.filter(j => !go.includes(j));
+    for (const j of go) {
+      const ws = j.ws, x = this.seats[j.seat];
+      if (ws.readyState !== 1 || !ws.ctx || x.human || ctxRoom(ws)) { send(ws, { t: 'joinAnswer', ok: false, why: 'gone' }); continue; }
+      this.attach(j.seat, ws, ws.ctx.token, j.name, j.look, j.style);
+      x.joinedLate = late && this.phase === 'playing';
+      if (ws.ctx.uid) setSeatAccount(ws);
+      stats.inc('accio:entra-partida');
+      for (let s = 0; s < 4; s++) if (s !== j.seat) this.sendSeat(s, { t: 'info', m: `${x.name} s'ha assegut al lloc de ${DEF_NAMES[j.seat]}` });
+    }
+    this.broadcastRoom();
+    if (late && this.game) this.game.snap(); // si es comença de nou, ja ho mostrarà la partida nova
+  }
+  // Resposta a qui vol seure (yes, restart, no, never) o temps esgotat (timeout). Si són uns quants, ja han dit tots que sí.
+  answerJoin(a) {
+    const k = this.ask;
+    if (!k) return;
+    clearTimeout(k.timer);
+    this.ask = null;
+    if (a === 'never') this.noAsk = true;
+    if (k.repte && a === 'yes') a = 'restart'; // un repte sempre és una partida nova
+    if (k.next && a === 'restart') a = 'yes';  // si ja juguen dues persones, no es torna a començar
+    const ok = (a === 'yes' || a === 'restart') && k.ws.readyState === 1 && k.ws.ctx && this.phase === 'playing' && !this.seats[k.seat].human;
+    this.sendAll({ t: 'joinAskEnd', ok, next: k.next, name: k.name }); // tanca la pregunta als altres
+    if (!ok) { send(k.ws, { t: 'joinAnswer', ok: false, many: k.next, why: a === 'timeout' ? 'timeout' : k.ws.readyState === 1 ? 'no' : 'gone' }); return; }
+    // Deixa la seva sala (si n'era a una, tot sol, cercant rivals) i espera l'inici de la mà següent
+    const mine = ctxRoom(k.ws);
+    if (mine && mine !== this) {
+      mine.detach(k.ws.ctx.seat, true);
+      k.ws.ctx.code = null; k.ws.ctx.seat = -1;
+      if (mine.humans() === 0 && mine.phase === 'lobby') mine.destroy(); else mine.broadcastRoom();
+    }
+    this.joining.push({ ws: k.ws, seat: k.seat, name: k.name, look: k.look, style: k.style, next: k.next });
+    if (a === 'restart') this.restartPending = true;
+    const g = this.game.G, t = this.hostSeat % 2;
+    send(k.ws, { t: 'joinAnswer', ok: true, restart: a === 'restart', next: k.next, many: k.next, host: k.who, mine: g.scores[t], theirs: g.scores[1 - t] });
   }
   // Deixa la sala al servidor nou: la desa com a lliure i diu als jugadors que tornin a entrar (aniran al nou)
   handOver() {
@@ -293,7 +355,7 @@ class Room {
     counters.gamesStarted++;
     this.searching = false;
     this.phase = 'playing';
-    for (const x of this.seats) x.ready = false;
+    for (const x of this.seats) { x.ready = false; x.joinedLate = false; }
     if (this.readyTimer) { clearTimeout(this.readyTimer); this.readyTimer = null; this.readyAt = 0; }
     this.humansAtStart = this.seats.filter(x => x.human).length;
     stats.inc('partida:comencada');
@@ -315,10 +377,16 @@ class Room {
     this.checkpoint = null;
     for (const x of this.seats) x.ready = false;
     for (let s = 0; s < 4; s++) if (this.seats[s].human && !this.seats[s].connected) this.freeSeatNow(s);
+    // Qui esperava per seure entra ara a la sala (i juga la revenja); una petició sense resposta ja no té sentit
+    if (this.ask) this.answerJoin('timeout');
+    this.restartPending = false;
+    if (this.joining.length) this.seatJoiners(false);
     this.pickHost();
     this.broadcastRoom();
   }
   destroy() {
+    if (this.ask) { clearTimeout(this.ask.timer); send(this.ask.ws, { t: 'joinAnswer', ok: false, why: 'gone' }); this.ask = null; }
+    for (const j of this.joining.splice(0)) send(j.ws, { t: 'joinAnswer', ok: false, why: 'gone' });
     if (this.game) { this.game.stop(); this.game = null; }
     if (this.readyTimer) { clearTimeout(this.readyTimer); this.readyTimer = null; }
     if (this.resumeTimer) { clearTimeout(this.resumeTimer); this.resumeTimer = null; }
@@ -394,6 +462,44 @@ function openRooms() {
     out.push({ code: r.code, host: h && h.human ? h.name : 'Jugador', humans: r.humans(), since: r.searchSince });
   }
   return out.sort((a, b) => a.since - b.since).slice(0, 30).map(({ since, ...x }) => x);
+}
+// Partides contra bots on es pot demanar seure (sempre ho decideix l'amfitrió). Marcador vist des de l'amfitrió.
+const ASK_MS = 20000; // temps que té l'amfitrió per contestar
+function joinable(r) {
+  if (r.phase !== 'playing' || !r.game || r.moved || r.noAsk || r.noJoin || r.ask || r.joining.length) return false;
+  const h = r.seats[r.hostSeat];
+  return !!(h && h.human && h.connected && r.seats.some(x => !x.human));
+}
+function joinableGames() {
+  const out = [];
+  for (const r of rooms.values()) {
+    if (!joinable(r)) continue;
+    const g = r.game.G, t = r.hostSeat % 2, names = humanNames(r);
+    out.push({ code: r.code, host: r.seats[r.hostSeat].name, names, mine: g.scores[t], theirs: g.scores[1 - t], cantons: [g.cantons[t], g.cantons[1 - t]],
+      win: r.game.cantonsToWin, level: r.botLevel, humans: names.length });
+  }
+  // primer les que van més igualades i més al principi
+  return out.sort((a, b) => (a.mine + a.theirs + 24 * (a.cantons[0] + a.cantons[1])) - (b.mine + b.theirs + 24 * (b.cantons[0] + b.cantons[1]))).slice(0, 5);
+}
+// Els noms de qui hi juga, l'amfitrió primer
+function humanNames(r, seats) {
+  return [r.hostSeat, 0, 1, 2, 3].filter((s, i, a) => a.indexOf(s) === i && r.seats[s] && r.seats[s].human && (!seats || seats.includes(s))).map(s => r.seats[s].name);
+}
+const andList = a => a.length < 2 ? (a[0] || '') : a.slice(0, -1).join(', ') + ' i ' + a[a.length - 1];
+// Qui ja no vol esperar (o se'n va a una altra sala): es retira la petició i el seient reservat
+function dropJoinWait(ws) {
+  for (const r of rooms.values()) {
+    if (r.ask && r.ask.ws === ws) { clearTimeout(r.ask.timer); r.sendAll({ t: 'joinAskEnd', ok: false, next: r.ask.next, name: r.ask.name, cancel: true }); r.ask = null; }
+    const j = r.joining.find(x => x.ws === ws);
+    if (j) { r.joining = r.joining.filter(x => x !== j); r.sendAll({ t: 'info', m: `${j.name} ja no entrarà` }); }
+  }
+}
+// Qui arriba seu com a rival de l'amfitrió (persona contra persona); si no hi ha lloc, al costat
+function seatForJoiner(r) {
+  const t = r.hostSeat % 2;
+  for (const s of [0, 1, 2, 3]) if (s % 2 !== t && !r.seats[s].human && !r.joining.some(j => j.seat === s)) return s;
+  for (const s of [0, 1, 2, 3]) if (!r.seats[s].human && !r.joining.some(j => j.seat === s)) return s;
+  return -1;
 }
 
 // ---------- HTTP ----------
@@ -567,7 +673,8 @@ wss.on('connection', (ws, req) => {
     try { handle(ws, m); } catch (e) { console.error('handle', e); }
   });
   ws.on('close', () => {
-    const c = ws.ctx; if (!c || !c.code) return;
+    const c = ws.ctx; if (!c) return;
+    if (!c.code) { dropJoinWait(ws); return; } // esperava per seure a una partida: deixa el lloc
     const room = rooms.get(c.code);
     if (room && room.seats[c.seat] && room.seats[c.seat].ws === ws) {
       room.detach(c.seat, false);
@@ -602,6 +709,7 @@ function restoreRoom(code, d) {
   room.cantons = d.cantons === 1 ? 1 : 2;
   room.chatSeq = Number(d.chatSeq) || 0;
   room.humansAtStart = Number(d.humansAtStart) || 0;
+  room.noJoin = !!d.noJoin; room.noAsk = !!d.noAsk;
   (Array.isArray(d.seats) ? d.seats : []).slice(0, 4).forEach((s, i) => {
     if (!s || typeof s.token !== 'string') return;
     Object.assign(room.seats[i], { human: true, connected: false, ws: null, token: s.token, name: cleanName(s.name, 'Jugador'), look: cleanLook(s.look),
@@ -677,6 +785,7 @@ function handle(ws, m) {
     recent.push(now); ipCreates.set(c.ip, recent);
     const code = newCode();
     if (!code) return err(ws, 'No s\'ha pogut crear la sala');
+    dropJoinWait(ws); // si esperava per seure a una altra partida, ja no
     const room = new Room(code);
     room.ownerIp = c.ip;
     rooms.set(code, room);
@@ -684,6 +793,7 @@ function handle(ws, m) {
     room.hostSeat = 0;
     if (LEVEL_IDS.includes(m.level)) room.botLevel = m.level;
     if (m.cantons === 1 || m.cantons === 2) room.cantons = m.cantons;
+    if (m.guided || m.noJoin) room.noJoin = true; // a la partida guiada no s'hi asseu ningú; i l'amfitrió pot no voler-ho
     if (m.quick) { counters.quick++; room.broadcastRoom(); room.startGame(); }
     else if (m.solo) { room.setSearching(true); room.broadcastRoom(); tryMatch(); }
     else room.broadcastRoom();
@@ -697,13 +807,43 @@ function handle(ws, m) {
     if (room.phase !== 'lobby') return err(ws, 'La partida ja ha començat');
     const seat = room.freeSeat([2, 1, 3, 0]);
     if (seat < 0) return err(ws, 'La sala està plena');
+    dropJoinWait(ws);
     room.attach(seat, ws, c.token, cleanName(m.name, 'Jugador'), cleanLook(m.look), cleanStyle(m, cleanLook(m.look), c.owned));
     room.broadcastRoom();
     // Sala oberta que s'omple: comença sola
     if (room.searching && room.humans() === 4) room.startGame();
     return;
   }
-  if (m.t === 'list') { send(ws, { t: 'list', rooms: openRooms(), online: wss.clients.size }); return; }
+  if (m.t === 'list') { send(ws, { t: 'list', rooms: openRooms(), games: joinableGames(), online: wss.clients.size }); return; }
+  // Demanar seure a una partida contra bots (o reptar l'amfitrió, començant de nou): ho pregunta a l'amfitrió, que té ASK_MS per contestar.
+  // Si ja hi juguen dues persones o més, ho pregunta a totes; si totes diuen que sí, entra quan s'acabi la partida (sense reptes).
+  if (m.t === 'joinAsk') {
+    const r = rooms.get(String(m.code || '').toUpperCase());
+    const mine = ctxRoom(ws);
+    if (mine && (mine.phase !== 'lobby' || mine.humans() > 1)) return err(ws, 'Ja ets en una partida');
+    dropJoinWait(ws);
+    if (!r || r === mine || !joinable(r)) return send(ws, { t: 'joinAnswer', ok: false, why: 'gone' });
+    const seat = seatForJoiner(r);
+    if (seat < 0) return send(ws, { t: 'joinAnswer', ok: false, why: 'gone' });
+    const me = mine ? mine.seats[c.seat] : null;
+    const name = me ? me.name : cleanName(m.name, 'Jugador'), look = me ? me.look : cleanLook(m.look);
+    const style = me ? { hat: me.hat, back: me.back } : cleanStyle(m, look, c.owned);
+    if (mine && mine.searching) { mine.setSearching(false); mine.broadcastRoom(); } // mentre espera la resposta, no s'emparella amb ningú
+    const next = r.seats.filter(x => x.human).length >= 2;
+    const voters = [0, 1, 2, 3].filter(s => r.seats[s].human && r.seats[s].connected);
+    const repte = !!m.repte && !next, who = andList(humanNames(r, voters));
+    r.ask = { ws, name, look, style, seat, repte, next, voters: new Set(voters), who, timer: setTimeout(() => r.answerJoin('timeout'), ASK_MS) };
+    const g = r.game.G;
+    for (const s of voters) {
+      const t = s % 2;
+      r.sendSeat(s, { t: 'joinAsk', name, repte, next, seatName: DEF_NAMES[seat], partner: seat % 2 === t, ms: ASK_MS, mine: g.scores[t], theirs: g.scores[1 - t],
+        cantons: g.cantons[0] + g.cantons[1], others: humanNames(r, voters.filter(o => o !== s)) });
+    }
+    send(ws, { t: 'joinPending', host: who, many: voters.length > 1, repte, next, ms: ASK_MS });
+    stats.inc(repte ? 'accio:repta' : 'accio:demana-seure');
+    return;
+  }
+  if (m.t === 'joinCancel') { dropJoinWait(ws); return; }
   if (m.t === 'login' || m.t === 'auth' || m.t === 'logout' || m.t === 'prefs' || m.t === 'delete') { accountMsg(ws, m); return; }
   if (m.t === 'feedback') { feedbackMsg(ws, m); return; }
   if (m.t === 'shop') { if (shop.visibleTo(c.uid)) send(ws, { t: 'shop', items: shop.catalog(), test: shop.TEST }); return; }
@@ -757,6 +897,13 @@ function handle(ws, m) {
       room.broadcastRoom();
       return;
     }
+    // «Deixar que la gent s'uneixi» (a la partida, si queden seients de bots): ho tria l'amfitrió abans de començar
+    case 'nojoin': {
+      if (room.phase !== 'lobby' || room.hostSeat !== seat || !!m.on === room.noJoin) return;
+      room.noJoin = !!m.on;
+      room.broadcastRoom();
+      return;
+    }
     case 'ready': {
       if (room.phase !== 'lobby') return;
       const x = room.seats[seat];
@@ -783,6 +930,17 @@ function handle(ws, m) {
       room.setSearching(!!m.on);
       room.broadcastRoom();
       if (room.searching) tryMatch();
+      return;
+    }
+    case 'joinReply': {
+      const k = room.ask;
+      if (!k || !['yes', 'restart', 'no', 'never'].includes(m.a)) return;
+      if (!k.next) { if (room.hostSeat === seat) room.answerJoin(m.a); return; }
+      // Uns quants: un «no» ho atura; entra quan tots han dit que sí
+      if (!k.voters.has(seat)) return;
+      if (m.a === 'no' || m.a === 'never') { room.answerJoin(m.a); return; }
+      k.voters.delete(seat);
+      if (!k.voters.size) room.answerJoin('yes');
       return;
     }
     case 'leave': {
@@ -923,6 +1081,7 @@ function awardGame(room, g) {
     if (!x.human || !x.uid) return;
     const team = s % 2, cantons = g.G.cantons[team];
     const r = { won: cantons >= (g.cantonsToWin || 2), cantons, hands: (g.tally && g.tally.hands[team]) || 0, vsBots };
+    if (x.joinedLate && !r.won) return; // ha entrat a una partida començada: si la perd, no li compta
     r.xp = acc.xpForGame(r);
     const before = x.lvl || 1, uid = x.uid;
     acc.store.addGame(uid, r).then(p => {

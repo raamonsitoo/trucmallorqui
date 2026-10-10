@@ -219,6 +219,8 @@ body.immersive .coach{grid-area:actions;align-self:start;margin:0;font-size:.85r
 .oroom{display:flex;align-items:center;justify-content:space-between;gap:8px;border:2px solid var(--line);border-radius:12px;padding:6px 6px 6px 12px}
 .oroom span{font-size:.92rem}
 .oroom small{color:var(--muted)}
+.oroom.ogame{flex-direction:column;align-items:stretch;padding:8px 8px 8px 12px}
+.oroom .obtns{display:flex;flex-wrap:wrap;gap:6px}
 .searchbox{margin-top:12px;border:2px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .searchbox.on{border-color:var(--gold);background:rgba(224,162,31,.12)}
 .searchbox p{margin:0}
@@ -506,7 +508,26 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
 .lobby .oroom{border:1px solid var(--lb-line);background:var(--lb-card2);border-radius:12px}
 .lobby .oroom small{color:var(--lb-muted)}
 .lobby .oroom .btn{background:var(--lb-gold);color:#2b1c00;border:0}
+.lobby .oroom .btn.envit{background:var(--lb-blue);color:#fff}
 .lb-learn{text-align:center}
+/* seure a una partida contra bots: l'oferta per a qui busca, l'avís mentre espera i la pregunta a l'amfitrió */
+.joinoffer{border-top:1px solid var(--lb-line);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+.joinoffer p{margin:0}
+.joinoffer .btn{align-self:flex-start}
+.lb-note{margin:0;padding:12px 14px;border-radius:14px;border:1px solid var(--lb-gold);background:rgba(233,179,28,.12);color:var(--lb-ink);font-size:.95rem}
+.lb-note[hidden]{display:none}
+/* ancorada a dalt: si a baix surten o desapareixen els botons de cantar, la finestra no es mou sota el dit */
+.joinask{position:absolute;left:50%;top:52px;transform:translateX(-50%);z-index:8;max-height:calc(100% - 60px);overflow:auto;width:min(340px,92%);background:rgba(10,24,21,.95);color:#fff;
+  border:2px solid #e9b31c;border-radius:16px;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:10px}
+.joinask[hidden]{display:none}
+.joinask p{margin:0;font-size:.98rem;line-height:1.35}
+.ja-btns{display:flex;flex-direction:column;gap:6px}
+.ja-btns .btn{width:100%;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
+.ja-btns .btn small{font-size:.75rem;font-weight:400;opacity:.85}
+.ja-never{font:inherit;font-size:.8rem;background:none;border:0;color:#b9cdc6;text-decoration:underline;cursor:pointer;align-self:center;padding:2px}
+.ja-bar{height:4px;border-radius:2px;background:rgba(255,255,255,.15);overflow:hidden}
+.ja-bar i{display:block;height:100%;background:#e9b31c;animation:jabar linear forwards}
+@keyframes jabar{from{width:100%}to{width:0}}
 /* nivell dels bots */
 .lb-lvl{background:var(--lb-card);border:1px solid var(--lb-line);border-radius:18px;padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px}
 .lb-lvl[hidden]{display:none}
@@ -567,6 +588,13 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
 .dur-pick button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .dur-pick b{font-size:.95rem}
 .dur-pick small{font-size:.75rem;opacity:.8}
+/* «Deixar que la gent s'uneixi»: casella abans de començar contra bots */
+.join-chk{display:flex;align-items:flex-start;gap:10px;margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;cursor:pointer}
+.join-chk input{width:22px;height:22px;margin:1px 0 0;flex:none;accent-color:var(--gold);cursor:pointer}
+.join-chk span{display:flex;flex-direction:column;gap:2px}
+.join-chk b{font-size:.95rem}
+.join-chk small{color:var(--muted);font-size:.8rem;line-height:1.3}
+.lb-lvl .join-chk{margin-top:0;border:0;padding:2px 0}
 .lb-lvl-opts.dur{grid-template-columns:1fr 1fr}
 /* sala d'espera: «Llest» i xat */
 /* barra fixa de la sala: darrer missatge del xat + «Estic llest» */
@@ -819,6 +847,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
       <button data-zoom="1" aria-label="Apropar o allunyar la vista">Zoom</button>
     </div>
     <div class="trickhud" id="trickhud" aria-label="Cartes de la ronda"></div>
+    <div class="joinask" id="joinAskBox" hidden role="alertdialog" aria-label="Algú vol jugar amb tu"></div>
     <div class="bub bub0" id="bub0" role="status"></div>
     <div class="you nm" id="you">Tu</div>
     <div class="toast" id="toast" role="status"></div>
@@ -888,6 +917,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
     </div>
   </section>
 
+  <p class="lb-note" id="lobbyNote" hidden role="status"></p>
   <div id="lobbyMenu">
     <button class="lb-play" id="btnSolo"><span class="lb-play-ico" aria-hidden="true">▶</span><span><b>Jugar ara</b><small>Et trobam rivals en línia</small></span></button>
     <div class="lb-tiles">
@@ -919,6 +949,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
     <div class="searchbox" id="searchBox"></div>
     <section class="lb-lvl" id="durRoom" aria-label="Durada de la partida"></section>
     <section class="lb-lvl" id="lvlRoom" aria-label="Nivell dels bots"></section>
+    <section class="lb-lvl" id="joinRoom" hidden aria-label="Deixar que la gent s'uneixi"></section>
     <div class="row lb-roomacts"><button class="lb-play sm" id="btnStart"><span class="lb-play-ico" aria-hidden="true">▶</span><span><b>Començar la partida</b><small>Els seients buits els juguen bots</small></span></button><button class="lb-linkbtn" data-ov="ask-leave">Sortir de la sala</button></div>
     <p class="hint" id="waitMsg">Esperant que l'amfitrió comenci la partida…</p>
   </div>
@@ -976,6 +1007,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
   <div class="lb-sheet-card lvl-card">
     <div class="lb-sheet-head"><span class="lvl-ico" aria-hidden="true">🤖</span><div><h2>Contra bots</h2><p>Tria la durada i el nivell. Tots els bots, també el teu company, hi jugaran.</p></div><button class="lb-x" data-lvlsheet="close" aria-label="Tancar">✕</button></div>
     <div class="dur-pick" id="durPick" role="radiogroup" aria-label="Durada de la partida"></div>
+    <div id="lvlJoin"></div>
     <div class="lvl-list" id="lvlList"></div>
   </div>
  </div>
@@ -3021,7 +3053,7 @@ const store={
   hit({t:'v',r:refOf(),b:!!store.get('truc_token')});
 })();
 const Me={seat:-1,code:'',phase:'menu',host:-1,players:[],botLevel:store.get('truc_botlvl')||'normal',roomLevel:'normal',
-  cantons:String(store.get('truc_cantons'))==='2'?2:1,roomCantons:2,online:null,keepWaiting:false,chat:[],muted:new Set(),startsAt:0,name:store.get('truc_name')||'',look:store.get('truc_look')||'palla',hat:store.get('truc_hat')||'',back:store.get('truc_back')||'llenguesBlau',holdGame:false,lastGaze:-2,signCd:0};
+  cantons:String(store.get('truc_cantons'))==='2'?2:1,roomCantons:2,online:null,keepWaiting:false,chat:[],muted:new Set(),startsAt:0,name:store.get('truc_name')||'',look:store.get('truc_look')||'palla',hat:store.get('truc_hat')||'',back:store.get('truc_back')||'llenguesBlau',holdGame:false,lastGaze:-2,signCd:0,allowJoin:store.get('truc_unir')!=='0',roomNoJoin:false};
 // ---------- Compte (entrar amb Google) i nivells ----------
 const GCLIENT='__GCLIENT__'; // el posa el servidor; buit si els comptes no estan activats
 const Acct={profile:null,session:store.get('truc_session')||'',gsi:false,lastPrefs:'',on:false};
@@ -3241,12 +3273,15 @@ function onMsg(m){
     case 'gz':if(Me.seat>=0)applyGaze(m.g);break;
     case 'err':lobbyError(m.m);View.toast(m.m);Shop.onErr(m.m);break;
     case 'shop':case 'buy':case 'bought':Shop.onMsg(m);break;
-    case 'info':lobbyError(m.m);break;
+    case 'info':lobbyError(m.m);if(Me.phase==='playing')View.toast(m.m,2800);break;
     case 'chat':onChat(m.m);break;
     case 'chatno':chatNote(m.m);break;
-    case 'list':renderOpenRooms(m.rooms);
-      if(typeof m.online==='number'){Me.online=m.online;if(Me.code&&Me.searching&&Me.phase==='lobby')renderSearch();}
+    case 'list':Me.games=Array.isArray(m.games)?m.games:[];Me.rooms=m.rooms;renderOpenRooms(m.rooms);
+      if(typeof m.online==='number')Me.online=m.online;
+      if(Me.code&&Me.searching&&Me.phase==='lobby')renderSearch();
       break;
+    // Seure a una partida contra bots (vegeu Join)
+    case 'joinPending':case 'joinAnswer':case 'joinAsk':case 'joinAskEnd':case 'joinWait':Join.onMsg(m);break;
     case 'left':resetToMenu('');break;
     case 'login':Acct.session=m.session;store.set('truc_session',m.session);acctProfile(m.profile,true);
       View.toast(`Has entrat! Nivell ${m.profile.level} · ${m.profile.title}`,2600);break;
@@ -3267,7 +3302,8 @@ function resetToMenu(msg){
 
 // ---------- Sala ----------
 function onRoom(m){
-  Me.code=m.code;Me.phase=m.phase;Me.host=m.host;Me.seat=m.you;Me.players=m.seats;Me.roomLevel=m.botLevel||'normal';Me.roomCantons=m.cantons||2;
+  if(Join.wait&&m.code){Join.wait=null;Join.note('');} // ja som a la partida on volíem seure
+  Me.code=m.code;Me.phase=m.phase;Me.host=m.host;Me.seat=m.you;Me.players=m.seats;Me.roomLevel=m.botLevel||'normal';Me.roomCantons=m.cantons||2;Me.roomNoJoin=!!m.noJoin;
   if(Array.isArray(m.chat))Me.chat=m.chat.slice(-30);
   Me.startsAt=m.startsIn?Date.now()+m.startsIn:0;
   if(m.phase==='lobby'&&Me.rematch){Me.rematch=false;Net.send({t:'start'});}
@@ -3347,6 +3383,7 @@ const LvlSheet={onPick:null,
   open(onPick){
     this.onPick=onPick;
     $('#durPick').innerHTML=durBtns(Me.cantons,true);
+    $('#lvlJoin').innerHTML=joinChk(Me.allowJoin);
     $('#lvlList').innerHTML=BOT_LEVELS.map(([id,n],i)=>`<button type="button" class="lvl-opt${id===Me.botLevel?' on':''}" data-lvl="${id}"><i aria-hidden="true">${'●'.repeat(i+1)}${'○'.repeat(3-i)}</i><span><b>${n}</b><small>${LVL_DESC[id]}</small></span><em>Jugar ▶</em></button>`).join('');
     $('#lvlSheet').hidden=false;
     const on=$('#lvlList .on');if(on)on.focus();
@@ -3363,7 +3400,19 @@ function renderLevels(){
   const bots=Me.players.some(x=>!x.human);
   r.hidden=!bots;
   if(bots)r.innerHTML=lvlHTML(Me.roomLevel||'normal',Me.host===Me.seat,Me.host===Me.seat?'':"el tria l'amfitrió");
+  // la casella només la veu l'amfitrió, i només si hi haurà bots (si no, no hi ha lloc per a ningú més)
+  const j=$('#joinRoom');if(!j)return;
+  const show=bots&&Me.host===Me.seat;j.hidden=!show;
+  const h=show?joinChk(!Me.roomNoJoin):'';
+  if(j._h!==h){j.innerHTML=h;j._h=h;} // si no canvia no es torna a pintar (així no es perd el toc)
 }
+// «Deixar que la gent s'uneixi»: si algú vol seure a la partida (als seients dels bots), s'ho pregunta a l'amfitrió
+const joinChk=on=>`<label class="join-chk"><input type="checkbox" data-allowjoin${on?' checked':''}><span><b>Deixar que la gent s'uneixi</b><small>Si algú vol entrar a la partida, t'ho preguntarem abans.</small></span></label>`;
+document.addEventListener('change',e=>{
+  const c=e.target.closest('[data-allowjoin]');if(!c)return;
+  Me.allowJoin=c.checked;store.set('truc_unir',c.checked?'1':'0');
+  if(Me.code&&Me.phase==='lobby'&&Me.host===Me.seat){Me.roomNoJoin=!c.checked;Net.send({t:'nojoin',on:!c.checked});}
+});
 function renderLobby(){
   const inRoom=!!Me.code;
   $('#lobbyMenu').hidden=inRoom;
@@ -3496,6 +3545,11 @@ function renderSearch(){
   el.classList.toggle('on',!!Me.searching);
   if(full){el.hidden=true;return;}
   el.hidden=false;
+  if(!Me.searching&&Join.pending){ // ha demanat seure a la partida d'algú: mentre espera la resposta no se cerca
+    const h=`<p><span class="spin" aria-hidden="true"></span>${Join.waitText()} ${Join.pending.many?'Tenen':'Té'} 20 segons per contestar.</p>`;
+    if(el._h!==h){el.innerHTML=h;el._h=h;}
+    return;
+  }
   if(!Me.searching){
     el.innerHTML=host
       ?`<p><b>Voleu jugar contra persones?</b> Cercau rivals i la sala sortirà a la llista de sales obertes.</p><div class="row"><button class="btn envit" data-search="on">Buscar rivals</button></div>`
@@ -3514,6 +3568,12 @@ function renderSearch(){
     h+=late?`<div class="row"><button class="btn ghost" data-search="on">Seguir esperant</button><button class="btn ok" data-search="bots">Jugar contra bots</button></div>`
            :`<div class="row"><button class="btn ghost sm" data-search="off">Cancel·lar la cerca</button></div>`;
   }else if(late)h+=`<p class="hint">L'amfitrió decideix si seguir esperant o jugar amb bots.</p>`;
+  // Algú juga contra bots: se li pot demanar entrar o reptar-lo (tot sol a la sala)
+  const g=(Me.games||[])[0];
+  if(host&&Me.players.filter(x=>x.human).length===1&&(g||Join.pending))
+    h+=Join.pending?`<div class="joinoffer"><p><span class="spin" aria-hidden="true"></span>${Join.waitText()}</p></div>`
+      :`<div class="joinoffer"><p>🃏 ${g.humans>1?`<b>${esc(Join.who(g))}</b> juguen amb bots: ${Join.score(g)}. Si tots hi estan d'acord, entraràs a la partida següent.`
+        :`<b>${esc(g.host)}</b> juga contra bots: ${Join.score(g)}.`}</p><div class="row">${Join.buttons(g,'')}</div></div>`;
   // només es torna a pintar si canvia (així els botons no desapareixen mentre els toques)
   if(el._h!==h){el.innerHTML=h;el._h=h;}
   const st=$('#searchT');if(st)st.textContent=fmtSecs(secs);
@@ -3528,9 +3588,96 @@ setInterval(()=>{
 },1000);
 function renderOpenRooms(list){
   const el=$('#openRooms');if(!el)return;
-  if(!list||!list.length){el.innerHTML='<p class="hint">Ara mateix no hi ha cap sala oberta. Pitja «Jugar ara» i la teva sala sortirà aquí perquè s\'hi afegeixin altres jugadors.</p>';return;}
-  el.innerHTML=list.map(r=>{const f=4-r.humans;return `<div class="oroom"><span>Sala de <b>${esc(r.host)}</b> <small>· ${r.humans} ${r.humans===1?'jugador':'jugadors'}, ${f===1?'falta 1':'falten '+f}</small></span><button class="btn sm ok" data-joincode="${esc(r.code)}">Entrar</button></div>`;}).join('');
+  if(!list)list=Me.rooms;
+  const games=Me.games||[];
+  // només es torna a pintar si canvia (si no, un toc a «Entrar» es podria perdre en refrescar la llista)
+  const set=h=>{if(el._h!==h){el.innerHTML=h;el._h=h;}};
+  if((!list||!list.length)&&!games.length){set('<p class="hint">Ara mateix no hi ha cap sala oberta. Pitja «Jugar ara» i la teva sala sortirà aquí perquè s\'hi afegeixin altres jugadors.</p>');return;}
+  set((list||[]).map(r=>{const f=4-r.humans;return `<div class="oroom"><span>Sala de <b>${esc(r.host)}</b> <small>· ${r.humans} ${r.humans===1?'jugador':'jugadors'}, ${f===1?'falta 1':'falten '+f}</small></span><button class="btn sm ok" data-joincode="${esc(r.code)}">Entrar</button></div>`;}).join('')
+    +games.map(g=>`<div class="oroom${Join.pending||Join.wait?'':' ogame'}"><span>Partida de <b>${esc(Join.who(g))}</b> <small>· ${g.humans>1?`${g.humans} persones i ${4-g.humans} ${4-g.humans===1?'bot':'bots'}`:'contra bots'} · ${Join.score(g)}${g.humans>1?' · entraries a la partida següent':''}</small></span>${Join.pending||Join.wait?'':`<span class="obtns">${Join.buttons(g,' sm')}</span>`}</div>`).join(''));
 }
+// ---------- Seure a una partida contra bots ----------
+// Qui busca partida pot demanar entrar a la d'algú que juga contra bots, o reptar-lo (començant de nou).
+// Sempre ho decideix l'amfitrió: «Sí, que entri» (s'asseu a la mà següent, amb el marcador que hi hagi),
+// «Sí, i començam de nou» o «No». Si és un repte: «Accepto el repte» o «No».
+// Si ja hi juguen dues persones o més, ho han de voler totes i entra quan acaba la partida (sense reptes ni començar de nou).
+const andList=a=>a.length<2?(a[0]||''):a.slice(0,-1).join(', ')+' i '+a[a.length-1];
+const Join={pending:null,wait:null,ask:null,
+  score(g){return `va ${g.mine} a ${g.theirs}${g.win===2&&(g.cantons[0]||g.cantons[1])?` (cantons ${g.cantons[0]}-${g.cantons[1]})`:''}, partida ${g.win===1?'ràpida':'llarga'}`;},
+  who(g){return g.names&&g.names.length?andList(g.names):g.host;},
+  // «Reptar» només si hi juga una sola persona i la partida ja ha començat a sumar (a 0 a 0 és el mateix que entrar)
+  buttons(g,sm){return `<button class="btn${sm} ok" data-joinask="${esc(g.code)}">Demanar entrar</button>`
+    +(g.humans<2&&(g.mine||g.theirs||g.cantons[0]||g.cantons[1])?`<button class="btn${sm} envit" data-joinask="${esc(g.code)}" data-repte="1">Reptar ${esc(g.host)}</button>`:'');},
+  waitText(){const p=this.pending;return p.repte?`Esperant que <b>${esc(p.host)}</b> accepti el repte…`:`Demanant-ho a <b>${esc(p.host)}</b>…`;},
+  request(code,repte){
+    const g=(Me.games||[]).find(x=>x.code===code),many=!!(g&&g.humans>1);
+    const p=readProfile();Net.send(Object.assign({t:'joinAsk',code,repte:!!repte&&!many},p));
+    this.pending={code,host:g?this.who(g):'',repte:!!repte&&!many,many};this.pendingNote();renderSearch();renderOpenRooms(null);
+  },
+  note(t){const n=$('#lobbyNote');if(!n)return;n.hidden=!t;n.innerHTML=t||'';},
+  // Fora de sala (des de la llista del menú) la cerca no es veu: l'avís surt a dalt
+  pendingNote(){const p=this.pending;if(p&&!Me.code)this.note(`<span class="spin" aria-hidden="true"></span>${this.waitText()} ${p.many?'Tenen':'Té'} 20 segons per contestar.`);},
+  // Esperant que s'acabi la partida dels altres: com va, i es pot deixar d'esperar
+  waitNote(){const w=this.wait;if(!w)return;
+    this.note(`<span class="spin" aria-hidden="true"></span><b>${esc(w.host)} ${w.many?'diuen':'diu'} que sí!</b> Entraràs a la sala quan acabi aquesta partida${w.mine!=null?` (van ${w.mine} a ${w.theirs})`:''}. <button class="lb-linkbtn inl" data-joincancel>Cancel·lar</button>`);},
+  onMsg(m){
+    if(m.t==='joinPending'){if(this.pending){this.pending.host=m.host;this.pending.many=!!m.many;this.pendingNote();}renderSearch();return;}
+    if(m.t==='joinAnswer'){
+      const p=this.pending||{},host=p.host||m.host||'',many=!!(m.many||p.many);this.pending=null;
+      if(m.ok){
+        // la meva sala (si en tenia) ja no hi és: espero a la partida dels altres
+        if(Me.code&&Me.phase==='lobby')resetToMenu('');
+        Me.rooms=[];Me.games=[]; // la llista d'abans ja no val (s'actualitza sola)
+        this.wait={host,many,next:!!m.next,mine:m.mine,theirs:m.theirs};
+        if(m.next)this.waitNote();
+        else this.note(`<span class="spin" aria-hidden="true"></span><b>${esc(host)} ${p.repte?'accepta el repte':'diu que sí'}!</b> ${m.restart?'Començareu una partida nova':'Entraràs a la seva partida'} quan comenci la mà següent…`);
+      }else{
+        const t=m.why==='timeout'?(many?'No han contestat tots a temps.':`${host} no ha contestat.`)
+          :m.why==='no'?(many?'Aquesta vegada no pot ser: prefereixen seguir com estan.':`${host} prefereix jugar sol.`):'Aquesta partida ja no està disponible.';
+        this.wait=null;this.note('');
+        lobbyError(t);
+        if(Me.code&&Me.host===Me.seat&&Me.phase==='lobby')Net.send({t:'search',on:true}); // seguim cercant
+      }
+      renderSearch();renderOpenRooms(null);return;
+    }
+    if(m.t==='joinWait'){if(this.wait&&this.wait.next){this.wait.mine=m.mine;this.wait.theirs=m.theirs;this.waitNote();}return;}
+    if(m.t==='joinAskEnd'){ // la pregunta s'ha acabat (han contestat tots, algú ha dit que no o qui ho demanava ja no vol)
+      const el=$('#joinAskBox'),open=el&&!el.hidden,mine=this.ask&&this.ask.name===m.name;
+      if(el)el.hidden=true;clearTimeout(this.askT);
+      if(m.cancel){if(open)View.toast(`${m.name} ja no vol entrar`,2200);}
+      else if(m.next&&mine)View.toast(m.ok?`${m.name} entrarà quan acabi la partida`:`${m.name} no entrarà`,2600);
+      this.ask=null;return;
+    }
+    if(m.t==='joinAsk')this.showAsk(m);
+  },
+  // Qui juga: algú vol seure a la partida
+  showAsk(m){
+    const el=$('#joinAskBox');if(!el)return;
+    clearTimeout(this.askT);this.ask=m;
+    el.innerHTML=(m.next
+      ?`<p><b>${esc(m.name)}</b> vol jugar amb vosaltres${m.partner?', com a company teu':''}. Entraria quan acabi aquesta partida, al lloc de ${esc(m.seatName)}.${m.others&&m.others.length?` També ho ha de voler ${esc(andList(m.others))}.`:''}</p>`
+        +`<div class="ja-btns"><button class="btn ok" data-joinreply="yes">Sí, que entri</button><button class="btn ghost" data-joinreply="no">No, seguim així</button></div>`
+      :m.repte
+      ?`<p><b>${esc(m.name)}</b> ${m.partner?'vol fer equip amb tu':'et repta'}! Vol començar la partida de nou${m.mine||m.theirs?` (ara anau ${m.mine} a ${m.theirs})`:''}. S'asseuria al lloc de ${esc(m.seatName)}.</p>`
+        +`<div class="ja-btns"><button class="btn ok" data-joinreply="restart">${m.partner?'Som-hi, començam de nou':'Accepto el repte'}</button><button class="btn ghost" data-joinreply="no">No, vull jugar sol</button></div>`
+      :`<p><b>${esc(m.name)}</b> vol jugar amb tu${m.partner?', com a company teu':''}. S'asseuria al lloc de ${esc(m.seatName)}.</p>`
+        +`<div class="ja-btns"><button class="btn ok" data-joinreply="yes">Sí, que entri <small>seguim ${m.mine} a ${m.theirs}</small></button>`
+        +(m.mine||m.theirs||m.cantons?`<button class="btn envit" data-joinreply="restart">Sí, i començam de nou</button>`:'')+`<button class="btn ghost" data-joinreply="no">No, vull jugar sol</button></div>`)
+      +`<button class="ja-never" data-joinreply="never">No em tornis a preguntar</button><div class="ja-bar"><i style="animation-duration:${m.ms||20000}ms"></i></div>`;
+    el.hidden=false;this.shownAt=Date.now();
+    this.askT=setTimeout(()=>{el.hidden=true;},(m.ms||20000)+300);
+  },
+  reply(a){Net.send({t:'joinReply',a});clearTimeout(this.askT);$('#joinAskBox').hidden=true;
+    const m=this.ask||{};
+    if(m.next){if(a==='yes'&&m.others&&m.others.length)View.toast(`Falta que ho vulgui ${andList(m.others)}`,2600);return;} // el resultat arriba amb joinAskEnd
+    if(a==='yes'||a==='restart')View.toast(a==='yes'?"Entrarà a la mà següent":"A la mà següent començau una partida nova",2600);}
+};
+document.addEventListener('click',e=>{
+  const a=e.target.closest('[data-joinask]');if(a){Join.request(a.dataset.joinask,a.dataset.repte==='1');return;}
+  // la pregunta surt de cop: un toc dins el primer mig segon era per a una carta, no per contestar
+  const r=e.target.closest('[data-joinreply]');if(r){if(Date.now()-(Join.shownAt||0)>600)Join.reply(r.dataset.joinreply);return;}
+  if(e.target.closest('[data-joincancel]')){Net.send({t:'joinCancel'});Join.wait=null;Join.note('');renderSearch();renderOpenRooms(null);}
+});
 // Fora de sala: llista de sales obertes. Dins una sala que cerca rivals: quanta gent hi ha connectada.
 function pollRooms(){if(!$('#lobby').hidden&&(!Me.code||(Me.searching&&Me.phase==='lobby')))Net.send({t:'list'});}
 setInterval(pollRooms,4000);
@@ -3577,8 +3724,8 @@ function setupLobby(){
     if(Me.code){const p=readProfile();Net.send(Object.assign({t:'profile'},p));}
   }));
   $('#nameIn').addEventListener('change',()=>{if(Me.code){const p=readProfile();Net.send(Object.assign({t:'profile'},p));}});
-  $('#btnCreate').addEventListener('click',()=>{lobbyError('');track('sala-creada');const p=readProfile();Net.send(Object.assign({t:'create',level:Me.botLevel,cantons:Me.cantons},p));});
-  $('#btnQuick').addEventListener('click',()=>{lobbyError('');LvlSheet.open(lvl=>{track('partida-bots-'+lvl);const p=readProfile();Net.send(Object.assign({t:'create',quick:true,level:lvl,cantons:Me.cantons},p));});});
+  $('#btnCreate').addEventListener('click',()=>{lobbyError('');track('sala-creada');const p=readProfile();Net.send(Object.assign({t:'create',level:Me.botLevel,cantons:Me.cantons,noJoin:!Me.allowJoin},p));});
+  $('#btnQuick').addEventListener('click',()=>{lobbyError('');LvlSheet.open(lvl=>{track('partida-bots-'+lvl);const p=readProfile();Net.send(Object.assign({t:'create',quick:true,level:lvl,cantons:Me.cantons,noJoin:!Me.allowJoin},p));});});
   $('#lvlSheet').addEventListener('click',e=>{
     if(e.target.id==='lvlSheet'||e.target.closest('[data-lvlsheet="close"]'))return LvlSheet.close();
     const d=e.target.closest('[data-dur]');
@@ -3607,13 +3754,13 @@ function setupLobby(){
     Net.send(Object.assign({t:'join',code},p));
   });
   $('#btnStart').addEventListener('click',()=>Net.send({t:'start'}));
-  $('#btnLearn').addEventListener('click',()=>{lobbyError('');track('tutorial');const p=readProfile();Coach.start();Net.send(Object.assign({t:'create',quick:true,level:'facil',cantons:1},p));});
+  $('#btnLearn').addEventListener('click',()=>{lobbyError('');track('tutorial');const p=readProfile();Coach.start();Net.send(Object.assign({t:'create',quick:true,level:'facil',cantons:1,guided:true},p));});
   if(store.get('truc_tuto'))$('#learnBox').classList.add('done');
-  $('#btnSolo').addEventListener('click',()=>{lobbyError('');track('jugar-desconeguts');const p=readProfile();Net.send(Object.assign({t:'create',solo:true,level:Me.botLevel,cantons:Me.cantons},p));});
+  $('#btnSolo').addEventListener('click',()=>{lobbyError('');track('jugar-desconeguts');const p=readProfile();Net.send(Object.assign({t:'create',solo:true,level:Me.botLevel,cantons:Me.cantons,noJoin:!Me.allowJoin},p));});
   $('#searchBox').addEventListener('click',e=>{
     const b=e.target.closest('[data-search]');if(!b)return;
     const a=b.dataset.search;
-    if(a==='bots')LvlSheet.open(lvl=>{Net.send({t:'botlevel',level:lvl});Net.send({t:'cantons',n:Me.cantons});Net.send({t:'start'});});
+    if(a==='bots')LvlSheet.open(lvl=>{Net.send({t:'botlevel',level:lvl});Net.send({t:'cantons',n:Me.cantons});Net.send({t:'nojoin',on:!Me.allowJoin});Net.send({t:'start'});});
     else{if(a==='on')Me.keepWaiting=!!Me.searching;Net.send({t:'search',on:a==='on'});}
   });
   // «Llest» i xat
@@ -3650,7 +3797,7 @@ function setupLobby(){
   if(nv&&BOT_LEVELS.some(x=>x[0]===nv)){
     Me.botLevel=nv;store.set('truc_botlvl',nv);track('repte-obert');
     qs.delete('nivell');history.replaceState(null,'',location.pathname+(qs.toString()?'?'+qs:'')+location.hash);
-    setTimeout(()=>{if(!Me.code)LvlSheet.open(lvl=>{track('partida-bots-'+lvl);const p=readProfile();Net.send(Object.assign({t:'create',quick:true,level:lvl,cantons:Me.cantons},p));});},700);
+    setTimeout(()=>{if(!Me.code)LvlSheet.open(lvl=>{track('partida-bots-'+lvl);const p=readProfile();Net.send(Object.assign({t:'create',quick:true,level:lvl,cantons:Me.cantons,noJoin:!Me.allowJoin},p));});},700);
   }
 }
 // En acabar la partida: compartir el resultat (al mòbil, el menú de compartir; a l'ordinador, WhatsApp)

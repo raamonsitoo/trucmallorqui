@@ -443,6 +443,97 @@ function scenario17(){
   assert(!sent.slice(before).some(e=>e.e==='ask'),'si ja no el pot cantar, no se li demana');
   console.log('17) «Demana truc» i truc segur del difícil i el mestre (amb una carta que ja no pot perdre)');
 }
+// Seure a una partida contra bots: sempre ho decideix l'amfitrió (sí, començam de nou, no, no em tornis a preguntar)
+async function scenario18(){
+  for(const r of Array.from(rooms.values()))if(r.humans()===0)r.destroy();
+  const got=(x,t)=>(x.msgs||[]).filter(m=>m.t===t);
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  const newGame=async name=>{const h=new Bot(name);await h.connect();h.send({t:'create',name,look:'palla',quick:true,cantons:2});
+    assert(await h.until(()=>h.snap&&h.snap.h&&h.snap.h.dealt,8000));return h;};
+  // Algú demana seure; cada un dels que hi juguen (voters) contesta el que li toca (answers)
+  const ask=async(code,voters,name,answers,repte)=>{
+    const x=new Bot(name);await x.connect();
+    x.send({t:'list'});await x.until(()=>got(x,'list').length,3000);
+    assert(got(x,'list')[0].games.some(g=>g.code===code),'la partida contra bots surt a la llista');
+    const ns=voters.map(v=>got(v,'joinAsk').length);
+    x.send({t:'joinAsk',code,name,look:'mocador',repte});
+    for(const [i,v] of voters.entries()){
+      assert(await v.until(()=>got(v,'joinAsk').length>ns[i],3000),`${v.name} rep la pregunta`);
+      assert.equal(got(v,'joinAsk')[ns[i]].name,name);
+    }
+    assert(await x.until(()=>got(x,'joinPending').length,3000));
+    for(const [i,v] of voters.entries())if(answers[i]){v.send({t:'joinReply',a:answers[i]});await wait(40);}
+    assert(await x.until(()=>got(x,'joinAnswer').length,3000),'qui ho demana rep la resposta');
+    return {x,asks:voters.map((v,i)=>got(v,'joinAsk')[ns[i]]),pending:got(x,'joinPending')[0],answer:got(x,'joinAnswer')[0]};
+  };
+  // A) Una sola persona contra bots: reptes
+  const ro=await newGame('Rosa');
+  const p=await ask(ro.room.code,[ro],'Pere',['no'],true);
+  assert(p.asks[0].repte&&p.pending.repte&&!p.asks[0].next,"l'amfitrió sap que és un repte");
+  assert(!p.answer.ok&&p.answer.why==='no','repte rebutjat');
+  assert(await ro.until(()=>ro.snap.g.scores[0]+ro.snap.g.scores[1]>0,30000),'la partida ja suma');
+  const before=ro.snap.g;
+  const ai=await ask(ro.room.code,[ro],'Aina',['yes'],true);
+  assert(ai.answer.ok&&ai.answer.restart,'un repte sempre comença de nou (encara que contesti «sí»)');
+  assert(await ai.x.until(()=>ai.x.room&&ai.x.room.code===ro.room.code&&ai.x.firstSnap,30000),'entra a la partida nova');
+  assert.deepEqual(ai.x.firstSnap.g.scores,[0,0],'la partida nova comença 0 a 0');
+  assert.deepEqual(ai.x.firstSnap.g.cantons,[0,0]);
+  for(const x of [ro,p.x,ai.x])try{x.ws.close();}catch(_){}
+  await wait(300);
+  for(const r of Array.from(rooms.values()))if(r.humans()===0)r.destroy();
+  // B) «Sí, que entri»: s'asseu a la mà següent, com a rival, i la partida continua
+  const j=await newGame('Joan');
+  const code=j.room.code,host=j.room.you;
+  const ma=await ask(code,[j],'Marta',['yes']);const m=ma.x;
+  assert(ma.answer.ok&&!ma.answer.next,'sí');
+  assert(await m.until(()=>m.room&&m.room.code===code&&m.snap&&m.snap.h&&m.snap.h.dealt,30000),'entra a la partida a la mà següent');
+  assert.notEqual(m.room.you%2,host%2,'seu com a rival de l\'amfitrió');
+  assert(j.room.seats[m.room.you].human,"l'amfitrió la veu asseguda");
+  // C) Ja hi juguen dues persones: es pregunta a totes dues, sense reptes, i un «no» basta
+  const qu=await ask(code,[j,m],'Quim',['yes','no'],true);
+  assert(qu.asks.every(a=>a.next&&!a.repte),'totes dues reben la pregunta, i no és un repte');
+  assert.deepEqual(qu.asks[0].others,['Marta']);
+  assert(qu.pending.many&&qu.pending.next&&qu.pending.host==='Joan i Marta');
+  assert(!qu.answer.ok&&qu.answer.why==='no'&&qu.answer.many,'un «no» basta');
+  assert(await j.until(()=>got(j,'joinAskEnd').some(e=>e.name==='Quim'&&!e.ok),3000),'a qui havia dit que sí se li tanca la pregunta');
+  // D) Totes dues diuen que sí: entra quan acaba la partida (no a la mà següent)
+  const a=(await ask(code,[j,m],'Aina',['yes','yes'])).x;
+  assert(got(a,'joinAnswer')[0].ok&&got(a,'joinAnswer')[0].next&&!got(a,'joinAnswer')[0].restart);
+  await a.until(()=>got(a,'joinWait').length||a.room,60000);
+  if(got(a,'joinWait').length&&!a.room)assert(!rooms.get(code).seats.some(s=>s.human&&s.name==='Aina'),'a la mà següent encara no seu');
+  assert(await j.until(()=>j.room&&j.room.phase==='lobby',150000),'la partida acaba');
+  assert(await a.until(()=>a.room&&a.room.code===code,3000),'en acabar la partida, seu a la sala');
+  assert.equal(j.room.seats.filter(s=>s.human).length,3,'ja són tres persones');
+  // E) «No em tornis a preguntar» (amb tres persones, qualsevol ho pot dir): la partida ja no s'ofereix
+  j.send({t:'start'});
+  assert(await j.until(()=>j.room.phase==='playing'&&j.snap&&j.snap.h&&j.snap.h.dealt,8000));
+  await wait(100);
+  const b=await ask(code,[j,m,a],'Biel',['never']);
+  assert(!b.answer.ok);
+  b.x.send({t:'list'});await b.x.until(()=>got(b.x,'list').length>=2,3000);
+  assert(!got(b.x,'list')[1].games.some(g=>g.code===code),"després de «no em tornis a preguntar», ja no surt");
+  for(const x of [j,m,qu.x,a,b.x])try{x.ws.close();}catch(_){}
+  // 5) Casella «Deixar que la gent s'uneixi» desmarcada: la partida no s'ofereix (també si es tria a la sala abans de començar)
+  await new Promise(r=>setTimeout(r,300));
+  for(const r of Array.from(rooms.values()))if(r.humans()===0)r.destroy();
+  const s=new Bot('Sola');await s.connect();
+  s.send({t:'create',name:'Sola',look:'palla',quick:true,cantons:2,noJoin:true});
+  assert(await s.until(()=>s.snap&&s.snap.h&&s.snap.h.dealt,8000));
+  const l=new Bot('Lola');await l.connect();
+  l.send({t:'create',name:'Lola',look:'mocador',cantons:2,noJoin:true});
+  assert(await l.until(()=>l.room&&l.room.noJoin===true,3000),'la sala sap que no vol gent');
+  l.send({t:'nojoin',on:false});
+  assert(await l.until(()=>l.room&&l.room.noJoin===false,3000),"l'amfitrió torna a marcar la casella");
+  l.send({t:'start'});
+  assert(await l.until(()=>l.snap&&l.snap.h&&l.snap.h.dealt,8000));
+  const q=new Bot('Quim');await q.connect();
+  q.send({t:'list'});await q.until(()=>got(q,'list').length,3000);
+  const gs=got(q,'list')[0].games;
+  assert(!gs.some(g=>g.code===s.room.code),'sense la casella, no surt a la llista');
+  assert(gs.some(g=>g.code===l.room.code),'amb la casella, sí');
+  console.log(`18) seure a una partida contra bots: repte rebutjat i acceptat (${before.scores.join('-')} → 0-0), sí (com a rival), amb dues persones (un «no» basta; si diuen que sí, a la partida següent), no tornar a preguntar i «Deixar que la gent s'uneixi»`);
+  for(const x of [s,l,q])try{x.ws.close();}catch(_){}
+}
 // Actualitzacions sense tallar partides, amb servidors de veres (processos a part, com a Render):
 // el vell passa la sala al nou i la partida continua amb el mateix marcador; i si un servidor s'atura de cop,
 // el següent recupera la partida quan el vell ja no la renova
@@ -503,7 +594,7 @@ async function scenario16(){
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();scenario11();scenario17();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario16();await scenario12();
+    scenario5();scenario11();scenario17();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario18();await scenario16();await scenario12();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });
