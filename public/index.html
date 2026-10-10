@@ -38,15 +38,17 @@
   --serif:'Young Serif',Georgia,'Times New Roman',serif;
   --sans:'Atkinson Hyperlegible',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   box-sizing:border-box;
-  padding-top:env(safe-area-inset-top,0px);
-  padding-bottom:env(safe-area-inset-bottom,0px);
+  /* marges de la pantalla (l'hora i la barreta de baix de l'iPhone quan el joc s'obre des de la icona de l'inici) */
+  --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);
+  padding-top:var(--sat);
+  padding-bottom:var(--sab);
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){--bg:#0a1b1d;--ink:#e2eeea;--muted:#8fb0aa;--panel:#112629;--line:#24444a;}
 }
 :root[data-theme="dark"]{--bg:#0a1b1d;--ink:#e2eeea;--muted:#8fb0aa;--panel:#112629;--line:#24444a;}
 *,*::before,*::after{box-sizing:inherit}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html{scroll-padding-top:var(--sat)}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.45}
 button{font:inherit}
 
@@ -372,7 +374,10 @@ body.phone #btnFs,body.phone #btnFs2{display:none!important}
 .rotate span{color:#8fb0aa;font-size:.95rem}
 /* mòbil vertical: taula a dalt i botons a davall; parlar i senyes s'obren amb els botons de davall de la taula */
 @media (orientation:portrait) and (max-width:760px){
-  body.immersive .app{max-width:none;margin:0;height:100vh;height:100dvh;padding:6px;display:grid;gap:6px;
+  /* la pantalla menys els marges de dalt i de baix (si no, els botons de cantar quedaven per davall i no s'hi podia arribar);
+     i, si mai res no hi cap, es pot fer córrer en lloc de quedar tallat */
+  body.immersive .app{max-width:none;margin:0;height:calc(100vh - var(--sat) - var(--sab));height:calc(100dvh - var(--sat) - var(--sab));
+    overflow-y:auto;overscroll-behavior:contain;padding:6px;display:grid;gap:6px;
     grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto auto;grid-template-areas:"top" "score" "stage" "mtools" "actions"}
   body.immersive .mtools{grid-area:mtools;display:flex;gap:6px}
   body.immersive .mtools .btn{flex:1;min-height:38px}
