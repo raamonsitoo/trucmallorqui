@@ -1689,13 +1689,14 @@ function svgImage(svg,w,h){
 }
 
 // ---------- Senyes ----------
+// L'ordre és el dels botons: les d'esquerra van abans que les de dreta perquè, a la graella, cada una quedi al seu costat
 const SIGNS={
   amo:{short:'Celles',sub:'amo',tw:"celles amunt",gesture:"Pujar les celles",card:"Amo (11 de bastos)",power:3,dur:1.1},
   madona:{short:'Un ull',sub:'madona',tw:"guinya un ull",gesture:"Guinyar un ull",card:"Madona (10 d'oros)",power:3,dur:1.0},
-  asE:{short:'Llengua dreta',sub:"as d'espases",tw:"llengua a la seva dreta",gesture:"Treure la llengua cap a la seva dreta",card:"As d'espases",power:3,dur:1.3},
   asB:{short:'Llengua esq.',sub:'as de bastos',tw:"llengua a la seva esquerra",gesture:"Treure la llengua cap a la seva esquerra",card:"As de bastos",power:3,dur:1.3},
-  sieteE:{short:'Llavi dret',sub:"7 d'espases",tw:"llavi a la seva dreta",gesture:"Moure el llavi cap a la seva dreta",card:"7 d'espases",power:3,dur:1.3},
-  sieteO:{short:'Llavi esquerre',sub:"7 d'oros",tw:"llavi a la seva esquerra",gesture:"Moure el llavi cap a la seva esquerra",card:"7 d'oros",power:3,dur:1.3},
+  asE:{short:'Llengua dreta',sub:"as d'espases",tw:"llengua a la seva dreta",gesture:"Treure la llengua cap a la seva dreta",card:"As d'espases",power:3,dur:1.3},
+  sieteO:{short:'Manilla esquerra',sub:"7 d'oros",tw:"llavi a la seva esquerra",gesture:"Moure el llavi cap a la seva esquerra",card:"7 d'oros",power:3,dur:1.3},
+  sieteE:{short:'Manilla dreta',sub:"7 d'espases",tw:"llavi a la seva dreta",gesture:"Moure el llavi cap a la seva dreta",card:"7 d'espases",power:3,dur:1.3},
   tres:{short:'Mossegar llavi',sub:'un 3',tw:"es mossega el llavi",gesture:"Mossegar-se el llavi",card:"Un 3 (qualsevol)",power:2,dur:1.4},
   buit:{short:'Dos ulls',sub:'vaig buit',tw:"guinya els dos ulls",gesture:"Guinyar els dos ulls",card:"Va buit (cap carta bona)",power:0,dur:1.1}
 };
