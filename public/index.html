@@ -3134,7 +3134,7 @@ const owns=g=>!!(Acct.profile&&Acct.profile.owned&&Acct.profile.owned.includes(g
 const eur=c=>(c/100).toFixed(2).replace('.',',')+' €';
 const THUMBS={};
 function thumbOf(id,cb){if(THUMBS[id])return cb(THUMBS[id]);backThumb(id,u=>{THUMBS[id]=u;cb(u);});}
-const Shop={items:null,anon:false,test:false,busy:'',pending:null,
+const Shop={items:null,anon:false,test:false,busy:'',pending:null,checking:null,tries:0,
   canSee(){return Acct.profile?!!Acct.profile.shop:this.anon;},
   ownsItem(it){return it.gives.every(owns);},
   open(){$('#shopNote').textContent='';$('#shopNote').classList.remove('ok');$('#lookSheet').hidden=true;$('#shopSheet').hidden=false;if(!this.items)Net.send({t:'shop'});this.render();},
@@ -3160,8 +3160,10 @@ const Shop={items:null,anon:false,test:false,busy:'',pending:null,
     if(m.t==='shop'){this.items=m.items;this.test=!!m.test;this.render();}
     else if(m.t==='buy'){location.href=m.url;}
     else if(m.t==='bought'){
-      if(m.ok){this.open();this.note(`Gràcies! Ja tens el «${m.name}». Tria el revers a «Aspecte».`,true);}
-      else View.toast("Encara no ens ha arribat la confirmació del pagament. Si has pagat, et sortirà d'aquí a una estona.",4000);
+      if(m.ok){this.checking=null;this.open();this.note(`Gràcies! Ja tens el «${m.name}». Tria el revers a «Aspecte».`,true);}
+      // la confirmació del pagament pot arribar uns segons després de tornar: ho tornam a mirar una estona
+      else if(m.wait&&this.checking&&(this.tries=(this.tries||0)+1)<=15){if(this.tries===1)View.toast('Comprovant el pagament…',2500);setTimeout(()=>{if(this.checking)Net.send({t:'buyCheck',session:this.checking});},2000);}
+      else{this.checking=null;View.toast("Encara no ens ha arribat la confirmació del pagament. Si has pagat, et sortirà d'aquí a una estona.",4000);}
     }
   },
   onErr(t){if(this.busy){this.busy='';this.render();}if(!$('#shopSheet').hidden)this.note(t);},
@@ -3169,7 +3171,7 @@ const Shop={items:null,anon:false,test:false,busy:'',pending:null,
   update(){
     $('#btnShop').hidden=!this.canSee();
     renderBacks();this.render();
-    if(this.pending&&Acct.profile){Net.send({t:'buyCheck',session:this.pending});this.pending=null;}
+    if(this.pending&&Acct.profile){this.checking=this.pending;this.tries=0;Net.send({t:'buyCheck',session:this.pending});this.pending=null;}
   }
 };
 // Reversos a «El teu aspecte»: els de la botiga surten amb cadenat si no els tens

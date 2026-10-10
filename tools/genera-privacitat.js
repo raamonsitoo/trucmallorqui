@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const PUB = path.join(__dirname, '..', 'public');
-const UPDATED = '9 d\'octubre de 2026', UPDATED_ES = '9 de octubre de 2026';
+const UPDATED = '10 d\'octubre de 2026', UPDATED_ES = '10 de octubre de 2026';
 
 const T = {
   ca: {
@@ -38,7 +38,7 @@ const T = {
 <p>Comptam les visites de manera <b>agregada i anònima</b>: quantes n'hi ha cada dia, de quina web o xarxa venen (per exemple, Instagram o Google), si és un mòbil, una tauleta o un ordinador, quantes partides es juguen i quines opcions del joc es fan servir. Només guardam aquests totals per dia: <b>no feim servir galetes, no guardam la IP</b> i no podem saber qui ets. Perquè una visita no es compti dues vegades, el navegador recorda mentre tens la pestanya oberta que ja s'ha comptat. Ho feim per saber si el joc arriba a la gent i millorar-lo (interès legítim, art. 6.1.f del RGPD).</p>
 
 <h2>Si compres a la botiga</h2>
-<p>Si compres un aspecte, guardam al teu compte quin article has comprat, quan, l'import i la referència del pagament, perquè el tenguis desbloquejat. El pagament el gestiona <b>Stripe</b>, que tracta les dades del pagament (la targeta i el correu per enviar-te el rebut) segons la seva pròpia política de privacitat: nosaltres no veim la teva targeta. La base legal és l'execució del contracte de compra (art. 6.1.b del RGPD). Si esborres el compte, s'esborren també les compres; Stripe conserva el registre del pagament el temps que li exigeix la llei. Vegeu també les <a href="/condicions">condicions de venda</a>.</p>
+<p>Si compres un aspecte, guardam al teu compte quin article has comprat, quan, l'import i la referència del pagament, perquè el tenguis desbloquejat. El pagament el gestiona <b>__PAY__</b>, que tracta les dades del pagament (la targeta i el correu per enviar-te el rebut) segons la seva pròpia política de privacitat: nosaltres no veim la teva targeta. La base legal és l'execució del contracte de compra (art. 6.1.b del RGPD). Si esborres el compte, s'esborren també les compres; __PAY__ conserva el registre del pagament el temps que li exigeix la llei. Vegeu també les <a href="/condicions">condicions de venda</a>.</p>
 
 <h2>Si ens envies un suggeriment</h2>
 <p>Des de l'enllaç «Suggeriments» pots enviar-nos idees, millores o errades. És anònim: guardam el text que escrius, el tipus (idea, millora o errada), on eres (inici, sala o partida), la mida de la pantalla i el tipus d'aparell i navegador (per exemple, «Android · Chrome»), que ens ajuden a reproduir les errades. No el vinculam ni al teu compte ni a la teva IP. Per favor, no hi posis dades personals. Els feim servir només per millorar el joc, sobre la base del nostre interès legítim a fer-ho (art. 6.1.f del RGPD), i els esborram automàticament al cap d'un any.</p>
@@ -54,7 +54,7 @@ const T = {
 <li><b>Render</b> (Render Services, Inc.): allotjament del servidor del joc.</li>
 <li><b>Neon</b> (Neon, Inc.): base de dades on es guarden els comptes i els suggeriments, en servidors de la Unió Europea.</li>
 <li><b>Google</b> (Google Ireland Ltd.): inici de sessió amb Google, si el fas servir. Google tracta les teves dades segons la seva pròpia política de privacitat.</li>
-<li><b>Stripe</b> (Stripe Payments Europe, Ltd.): pagaments de la botiga, si hi compres.</li>
+<li><b>__PAY__</b> (__PAYENTITY__): pagaments de la botiga, si hi compres.</li>
 </ul>
 <p>Alguns d'aquests proveïdors són empreses dels Estats Units i poden accedir a les dades des d'allà. Ho fan amb les garanties que preveu el RGPD (clàusules contractuals tipus o el Marc de privacitat de dades UE-EUA).</p>
 
@@ -99,7 +99,7 @@ const T = {
 <p>Contamos las visitas de forma <b>agregada y anónima</b>: cuántas hay cada día, de qué web o red vienen (por ejemplo, Instagram o Google), si es un móvil, una tableta o un ordenador, cuántas partidas se juegan y qué opciones del juego se usan. Solo guardamos esos totales por día: <b>no usamos cookies, no guardamos la IP</b> y no podemos saber quién eres. Para que una visita no se cuente dos veces, el navegador recuerda mientras tienes la pestaña abierta que ya se ha contado. Lo hacemos para saber si el juego llega a la gente y mejorarlo (interés legítimo, art. 6.1.f del RGPD).</p>
 
 <h2>Si compras en la tienda</h2>
-<p>Si compras un aspecto, guardamos en tu cuenta qué artículo has comprado, cuándo, el importe y la referencia del pago, para que lo tengas desbloqueado. El pago lo gestiona <b>Stripe</b>, que trata los datos del pago (la tarjeta y el correo para enviarte el recibo) según su propia política de privacidad: nosotros no vemos tu tarjeta. La base legal es la ejecución del contrato de compra (art. 6.1.b del RGPD). Si borras la cuenta, se borran también las compras; Stripe conserva el registro del pago el tiempo que le exige la ley. Consulta también las <a href="/condicions">condiciones de venta</a>.</p>
+<p>Si compras un aspecto, guardamos en tu cuenta qué artículo has comprado, cuándo, el importe y la referencia del pago, para que lo tengas desbloqueado. El pago lo gestiona <b>__PAY__</b>, que trata los datos del pago (la tarjeta y el correo para enviarte el recibo) según su propia política de privacidad: nosotros no vemos tu tarjeta. La base legal es la ejecución del contrato de compra (art. 6.1.b del RGPD). Si borras la cuenta, se borran también las compras; __PAY__ conserva el registro del pago el tiempo que le exige la ley. Consulta también las <a href="/condicions">condiciones de venta</a>.</p>
 
 <h2>Si nos envías una sugerencia</h2>
 <p>Desde el enlace «Suggeriments» puedes enviarnos ideas, mejoras o errores. Es anónimo: guardamos el texto que escribes, el tipo (idea, mejora o error), dónde estabas (inicio, sala o partida), el tamaño de la pantalla y el tipo de dispositivo y navegador (por ejemplo, «Android · Chrome»), que nos ayudan a reproducir los errores. No lo vinculamos ni a tu cuenta ni a tu IP. Por favor, no incluyas datos personales. Los usamos solo para mejorar el juego, sobre la base de nuestro interés legítimo en hacerlo (art. 6.1.f del RGPD), y los borramos automáticamente al cabo de un año.</p>
@@ -115,7 +115,7 @@ const T = {
 <li><b>Render</b> (Render Services, Inc.): alojamiento del servidor del juego.</li>
 <li><b>Neon</b> (Neon, Inc.): base de datos donde se guardan las cuentas y las sugerencias, en servidores de la Unión Europea.</li>
 <li><b>Google</b> (Google Ireland Ltd.): inicio de sesión con Google, si lo usas. Google trata tus datos según su propia política de privacidad.</li>
-<li><b>Stripe</b> (Stripe Payments Europe, Ltd.): pagos de la tienda, si compras en ella.</li>
+<li><b>__PAY__</b> (__PAYENTITY__): pagos de la tienda, si compras en ella.</li>
 </ul>
 <p>Algunos de estos proveedores son empresas de Estados Unidos y pueden acceder a los datos desde allí. Lo hacen con las garantías que prevé el RGPD (cláusulas contractuales tipo o el Marco de privacidad de datos UE-EE. UU.).</p>
 

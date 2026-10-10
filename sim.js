@@ -262,6 +262,80 @@ async function scenario10(){
   console.log('10) botiga: revers bloquejat, casella obligatòria, pagament simulat, desbloqueig sense repetir, revers i insígnia a la taula, signatura de Stripe');
   a.send({t:'leave'});a.ws.close();
 }
+// Botiga amb Lemon Squeezy: un servidor a part, amb una API de Lemon Squeezy de mentida.
+// Obrir el pagament, tornar abans que arribi l'avís, avís signat, desbloqueig i textos legals.
+async function scenario19(){
+  const {fork}=require('child_process'),path=require('path'),http=require('http'),crypto=require('crypto'),shop=require('./shop');
+  const reqs=[];
+  const fake=http.createServer((q,r)=>{let b='';q.on('data',d=>b+=d);q.on('end',()=>{
+    reqs.push({method:q.method,url:q.url,auth:q.headers.authorization,type:q.headers['content-type'],body:b?JSON.parse(b):null});
+    r.writeHead(201,{'Content-Type':'application/vnd.api+json'});
+    r.end(JSON.stringify({data:{type:'checkouts',id:'chk_1',attributes:{url:'https://truc.lemonsqueezy.com/checkout/custom/prova'}}}));});});
+  await new Promise(r=>fake.listen(0,'127.0.0.1',r));
+  const pL=39900+Math.floor(Math.random()*90);
+  const env=Object.assign({},process.env,{PORT:String(pL),SHOP:'on',LEMONSQUEEZY_API_KEY:'clau-prova',LEMONSQUEEZY_API_URL:`http://127.0.0.1:${fake.address().port}/v1`,
+    LEMONSQUEEZY_STORE_ID:'111',LEMONSQUEEZY_VARIANTS:'fundador:201,festes:202',LEMONSQUEEZY_WEBHOOK_SECRET:'secret-prova',LEMONSQUEEZY_TEST:'1'});
+  delete env.SHOP_SIMULATED;
+  const ch=fork(path.join(__dirname,'server.js'),[],{stdio:['ignore','pipe','pipe','ipc'],env});
+  let out='';
+  try{
+    await new Promise((res,rej)=>{ch.stdout.on('data',d=>{out+=d;if(/escoltant/.test(out))res();});ch.stderr.on('data',d=>{out+=d;});
+      ch.on('exit',c=>rej(new Error('el servidor ha sortit ('+c+'): '+out)));setTimeout(()=>rej(new Error('el servidor no arrenca: '+out)),15000);});
+    assert(!/BOTIGA \(Lemon Squeezy\): falta/.test(out),'amb totes les variables no avisa de res');
+    const req=(method,p,body,headers)=>new Promise((res,rej)=>{
+      const q=http.request({host:'127.0.0.1',port:pL,path:p,method,headers:Object.assign(body?{'Content-Type':'application/json','Content-Length':Buffer.byteLength(body)}:{},headers)},
+        r=>{let d='';r.setEncoding('utf8');r.on('data',c=>d+=c);r.on('end',()=>res({status:r.statusCode,body:d}));});
+      q.on('error',rej);q.end(body);});
+    const a=new Bot('L');await a.connect(undefined,pL);
+    const msgs=t=>(a.msgs||[]).filter(m=>m.t===t);
+    a.send({t:'login',credential:'test:llimona',name:'Aina',look:'mocador'});
+    await a.until(()=>msgs('login').length,5000);
+    assert(msgs('login')[0].profile.shop&&msgs('login')[0].profile.shopTest,'botiga visible, en mode de prova');
+    a.send({t:'buy',item:'festes',consent:true});
+    assert(await a.until(()=>msgs('buy').length,5000),'obre el pagament');
+    assert.equal(msgs('buy')[0].url,'https://truc.lemonsqueezy.com/checkout/custom/prova','va a la pàgina de Lemon Squeezy');
+    const r0=reqs[0],at=r0.body.data.attributes,custom=at.checkout_data.custom;
+    assert.equal(r0.method,'POST');assert.equal(r0.url,'/v1/checkouts');assert.equal(r0.auth,'Bearer clau-prova');
+    assert.equal(r0.type,'application/vnd.api+json');
+    assert.equal(r0.body.data.relationships.store.data.id,'111');
+    assert.equal(r0.body.data.relationships.variant.data.id,'202','la variant del pack de festes');
+    assert.equal(at.custom_price,199,'el preu és el de la botiga del joc');
+    assert.equal(at.test_mode,true);
+    assert(custom.item==='festes'&&/^\d+$/.test(custom.uid)&&/^ls_[a-f0-9]{24}$/.test(custom.ref)&&custom.desistiment,'dades de la compra');
+    assert(at.product_options.redirect_url.endsWith('/?compra='+custom.ref),'torna al joc amb la referència');
+    // Torna abans que arribi l'avís: «encara no, torna-ho a mirar»
+    a.send({t:'buyCheck',session:custom.ref});
+    await a.until(()=>msgs('bought').length,3000);
+    assert(!msgs('bought')[0].ok&&msgs('bought')[0].wait,'encara no ha arribat l\'avís: torna-ho a mirar');
+    const order=(cd,test,ev='order_created')=>JSON.stringify({meta:{event_name:ev,test_mode:test,custom_data:cd},
+      data:{type:'orders',id:'5001',attributes:{status:'paid',total:199,currency:'EUR'}}});
+    const sign=raw=>crypto.createHmac('sha256','secret-prova').update(raw).digest('hex');
+    const raw=order(custom,true);
+    assert.equal((await req('POST','/lemonsqueezy/webhook',raw,{'X-Signature':sign(raw+' ')})).status,400,'signatura dolenta: res');
+    assert.equal((await req('POST','/lemonsqueezy/webhook',raw,{})).status,400,'sense signatura: res');
+    assert.equal((await req('POST','/lemonsqueezy/webhook',raw,{'X-Signature':sign(raw),'X-Event-Name':'order_created'})).status,200,'avís bo');
+    assert(await a.until(()=>msgs('me').some(m=>m.profile.owned.includes('back:dimonis')),3000),'l\'avís desbloqueja el pack');
+    a.send({t:'buyCheck',session:custom.ref});
+    await a.until(()=>msgs('bought').length>=2,3000);
+    assert(msgs('bought')[1].ok&&msgs('bought')[1].item==='festes','i en tornar-ho a mirar, diu que ja està');
+    assert.equal((await req('POST','/lemonsqueezy/webhook',raw,{'X-Signature':sign(raw)})).status,200,'un avís repetit no fa mal');
+    a.send({t:'buy',item:'festes',consent:true});
+    await a.until(()=>a.errors.length,3000);
+    assert(/Ja tens/.test(a.errors[0]),'no es pot comprar dues vegades');
+    // Textos legals: ven Lemon Squeezy (no cal el nom del titular)
+    const cond=(await req('GET','/condicions')).body,priv=(await req('GET','/privacitat')).body,privEs=(await req('GET','/privacidad')).body;
+    assert(/Lemon Squeezy, LLC/.test(cond)&&/merchant of record/.test(cond)&&!/falten/.test(cond)&&!/Stripe/.test(cond),'condicions: ven Lemon Squeezy');
+    assert(/Lemon Squeezy/.test(priv)&&/Lemon Squeezy/.test(privEs)&&!/__PAY/.test(priv+privEs+cond)&&!/Stripe/.test(priv+privEs),'privacitat: Lemon Squeezy');
+    // Una comanda de prova no desbloqueja res a la botiga de veres; i només compta «order_created»
+    assert.equal(shop.lemonOrder(JSON.parse(order(custom,true)),false),null,'comanda de prova a la botiga de veres: res');
+    assert(shop.lemonOrder(JSON.parse(order(custom,false)),false),'comanda de veres: sí');
+    assert.equal(shop.lemonOrder(JSON.parse(order(custom,true,'order_refunded')),true),null,'un altre esdeveniment: res');
+    assert.equal(shop.lemonOrder(JSON.parse(order({uid:'x',item:'festes'},true)),true),null,'sense compte: res');
+    assert.equal(shop.verifyLemonWebhook(raw,sign(raw),'un-altre-secret'),null,'secret diferent: res');
+    console.log('19) botiga amb Lemon Squeezy: pagament obert amb el preu i la variant, espera l\'avís, signatura, desbloqueig sense repetir i textos legals');
+    a.ws.close();
+  }finally{ch.kill();fake.close();}
+}
 // Senyes: cada bot fa les seves una sola vegada per mà, només quan el company el mira, i el mira mentre la fa
 function scenario11(){
   const {Game,signOf}=require('./game.js');
@@ -594,7 +668,7 @@ async function scenario16(){
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();scenario11();scenario17();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario18();await scenario16();await scenario12();
+    scenario5();scenario11();scenario17();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario18();await scenario16();await scenario19();await scenario12();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });

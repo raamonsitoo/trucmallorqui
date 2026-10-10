@@ -45,10 +45,14 @@ const ANALYTICS_TAG = GOATCOUNTER
   : '';
 // Correu de contacte que surt a la política de privacitat (per defecte trucmallorqui@gmail.com; es pot canviar amb CONTACT_EMAIL)
 const CONTACT_EMAIL = (process.env.CONTACT_EMAIL || '').trim().replace(/[<>"']/g, '');
-// Qui ven (surt a les condicions de venda; és obligatori abans d'obrir la botiga de veres)
+// Qui ven (surt a les condicions de venda). Amb Lemon Squeezy, ven Lemon Squeezy; amb Stripe, les dades del venedor són obligatòries
+// abans d'obrir la botiga de veres.
 const envText = k => (process.env[k] || '').trim().replace(/[<>"'&]/g, '');
 const SELLER = [envText('SELLER_NAME'), envText('SELLER_NIF') && 'NIF ' + envText('SELLER_NIF'), envText('SELLER_ADDRESS')].filter(Boolean).join(' · ');
-if (shop.ENABLED && !shop.TEST && !SELLER) console.warn('BOTIGA: falten SELLER_NAME, SELLER_NIF i SELLER_ADDRESS per a les condicions de venda');
+if (shop.ENABLED && !shop.TEST && !shop.MOR && !SELLER) console.warn('BOTIGA: falten SELLER_NAME, SELLER_NIF i SELLER_ADDRESS per a les condicions de venda');
+const SELLER_HTML = shop.MOR
+  ? `Els articles els ven <b>${shop.PAY_ENTITY}</b>, que actua com a revenedor autoritzat de trucmallorqui.com (<i>merchant of record</i>): és qui et cobra, et fa la factura i s'encarrega de l'IVA`
+  : SELLER || '[falten el nom, el NIF i l\'adreça del venedor]';
 const STARTED_AT = Date.now();
 const counters = { gamesStarted: 0, gamesFinished: 0, quick: 0, matched: 0 };
 const LOOKS = ['palla', 'barretina', 'mocador'];
@@ -532,18 +536,25 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
-  // Stripe ens avisa quan algú ha pagat (abans de la redirecció al domini: Stripe no segueix redireccions)
-  if (url === '/stripe/webhook' && req.method === 'POST') {
+  // Stripe i Lemon Squeezy ens avisen quan algú ha pagat (abans de la redirecció al domini: no segueixen redireccions)
+  if ((url === '/stripe/webhook' || url === '/lemonsqueezy/webhook') && req.method === 'POST') {
     const chunks = []; let size = 0;
     req.on('data', d => { size += d.length; if (size > 256 * 1024) req.destroy(); else chunks.push(d); });
     req.on('end', () => {
-      const ev = shop.verifyWebhook(Buffer.concat(chunks).toString('utf8'), req.headers['stripe-signature']);
-      if (!ev) { res.writeHead(400, { 'Content-Type': 'text/plain' }); return res.end('Signatura no vàlida'); }
-      const o = ev.data && ev.data.object;
-      if (['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(ev.type) && o && o.payment_status === 'paid'
-        && o.metadata && shop.ITEMS[o.metadata.item] && Number(o.metadata.uid) > 0 && acc.ENABLED) {
-        grantPurchase(Number(o.metadata.uid), o.metadata.item, o.id, o.amount_total || 0).catch(e => console.error('webhook', e.message));
+      const raw = Buffer.concat(chunks).toString('utf8');
+      let buy = null;
+      if (url === '/stripe/webhook') {
+        const ev = shop.verifyWebhook(raw, req.headers['stripe-signature']);
+        if (!ev) { res.writeHead(400, { 'Content-Type': 'text/plain' }); return res.end('Signatura no vàlida'); }
+        const o = ev.data && ev.data.object;
+        if (['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(ev.type) && o && o.payment_status === 'paid'
+          && o.metadata && shop.ITEMS[o.metadata.item] && Number(o.metadata.uid) > 0) buy = { uid: Number(o.metadata.uid), item: o.metadata.item, ref: o.id, amount: o.amount_total || 0 };
+      } else {
+        const ev = shop.verifyLemonWebhook(raw, req.headers['x-signature']);
+        if (!ev) { res.writeHead(400, { 'Content-Type': 'text/plain' }); return res.end('Signatura no vàlida'); }
+        buy = shop.lemonOrder(ev);
       }
+      if (buy && acc.ENABLED) grantPurchase(buy.uid, buy.item, buy.ref, buy.amount).catch(e => console.error('webhook', e.message));
       res.writeHead(200, { 'Content-Type': 'text/plain' }); res.end('ok');
     });
     return;
@@ -558,7 +569,7 @@ const server = http.createServer((req, res) => {
       if (err) { res.writeHead(500); return res.end('Falta public/' + PAGES[url]); }
       const body = data.split('__SITE__').join(SITE_URL).replace('<!--ANALYTICS-->', ANALYTICS_TAG)
         .split('__GCLIENT__').join(acc.GOOGLE_CLIENT_ID).split('__CONTACT__').join(CONTACT_EMAIL || 'trucmallorqui@gmail.com')
-        .split('__SELLER__').join(SELLER || '[falten el nom, el NIF i l\'adreça del venedor]');
+        .split('__SELLER__').join(SELLER_HTML).split('__PAYENTITY__').join(shop.PAY_ENTITY).split('__PAY__').join(shop.PAY_NAME);
       // Pàgines comprimides (gzip): la web carrega molt més aviat, sobretot al mòbil
       if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
         return zlib.gzip(body, (e, buf) => {
@@ -572,14 +583,14 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
-  // Pagament de mentida per provar la botiga a l'ordinador (SHOP_SIMULATED=1, sense Stripe)
+  // Pagament de mentida per provar la botiga a l'ordinador (SHOP_SIMULATED=1, sense Lemon Squeezy ni Stripe)
   if (url === '/compra-simulada' && shop.SIMULATED) {
     const q = new URL(req.url, 'http://x').searchParams, s = String(q.get('s') || '').replace(/[^a-z0-9_]/g, '');
     if (q.get('pagar') === '1' && shop.simulatePay(s)) { res.writeHead(302, { Location: '/?compra=' + s }); return res.end(); }
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
     return res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pagament simulat</title>
 <body style="font-family:system-ui;background:#0a1b1d;color:#e2eeea;display:grid;place-items:center;min-height:100vh;margin:0;padding:16px">
-<div style="max-width:380px;text-align:center"><h1>Pagament simulat</h1><p>Aquí aniria la pàgina de pagament de Stripe. No es cobra res.</p>
+<div style="max-width:380px;text-align:center"><h1>Pagament simulat</h1><p>Aquí aniria la pàgina de pagament de ${shop.PAY_NAME}. No es cobra res.</p>
 <p><a href="?s=${s}&pagar=1" style="display:inline-block;background:#e0a21f;color:#2b1c00;padding:12px 22px;border-radius:999px;font-weight:800;text-decoration:none">Pagar (simulat)</a></p>
 <p><a href="/?compra=cancel" style="color:#8fb0aa">Cancel·lar</a></p></div>`);
   }
@@ -1031,10 +1042,11 @@ async function shopMsg(ws, m) {
       if ((c.buys = (c.buys || 0) + 1) > 20) return;
       send(ws, { t: 'buy', url: await shop.createCheckout(c.uid, m.item, c.origin) });
     } else if (m.t === 'buyCheck') {
-      // En tornar de la pàgina de pagament: si ja s'ha pagat, es desbloqueja ara (l'avís de Stripe també ho fa)
-      if (!c.uid || (c.checks = (c.checks || 0) + 1) > 20) return;
+      // En tornar de la pàgina de pagament: si ja s'ha pagat, es desbloqueja ara (l'avís del pagament també ho fa).
+      // Amb Lemon Squeezy, l'avís pot arribar uns segons després de tornar: wait = torna-ho a mirar.
+      if (!c.uid || (c.checks = (c.checks || 0) + 1) > 40) return;
       const s = await shop.getSession(m.session);
-      if (!s || !s.paid || s.uid !== c.uid || !shop.ITEMS[s.item]) return send(ws, { t: 'bought', ok: false });
+      if (!s || !s.paid || s.uid !== c.uid || !shop.ITEMS[s.item]) return send(ws, { t: 'bought', ok: false, wait: !!(s && s.wait && s.uid === c.uid) });
       await grantPurchase(s.uid, s.item, m.session, s.amount);
       send(ws, { t: 'bought', ok: true, item: s.item, name: shop.ITEMS[s.item].name });
     }

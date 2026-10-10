@@ -93,17 +93,22 @@ Amb `DATABASE_URL`, cada sala es desa (taula `room_state`, mòdul `handoff.js`) 
 
 ### Botiga
 
-Necessita els comptes activats (per comprar s'ha d'entrar amb Google). Variables:
+Necessita els comptes activats (per comprar s'ha d'entrar amb Google). Els pagaments van per **Lemon Squeezy** (és el venedor de registre: cobra, fa la factura i s'encarrega de l'IVA; a /condicions surt com a venedor) o per **Stripe**. Si hi ha clau de Lemon Squeezy, es fa servir aquesta. Variables:
 
 | Variable | Per a què | Valor |
 |---|---|---|
 | `SHOP` | Qui veu la botiga | `off` (per defecte), `testers` (només els comptes de `SHOP_TESTERS`) o `on` (tothom) |
 | `SHOP_TESTERS` | Comptes que la veuen en mode `testers` | identificadors de compte separats per comes (columna `id` de la taula `players`) |
-| `STRIPE_SECRET_KEY` | Clau de Stripe | `sk_test_...` per provar (no es cobra res) o `sk_live_...` per cobrar de veres |
+| `LEMONSQUEEZY_API_KEY` | Clau de l'API de Lemon Squeezy (Settings → API) | la clau |
+| `LEMONSQUEEZY_STORE_ID` | Número de la botiga (Settings → Stores) | p. ex. `123456` |
+| `LEMONSQUEEZY_VARIANTS` | Número de variant de cada article (el preu que es cobra és el del joc) | `fundador:111111,festes:222222` |
+| `LEMONSQUEEZY_WEBHOOK_SECRET` | Lemon Squeezy avisa dels pagaments a `https://trucmallorqui.com/lemonsqueezy/webhook` (esdeveniment `order_created`) | el secret que hi poses |
+| `LEMONSQUEEZY_TEST` | `1` mentre la botiga de Lemon Squeezy és en mode de prova (no es cobra res); s'ha de llevar en passar a cobrar de veres | `1` |
+| `STRIPE_SECRET_KEY` | Clau de Stripe (només si no es fa servir Lemon Squeezy) | `sk_test_...` per provar o `sk_live_...` per cobrar de veres |
 | `STRIPE_WEBHOOK_SECRET` | Stripe avisa dels pagaments a `https://trucmallorqui.com/stripe/webhook` (esdeveniment `checkout.session.completed`) | `whsec_...` |
-| `SELLER_NAME`, `SELLER_NIF`, `SELLER_ADDRESS` | Dades del venedor a /condicions (obligatòries abans de cobrar de veres) | el teu nom, NIF i adreça |
+| `SELLER_NAME`, `SELLER_NIF`, `SELLER_ADDRESS` | Amb Stripe: dades del venedor a /condicions (obligatòries abans de cobrar de veres). Amb Lemon Squeezy no calen | nom, NIF i adreça |
 
-Per provar-la a l'ordinador sense Stripe: `SHOP=on SHOP_SIMULATED=1` (el pagament és de mentida). Les compres es guarden a la taula `purchases`; el servidor apunta cada compra al registre («compra: compte 12, festes, 1.99 €»).
+Per provar-la a l'ordinador sense cap dels dos: `SHOP=on SHOP_SIMULATED=1` (el pagament és de mentida). Les compres es guarden a la taula `purchases`; el servidor apunta cada compra al registre («compra: compte 12, festes, 1.99 €»).
 
 La bústia de suggeriments (enllaç «Suggeriments» a baix de tot) guarda els missatges a la taula `feedback` de `DATABASE_URL`; sense base de dades, els guarda en memòria i al registre del servidor. Es llegeixen a `/suggeriments?key=STATS_KEY` o a Neon → Tables → feedback.
 
