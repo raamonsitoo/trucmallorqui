@@ -892,11 +892,14 @@ class Game {
     const vals = [0, 1, 2, 3].map(p => envitValue(H.initial[p]));
     let best = -1, bp = 0;
     for (let i = 0; i < 4; i++) { const p = (H.mano + i) % 4; if (vals[p] > best) { best = vals[p]; bp = p; } }
+    // el millor envit de cada parella (a igualtat, el de qui és més a prop de la mà): així es veu també el de qui perd
+    const top = [null, null];
+    for (let i = 0; i < 4; i++) { const p = (H.mano + i) % 4, t = p % 2; if (!top[t] || vals[p] > top[t].val) top[t] = { p, val: vals[p] }; }
     const pts = this.envitPts(level);
-    this.emit({ e: 'envitShow', p: bp, val: best, wt: bp % 2, pts });
+    this.emit({ e: 'envitShow', p: bp, val: best, wt: bp % 2, pts, top, vals });
     this.addScore(bp % 2, pts);
     this.snap();
-    await this.sleep(1600);
+    await this.sleep(3200); // que es puguin llegir els envits (el cartell) abans de repartir la mà següent
   }
 
   // ---------- Torn ----------

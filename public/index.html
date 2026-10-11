@@ -3086,7 +3086,7 @@ function rulesHTML(backAttr,backLabel){
     <li>«Envit tots» val els punts que falten a la parella que va davant per arribar a 24 (si van 15 a 9, val 9). Només es pot pujar a tots si val més que el «2 més».</li>
     <li>Només la parella que ha dit «vull» pot pujar el truc. Es canta quan és el teu torn, abans de tirar carta.</li>
     <li>Empat d'envits: guanya qui és més a prop de la mà.</li>
-    <li>Els envits es canten i s'accepten a la primera ronda, però no es diuen fins que acaba la mà. Només es veu l'envit guanyador. Un envit acceptat es diu igualment encara que la mà acabi abans, i els seus punts se sumen abans dels de la mà.</li>
+    <li>Els envits es canten i s'accepten a la primera ronda, però no es diuen fins que acaba la mà. Es veu l'envit de qui guanya i el millor de l'altra parella (al registre de la mà, els de tothom). Un envit acceptat es diu igualment encara que la mà acabi abans, i els seus punts se sumen abans dels de la mà.</li>
     <li>Els bots d'una parella ho parlen entre ells amb les dues mans. Un bot company teu només coneix la seva mà i el que li diguis amb les senyes.</li>
     <li>Pots triar el nivell dels bots: Fàcil, Normal, Difícil o Mestre. Tots els bots de la partida, també el teu company, juguen al mateix nivell. El Mestre no veu les teves cartes: s'imagina les que pots tenir segons el que s'ha tirat, les senyes que ha pillat i el que s'ha cantat.</li>
     <li>«Vaig a tu» vol dir que el teu company tira la carta bona en aquesta ronda, i «Vina a mi» que la tires tu. Es diu en veu alta, així que els rivals ho senten. Catalina i els rivals també ho diuen de tant en tant, segons les cartes que duen.</li>
@@ -3934,7 +3934,8 @@ const CallBan={t:null,
     el.className='callban '+(cls||'');el.innerHTML=`<b>${title}</b>${sub?`<small>${sub}</small>`:''}`;el.hidden=false;
     void el.offsetWidth;el.classList.add('in');
     clearTimeout(this.t);this.t=setTimeout(()=>{el.classList.add('out');this.t=setTimeout(()=>{el.hidden=true;},320);},3500);
-  }
+  },
+  hide(){clearTimeout(this.t);const el=$('#callBan');if(el)el.hidden=true;}
 };
 // La parella (vista des de tu): «Catalina i tu» o «Toni i Miquel»; i el verb, «voleu» o «volen»
 const pairTxt=t=>t===0?`${nm(2)} i tu`:`${nm(1)} i ${nm(3)}`;
@@ -3950,7 +3951,7 @@ function onEvent(e){
   const P=a=>rel(a);
   switch(e.e){
     case 'deal':
-      G.log=[];renderLog();UI.lastCall=null;
+      G.log=[];renderLog();UI.lastCall=null;CallBan.hide(); // mà nova: fora el cartell de la mà d'abans
       log(`Reparteix ${nm(P(e.dealer))}. Surt ${nm(P(e.mano))}.`);
       setStatus(`Reparteix ${nm(P(e.dealer))}. Surt ${nm(P(e.mano))}.`);break;
     case 'play':log(`${nm(P(e.p))} tira ${cardLabel(e.card)}`);break;
@@ -3987,9 +3988,16 @@ function onEvent(e){
     case 'envitOk':{const m=`Envit acceptat (${ptsText(e.pts!=null?e.pts:envitPts(e.level))}). Es diran en acabar la mà.`;setStatus(m);log(m);break;}
     case 'envitSoon':setStatus('Mà acabada: toca dir els envits.');break;
     case 'envitShow':{
-      say(P(e.p),`Tinc ${e.val}`);
-      const m=`Envits: guanya ${nm(P(e.p))} amb ${e.val}. Punts per a ${tl(vteam(e.wt))} (+${pt(e.pts)})`;
-      setStatus(m);log(m);break;}
+      // l'envit de qui guanya i el millor de l'altra parella (que també es vegi quants en tenien)
+      const w=P(e.p),lo=e.top?e.top[1-e.wt]:null,l=lo?P(lo.p):null;
+      say(w,`Tinc ${e.val}`);if(lo)say(l,`Tinc ${lo.val}`);
+      const gw=w===0?'guanyes tu':`guanya ${nm(w)}`,tn=lo?(l===0?'tu en tenies':`${nm(l)} en tenia`):'';
+      const m=`Envits: ${gw} amb ${e.val}${lo?` (${tn} ${lo.val})`:''}. Punts per a ${tl(vteam(e.wt))} (+${pt(e.pts)})`;
+      setStatus(m);
+      if(e.vals)log('Envits de tothom: '+[0,1,2,3].map(a=>`${nm(P(a))} ${e.vals[a]}`).join(', '));
+      log(m);
+      CallBan.show(`Envits: ${nm(w)} ${e.val}${lo?` · ${nm(l)} ${lo.val}`:''}`,`${cap(gw)}. Punts per a ${tl(vteam(e.wt))} (+${pt(e.pts)})`,vteam(e.wt)===0?'ok':'no');
+      break;}
     case 'refuse':{
       const m=`Envit no volgut. Punts per a ${tl(vteam(e.callerTeam))} (+${pt(e.pts)})`;setStatus(m);log(m);break;}
     case 'trick':{
