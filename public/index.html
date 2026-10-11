@@ -3369,14 +3369,25 @@ function onRoom(m){
   Me.code=m.code;Me.phase=m.phase;Me.host=m.host;Me.seat=m.you;Me.players=m.seats;Me.roomLevel=m.botLevel||'normal';Me.roomCantons=m.cantons||2;Me.roomNoJoin=!!m.noJoin;
   if(Array.isArray(m.chat))Me.chat=m.chat.slice(-30);
   Me.startsAt=m.startsIn?Date.now()+m.startsIn:0;
-  if(m.phase==='lobby'&&Me.rematch){Me.rematch=false;Net.send({t:'start'});}
-  // ha començat una partida nova (p. ex. la revenja de l'amfitrió): tanca el resum de l'anterior
+  if(m.phase==='lobby'&&Me.rematch)askRematch();
+  // al resum de la partida: qui ja vol la revenja
+  const ov=$('#ovRematch');
+  if(ov&&m.phase==='lobby'){const r=m.seats.filter((x,i)=>x.human&&x.ready&&i!==m.you).map(x=>esc(x.name));
+    if(r.length)ov.innerHTML=`<b>${r.join(', ')}</b> ${r.length>1?'volen':'vol'} la revenja. Comença quan tots els que sou a la sala la demanau.`;}
+  // ha començat una partida nova (la revenja que tots heu demanat, o l'amfitrió l'ha començada des de la sala): tanca el resum
   if(m.phase==='playing'&&Me.holdGame){Me.holdGame=false;hideOverlay();}
   const was=Me.searching;Me.searching=!!m.searching;
   if(Me.searching&&(!was||m.searchMs<1500))Me.searchStart=Date.now()-(m.searchMs||0);
   if(Me.searching&&!was)Net.send({t:'list'}); // quanta gent hi ha connectada ara mateix
   if(!Me.searching)Me.keepWaiting=false;
   updateRoster();routeScreen();
+}
+// Demanar la revenja: si jugues sol contra bots, comença ara; si hi ha més gent, compta com a «llest»
+// i comença quan tots els que són a la sala la demanen (com «Estic llest»)
+function askRematch(){
+  Me.rematch=false;
+  if(Me.players.filter(x=>x.human).length<=1&&Me.host===Me.seat)Net.send({t:'start'});
+  else Net.send({t:'ready',on:true});
 }
 function updateRoster(){
   const arr=[];
@@ -4016,14 +4027,14 @@ function onEvent(e){
       // a la partida ràpida (un sol cantó) el resultat són els punts; a la llarga, els cantons
       const par=Me.seat%2,quick=G.win===1,mine=(quick?e.scores:e.cantons)[par],theirs=(quick?e.scores:e.cantons)[1-par];
       Me.holdGame=true;
-      const host=Me.host===Me.seat;
       const acctOn=GCLIENT&&GCLIENT.charAt(0)!=='_';
       Me.lastResult={won:vteam(e.w)===0,mine,theirs,allBots:Me.players.filter(x=>x.human).length<=1,level:Me.roomLevel||'normal'};
       const shareBtn='<button class="btn ok" data-share>📤 Comparteix</button>';
       showOverlay(`<h2>${vteam(e.w)===0?'Heu guanyat la partida!':'Heu perdut la partida'}</h2><p>${quick?'Punts':'Cantons'}: ${mine} a ${theirs}.</p>`
         +(acctOn?(Acct.profile?'<div class="ov-xp" id="ovXp"></div>':'<p class="hint">Entra amb Google (a la sala d\'espera) per guardar el teu progrés i pujar de nivell.</p>'):'')
-        +(host?`<div class="row"><button class="btn truc" data-ov="rematch">Revenja!</button>${shareBtn}<button class="btn ghost" data-ov="backlobby">Tornar a la sala</button></div>`
-              :`<p class="hint">Si l'amfitrió demana la revenja, la partida començarà sola.</p><div class="row">${shareBtn}<button class="btn ghost" data-ov="backlobby">Tornar a la sala</button></div>`));
+        // Revenja: cadascú diu si en vol; comença quan tots els que són a la sala ho han dit (contra bots, a l'acte)
+        +(Me.players.filter(x=>x.human).length>1?`<p class="hint" id="ovRematch">La revenja comença quan tots els que sou a la sala la demanau.</p>`:'')
+        +`<div class="row"><button class="btn truc" data-ov="rematch">Revenja!</button>${shareBtn}<button class="btn ghost" data-ov="backlobby">Tornar a la sala</button></div>`);
       break;}
   }
 }
@@ -4087,8 +4098,8 @@ document.addEventListener('click',e=>{
     else if(a==='backlobby'){Me.holdGame=false;Me.rematch=false;hideOverlay();routeScreen();}
     else if(a==='rematch'){
       // Revenja: mateixa sala i mateixos jugadors. Si el servidor encara no ha tornat la sala a «lobby», s'envia quan hi torni.
-      track('revenja');Me.rematch=true;hideOverlay();
-      if(Me.phase==='lobby'){Me.rematch=false;Net.send({t:'start'});}
+      track('revenja');Me.rematch=true;Me.holdGame=false;hideOverlay();routeScreen();
+      if(Me.phase==='lobby')askRematch();
     }
     return;
   }
