@@ -413,15 +413,25 @@ async function scenario20(){
   a=await waitPend(bs,'turn',b=>b.room.you%2===a.room.you%2);
   assert(a.snap.h.noEnvit[a.room.you%2],'la parella que ha trucat sense envidar ja no pot envidar');
   for(const b of bs)b.ws.close();
-  // 3) Els bots també salten quan duen molt d'envit
-  const {Game}=require('./game.js');
+  // 3) Els bots pugen d'un en un, com s'han entrenat: no salten, no canten «tots» de primeres ni enviden abans de contestar el truc
+  const {Game,LEVELS,mulberry32}=require('./game.js');
   const g=new Game({seats:[0,1,2,3].map(()=>({human:false})),sendAll(){},sendSeat(){}},{speed:0,timerMs:1000,level:'normal'});
   g.G.scores=[0,0];
   g.H={initial:[[{n:7,s:'oros'},{n:6,s:'oros'},{n:5,s:'oros'}],[],[{n:1,s:'copes'},{n:4,s:'bastos'},{n:12,s:'espases'}],[]],hands:[[],[],[],[]],info:[[],[],[],[]],caught:[[],[]]};
   g.rnd=()=>0.5;
-  const ans=g.botRespondEnvit(0,1);
-  assert(/^raise[34]$/.test(ans),'amb 33 d\'envit, a un «envit» hi salta («2 més» o «tots»): '+ans);
-  console.log('20) normativa: salt a «2 més» (no vull = 2), «tots» de primeres (no vull = 1), sense pujar un «tots», anar-se\'n sense envidar (2 punts), envidar abans de contestar el truc, qui truca sense envidar ja no envida, i els bots també salten');
+  assert.equal(g.botRespondEnvit(0,1),'raise','amb 33 d\'envit, a un «envit» puja només a «jo envit»');
+  let calls=0;
+  for(const lvl of ['normal','dificil','mestre'])for(let i=0;i<4;i++){
+    let last=0;
+    const room={seats:[0,1,2,3].map(()=>({human:false})),sendSeat(){},phase:'playing',sendAll(m){
+      if(m.t!=='ev')return;const e=m.e;
+      if(e.e==='deal')last=0;
+      if(e.e==='call'&&e.kind==='envit'){calls++;assert.equal(e.level,last+1,`els bots (${lvl}) pugen l'envit d'un en un: ${last} → ${e.level}`);last=e.level;}
+    }};
+    await new Game(room,{speed:0,rng:mulberry32(i*7+3),dealRng:mulberry32(i+11),params:[LEVELS[lvl],LEVELS[lvl],LEVELS[lvl],LEVELS[lvl]]}).playCanton();
+  }
+  assert(calls>10,'els bots han envidat ('+calls+')');
+  console.log(`20) normativa: salt a «2 més» (no vull = 2), «tots» de primeres (no vull = 1), sense pujar un «tots», anar-se'n sense envidar (2 punts), envidar abans de contestar el truc, qui truca sense envidar ja no envida; i els bots pugen d'un en un (${calls} envits)`);
 }
 // Senyes: cada bot fa les seves una sola vegada per mà, només quan el company el mira, i el mira mentre la fa
 function scenario11(){

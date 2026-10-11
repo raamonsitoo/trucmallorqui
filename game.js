@@ -460,13 +460,9 @@ class Game {
     let e = this.teamEnvit(p) + P.envNoise * (this.rnd() * 2 - 1);
     const c = H.caught[1 - p % 2];
     if (c.includes('amo') || c.includes('madona')) e -= 2;
-    const acc = P.envAcc[level], rai = P.envRai[level], max = this.maxEnvitLevel();
-    if (level < max && e >= rai) {
-      // Si també pujaria el següent, salta-hi directament («2 més» o «tots»)
-      let to = level + 1;
-      while (to < max && e >= P.envRai[to]) to++;
-      return to === level + 1 ? 'raise' : 'raise' + to;
-    }
+    const acc = P.envAcc[level], rai = P.envRai[level];
+    // Els bots pugen d'un en un, com s'han entrenat (no salten a «2 més» ni a «tots»; això ho poden fer les persones)
+    if (level < this.maxEnvitLevel() && e >= rai) return 'raise';
     if (e >= acc) return 'vull';
     if (this.rnd() < P.envAccRand) return 'vull';
     return 'no';
@@ -561,7 +557,8 @@ class Game {
       V = TRUC_VALUE[level]; R = TRUC_REFUSE[level]; top = Math.min(4, level + 1); // al truc només es puja d'un en un
     } else {
       pw = this.mcEnvit(p, worlds);
-      V = this.envitPts(level); R = H.askRefuse != null ? H.askRefuse : ENVIT_REFUSE[level]; top = this.maxEnvitLevel();
+      // si no el volen, el que valia l'aposta anterior; i, com s'han entrenat, només pugen d'un en un
+      V = this.envitPts(level); R = H.askRefuse != null ? H.askRefuse : ENVIT_REFUSE[level]; top = Math.min(this.maxEnvitLevel(), level + 1);
     }
     const uNo = this.util(p, 0, R), uAcc = pw * this.util(p, V, 0) + (1 - pw) * this.util(p, 0, V);
     // Si pujam a t, els rivals triaran el que menys ens convé: no voler (ens donen V) o jugar-s'ho a t.
@@ -574,21 +571,15 @@ class Game {
     if (to && uRaise > Math.max(uAcc, uNo) + P.mRai) return to === level + 1 ? 'raise' : 'raise' + to;
     return uAcc + P.mAcc >= uNo ? 'vull' : 'no';
   }
-  // Vol envidar? 0 = no, 1 = envit, 4 = envit tots (de primeres)
+  // Vol envidar? 0 = no, 1 = envit. Els bots només canten «envit» de primeres (com s'han entrenat), mai «envit tots».
   botEnvitCall(p) {
     const P = this.bp(p);
     if (P.mc) return this.mcEnvitCall(p, this.mcWorlds(p));
-    if (!this.botWantsEnvit(p)) return 0;
-    // amb un envit dels que gairebé no perden, de vegades canta «tots» de primeres
-    return this.maxEnvitLevel() === 4 && this.teamEnvit(p) >= P.envRai[3] && this.rnd() < 0.5 ? 4 : 1;
+    return this.botWantsEnvit(p) ? 1 : 0;
   }
   mcEnvitCall(p, worlds) {
     const P = this.bp(p), pe = this.mcEnvit(p, worlds), V = this.envitPts(1);
     const uCall = Math.min(this.util(p, ENVIT_REFUSE[1], 0), pe * this.util(p, V, 0) + (1 - pe) * this.util(p, 0, V));
-    // «Envit tots» de primeres: si no el volen, 1 punt; si el volen, es juguen el que falta
-    let uFalta = -1;
-    if (this.maxEnvitLevel() === 4) { const F = this.envitPts(4); uFalta = Math.min(this.util(p, 1, 0), pe * this.util(p, F, 0) + (1 - pe) * this.util(p, 0, F)); }
-    if (uFalta > uCall && uFalta > this.util(p, 0, 0) + P.mEnvCall) return 4;
     if (uCall > this.util(p, 0, 0) + P.mEnvCall || (pe < 0.3 && this.rnd() < P.envBluffMc)) return 1;
     return 0;
   }
@@ -831,7 +822,7 @@ class Game {
     this.emit({ e: 'debate', p: r, q: (r + 2) % 4 });
     this.snap();
     await this.sleep(1600);
-    if (envitOk) { const e = this.botEnvitCall(r); if (e) return { d: e === 4 ? 'envit4' : 'envit', by: r }; }
+    // (els bots no enviden abans de contestar el truc: no s'han entrenat així; ho poden fer les persones)
     return { d: kind === 'truc' ? this.botRespondTruc(r, level) : this.botRespondEnvit(r, level), by: r };
   }
   // startLevel: als envits, de primeres es pot cantar «envit» (1) o «envit tots» (4)
