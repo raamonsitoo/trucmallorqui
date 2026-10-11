@@ -336,6 +336,93 @@ async function scenario19(){
     a.ws.close();
   }finally{ch.kill();fake.close();}
 }
+// Envits com diu la normativa: es pot saltar a «2 més» o a «tots», de primeres es pot cantar «tots»,
+// i qui no vol dona els punts de l'aposta anterior
+async function scenario20(){
+  for(const r of Array.from(rooms.values()))if(r.humans()===0)r.destroy();
+  const table=async()=>{
+    const bs=['A','B','C','D'].map(n=>new Bot(n,'silent'));
+    for(const b of bs)await b.connect();
+    // si les altres proves ja han creat moltes sales aquest minut, el límit contra abusos fa esperar una mica
+    for(let i=0;i<30&&!bs[0].room;i++){const n=bs[0].errors.length;bs[0].send({t:'create',name:'A',look:'palla',cantons:2});
+      await bs[0].until(()=>bs[0].room||bs[0].errors.length>n,3000);if(!bs[0].room)await new Promise(x=>setTimeout(x,3000));}
+    assert(bs[0].room,'sala creada');
+    for(const b of bs.slice(1)){b.send({t:'join',code:bs[0].room.code,name:b.name,look:'palla'});await b.until(()=>b.room,3000);}
+    bs[0].send({t:'start'});
+    return bs;
+  };
+  const evs=b=>b.events;
+  // qui té pendent què (turn / respond), i el darrer «call»
+  const waitPend=async(bs,kind,pred=()=>true)=>{let who=null;await bs[0].until(()=>{who=bs.find(b=>b.snap&&b.snap.h&&b.snap.h.pending&&b.snap.h.pending.kind===kind&&pred(b));return !!who;},15000);return who;};
+  // 1) Envit → salta a «2 més» → no vull: guanya 2 (l'envit), no 4
+  let bs=await table();
+  let a=await waitPend(bs,'turn',b=>b.snap.h.trickNo===0&&!b.snap.h.envitDone);
+  assert(a,'algú té el torn');
+  a.send({t:'act',a:{type:'envit'}});
+  let r=await waitPend(bs,'respond',b=>b.room.you%2!==a.room.you%2);
+  assert(r&&r.snap.h.pending.data.level===1,'els rivals han de contestar l\'envit');
+  r.send({t:'act',a:'raise3'});
+  let back=await waitPend(bs,'respond',b=>b.room.you%2===a.room.you%2&&b.snap.h.pending.data.level===3);
+  assert(back,'ara contesta la parella que ha envidat, a «2 més»');
+  assert(evs(bs[0]).some(e=>e.e==='call'&&e.kind==='envit'&&e.level===3&&e.pts===6),'s\'ha cantat «2 més» directament');
+  back.send({t:'act',a:'no'});
+  assert(await bs[0].until(()=>evs(bs[0]).some(e=>e.e==='refuse'),5000));
+  let ref=evs(bs[0]).find(e=>e.e==='refuse');
+  assert.equal(ref.callerTeam,r.room.you%2);assert.equal(ref.pts,2,'no vull a «2 més» després d\'«envit»: 2 punts');
+  for(const b of bs)b.ws.close();
+  await new Promise(x=>setTimeout(x,200));
+  for(const rr of Array.from(rooms.values()))if(rr.humans()===0)rr.destroy();
+  // 2) «Tots» de primeres → no vull: 1 punt. I a un «tots» ja no es pot pujar
+  bs=await table();
+  a=await waitPend(bs,'turn',b=>b.snap.h.trickNo===0&&!b.snap.h.envitDone);
+  assert.equal(a.snap.h.envitMax,4,'a 0 a 0, «tots» val més que el «2 més»');
+  a.send({t:'act',a:{type:'envit',level:4}});
+  r=await waitPend(bs,'respond',b=>b.room.you%2!==a.room.you%2);
+  assert.equal(r.snap.h.pending.data.level,4,'s\'ha cantat «envit tots» de primeres');
+  assert(evs(bs[0]).some(e=>e.e==='call'&&e.level===4&&e.pts===24),'val el cantó sencer (falten 24)');
+  r.send({t:'act',a:'raise'});r.send({t:'act',a:'raise4'}); // no es pot pujar més: no fa res
+  await new Promise(x=>setTimeout(x,300));
+  assert(!evs(bs[0]).some(e=>e.e==='refuse'||e.e==='envitOk'),'pujar un «tots» no fa res');
+  r.send({t:'act',a:'no'});
+  assert(await bs[0].until(()=>evs(bs[0]).some(e=>e.e==='refuse'),5000));
+  ref=evs(bs[0]).find(e=>e.e==='refuse');
+  assert.equal(ref.pts,1,'no vull a un «tots» de primeres: 1 punt');
+  for(const b of bs)b.ws.close();
+  await new Promise(x=>setTimeout(x,200));
+  for(const rr of Array.from(rooms.values()))if(rr.humans()===0)rr.destroy();
+  // 4) Qui se'n va el primer sense que s'hagi envidat dona 2 punts (1 d'envit i 1 de truc)
+  bs=await table();
+  a=await waitPend(bs,'turn',b=>b.snap.h.trickNo===0&&!b.snap.h.envitDone&&b.snap.h.played.length===0);
+  a.send({t:'act',a:{type:'fold'}});
+  assert(await bs[0].until(()=>evs(bs[0]).some(e=>e.e==='result'),5000));
+  const fold=evs(bs[0]).find(e=>e.e==='result');
+  assert(fold.how==='fold'&&fold.pts===2&&fold.envit===1,'se\'n va sense envidar: 2 punts per als rivals');
+  // 5) Mà següent: qui truca de primeres sense envidar ja no pot envidar; els rivals, abans de contestar, sí
+  const n0=evs(bs[0]).length;
+  a=await waitPend(bs,'turn',b=>b.snap.h.trickNo===0&&!b.snap.h.envitDone&&b.snap.h.played.length===0&&evs(bs[0]).length>n0&&evs(bs[0]).slice(n0).some(e=>e.e==='deal'));
+  a.send({t:'act',a:{type:'truc'}});
+  r=await waitPend(bs,'respond',b=>b.room.you%2!==a.room.you%2&&b.snap.h.pending.data.kind==='truc');
+  assert(r.snap.h.pending.data.envitOk,'els rivals encara no han jugat: poden envidar abans de contestar el truc');
+  r.send({t:'act',a:'envit'});
+  back=await waitPend(bs,'respond',b=>b.room.you%2===a.room.you%2&&b.snap.h.pending.data.kind==='envit');
+  assert(back,'primer contesten l\'envit els que han trucat');
+  back.send({t:'act',a:'vull'});
+  r=await waitPend(bs,'respond',b=>b.room.you%2!==a.room.you%2&&b.snap.h.pending.data.kind==='truc');
+  assert(r&&!r.snap.h.pending.data.envitOk,'i després es contesta el truc (ja sense poder envidar)');
+  r.send({t:'act',a:'vull'});
+  a=await waitPend(bs,'turn',b=>b.room.you%2===a.room.you%2);
+  assert(a.snap.h.noEnvit[a.room.you%2],'la parella que ha trucat sense envidar ja no pot envidar');
+  for(const b of bs)b.ws.close();
+  // 3) Els bots també salten quan duen molt d'envit
+  const {Game}=require('./game.js');
+  const g=new Game({seats:[0,1,2,3].map(()=>({human:false})),sendAll(){},sendSeat(){}},{speed:0,timerMs:1000,level:'normal'});
+  g.G.scores=[0,0];
+  g.H={initial:[[{n:7,s:'oros'},{n:6,s:'oros'},{n:5,s:'oros'}],[],[{n:1,s:'copes'},{n:4,s:'bastos'},{n:12,s:'espases'}],[]],hands:[[],[],[],[]],info:[[],[],[],[]],caught:[[],[]]};
+  g.rnd=()=>0.5;
+  const ans=g.botRespondEnvit(0,1);
+  assert(/^raise[34]$/.test(ans),'amb 33 d\'envit, a un «envit» hi salta («2 més» o «tots»): '+ans);
+  console.log('20) normativa: salt a «2 més» (no vull = 2), «tots» de primeres (no vull = 1), sense pujar un «tots», anar-se\'n sense envidar (2 punts), envidar abans de contestar el truc, qui truca sense envidar ja no envida, i els bots també salten');
+}
 // Senyes: cada bot fa les seves una sola vegada per mà, només quan el company el mira, i el mira mentre la fa
 function scenario11(){
   const {Game,signOf}=require('./game.js');
@@ -668,7 +755,7 @@ async function scenario16(){
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();scenario11();scenario17();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario18();await scenario16();await scenario19();await scenario12();
+    scenario5();scenario11();scenario17();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario18();await scenario16();await scenario19();await scenario20();await scenario12();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });

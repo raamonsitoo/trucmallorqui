@@ -11,9 +11,13 @@ const ENVIT_REFUSE = [0, 1, 2, 4, 6];
 const SIGN_POWER = { amo: 3, madona: 3, asE: 3, asB: 3, sieteE: 3, sieteO: 3, tres: 2, buit: 0 };
 const SIGN_DUR = { amo: 1.1, madona: 1.0, asE: 1.3, asB: 1.3, sieteE: 1.3, sieteO: 1.3, tres: 1.4, buit: 1.1 };
 // Resposta en parella: si un contesta i el company encara no, aquest té uns segons per dir-hi la seva.
-// Mana la resposta que «més vol»: pujar > vull > no vull.
+// Mana la resposta que «més vol»: pujar (com més amunt, més) > vull > no vull.
 const TEAM_WINDOW_MS = 7000;
-const ANS_RANK = { no: 0, vull: 1, raise: 2 };
+// Respostes: 'no', 'vull', 'raise' (el següent) o, als envits, 'raise3'/'raise4' (saltar a «2 més» o a «tots»)
+const raiseTo = (a, level) => (a === 'raise' ? level + 1 : /^raise[2-4]$/.test(a) ? Number(a[5]) : 0);
+// Davant un truc de primeres, abans de contestar es pot envidar: 'envit' o 'envit4' (envit tots). Mana per damunt de tot.
+const isEnvAns = a => a === 'envit' || a === 'envit4';
+const ansRank = (a, level) => (isEnvAns(a) ? 100 : a === 'no' ? 0 : a === 'vull' ? 1 : 2 + raiseTo(a, level));
 
 function makeDeck() { const d = []; for (const s of SUITS) for (const n of NUMS) d.push({ n, s }); return d; }
 function shuffle(a, rnd = Math.random) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -243,7 +247,7 @@ class Game {
       out.h = {
         mano: H.mano, turn: H.turn, over: H.over, trickNo: H.trickNo, tricks: H.tricks, played: H.played, past: H.past,
         trucLevel: H.trucLevel, trucOwner: H.trucOwner, envitLevel: H.envitLevel, envitDone: H.envitDone,
-        envitPending: H.envitPending, winPlayer: H.winPlayer, dealt: H.dealt,
+        envitPending: H.envitPending, winPlayer: H.winPlayer, dealt: H.dealt, noEnvit: H.noEnvit,
         envitFalta: this.envitFalta(), envitMax: this.maxEnvitLevel(),
         counts: H.hands.map(h => h.length), mine: H.hands[s], init: H.initial[s] || [],
         pending: p ? { kind: p.kind, data: p.data, left: Math.max(0, p.deadline - Date.now()) } : null
@@ -319,7 +323,8 @@ class Game {
     if (this.pending !== p) return;
     clearTimeout(p.timer); this.pending = null;
     let best = 'no', by = p.seats[0];
-    for (const [seat, a] of Object.entries(p.answers)) if (ANS_RANK[a] > ANS_RANK[best] || (best === 'no' && a === 'no')) { best = a; by = Number(seat); }
+    const lv = p.data && p.data.level;
+    for (const [seat, a] of Object.entries(p.answers)) if (ansRank(a, lv) > ansRank(best, lv) || (best === 'no' && a === 'no')) { best = a; by = Number(seat); }
     p.by = by; p.resolve(best);
   }
   timeoutPlay(seat) {
@@ -341,14 +346,18 @@ class Game {
       } else if (a.type === 'truc') { if (!this.canCallTruc(seat)) return; }
       else if (a.type === 'envit') { if (!this.canCallEnvit(seat)) return; }
       else if (a.type !== 'fold') return;
-      a = a.type === 'play' ? { type: 'play', idx: a.idx } : { type: a.type };
+      // De primeres es pot cantar «envit» o directament «envit tots» (si val més que el «2 més»)
+      a = a.type === 'play' ? { type: 'play', idx: a.idx }
+        : a.type === 'envit' ? { type: 'envit', level: a.level === 4 && this.maxEnvitLevel() === 4 ? 4 : 1 } : { type: a.type };
     } else {
-      if (a !== 'vull' && a !== 'no' && a !== 'raise') return;
-      if (a === 'raise' && p.data.level >= (p.data.kind === 'envit' ? this.maxEnvitLevel() : 4)) return;
+      const env = isEnvAns(a) && !!p.data.envitOk && (a === 'envit' || this.maxEnvitLevel() === 4);
+      if (a !== 'vull' && a !== 'no' && a !== 'raise' && !env && !(p.data.kind === 'envit' && /^raise[2-4]$/.test(a))) return;
+      const to = raiseTo(a, p.data.level);
+      if (to && (to <= p.data.level || to > (p.data.kind === 'envit' ? this.maxEnvitLevel() : 4))) return;
       if (seat in p.answers) return;
       p.answers[seat] = a;
-      // Pujar ja és el màxim, o ja han contestat tots: es decideix ara.
-      if (a === 'raise' || p.seats.every(x => x in p.answers)) { this.finishAsk(p); return; }
+      // Pujar (o envidar abans de contestar el truc), o ja han contestat tots: es decideix ara.
+      if (to || env || p.seats.every(x => x in p.answers)) { this.finishAsk(p); return; }
       // Primer que contesta: el company ho veu i té uns segons per dir-hi la seva.
       this.emit({ e: 'teamAns', p: seat, a, kind: p.data.kind, level: p.data.level });
       this.armAsk(p, Math.min(TEAM_WINDOW_MS, Math.max(0, p.deadline - Date.now()) + 1500, this.timerMs));
@@ -360,8 +369,9 @@ class Game {
 
   // ---------- Regles de crida ----------
   canCallTruc(p) { const H = this.H; return !!H && !H.over && H.trucLevel < 4 && (H.trucOwner === null || H.trucOwner === p % 2); }
-  // L'envit es pot cantar a la primera ronda, també si ja s'ha acceptat el truc.
-  canCallEnvit(p) { const H = this.H; return !!H && !H.over && H.trickNo === 0 && !H.envitDone; }
+  // L'envit es pot cantar a la primera ronda, també si ja s'ha acceptat el truc;
+  // però la parella que truca sense haver envidat ja no pot envidar (normativa, envits 7)
+  canCallEnvit(p) { const H = this.H; return !!H && !H.over && H.trickNo === 0 && !H.envitDone && !(H.noEnvit && H.noEnvit[p % 2]); }
   // «Envit tots» val els punts que falten a la parella que va davant per arribar a 24.
   envitFalta() { const sc = this.G.scores; return 24 - Math.max(sc[0], sc[1]); }
   envitPts(level) { return level === 4 ? this.envitFalta() : ENVIT_VALUE[level]; }
@@ -450,8 +460,13 @@ class Game {
     let e = this.teamEnvit(p) + P.envNoise * (this.rnd() * 2 - 1);
     const c = H.caught[1 - p % 2];
     if (c.includes('amo') || c.includes('madona')) e -= 2;
-    const acc = P.envAcc[level], rai = P.envRai[level];
-    if (level < this.maxEnvitLevel() && e >= rai) return 'raise';
+    const acc = P.envAcc[level], rai = P.envRai[level], max = this.maxEnvitLevel();
+    if (level < max && e >= rai) {
+      // Si també pujaria el següent, salta-hi directament («2 més» o «tots»)
+      let to = level + 1;
+      while (to < max && e >= P.envRai[to]) to++;
+      return to === level + 1 ? 'raise' : 'raise' + to;
+    }
     if (e >= acc) return 'vull';
     if (this.rnd() < P.envAccRand) return 'vull';
     return 'no';
@@ -539,27 +554,49 @@ class Game {
   // Valor d'un resultat: probabilitat de guanyar el cantó si la parella de p suma `a` i els rivals `b`.
   util(p, a, b) { const sc = this.G.scores, t = p % 2; return winP(sc[t] + a, sc[1 - t] + b); }
   mcRespond(p, kind, level) {
-    const P = this.bp(p), worlds = this.mcWorlds(p);
-    let pw, V, R, V2 = 0;
+    const P = this.bp(p), worlds = this.mcWorlds(p), H = this.H;
+    let pw, V, R, top;
     if (kind === 'truc') {
       pw = this.mcHand(p, worlds).vals[0];
-      V = TRUC_VALUE[level]; R = TRUC_REFUSE[level]; if (level < 4) V2 = TRUC_VALUE[level + 1];
+      V = TRUC_VALUE[level]; R = TRUC_REFUSE[level]; top = Math.min(4, level + 1); // al truc només es puja d'un en un
     } else {
       pw = this.mcEnvit(p, worlds);
-      V = this.envitPts(level); R = ENVIT_REFUSE[level]; if (level < this.maxEnvitLevel()) V2 = this.envitPts(level + 1);
+      V = this.envitPts(level); R = H.askRefuse != null ? H.askRefuse : ENVIT_REFUSE[level]; top = this.maxEnvitLevel();
     }
     const uNo = this.util(p, 0, R), uAcc = pw * this.util(p, V, 0) + (1 - pw) * this.util(p, 0, V);
-    // Si pujam, els rivals triaran el que menys ens convé: no voler (ens donen V) o jugar-s'ho a V2.
-    const uRaise = V2 ? Math.min(this.util(p, V, 0), pw * this.util(p, V2, 0) + (1 - pw) * this.util(p, 0, V2)) : -1;
-    if (V2 && uRaise > Math.max(uAcc, uNo) + P.mRai) return 'raise';
+    // Si pujam a t, els rivals triaran el que menys ens convé: no voler (ens donen V) o jugar-s'ho a t.
+    let to = 0, uRaise = -1;
+    for (let t = level + 1; t <= top; t++) {
+      const Vt = kind === 'truc' ? TRUC_VALUE[t] : this.envitPts(t);
+      const u = Math.min(this.util(p, V, 0), pw * this.util(p, Vt, 0) + (1 - pw) * this.util(p, 0, Vt));
+      if (u > uRaise) { uRaise = u; to = t; }
+    }
+    if (to && uRaise > Math.max(uAcc, uNo) + P.mRai) return to === level + 1 ? 'raise' : 'raise' + to;
     return uAcc + P.mAcc >= uNo ? 'vull' : 'no';
+  }
+  // Vol envidar? 0 = no, 1 = envit, 4 = envit tots (de primeres)
+  botEnvitCall(p) {
+    const P = this.bp(p);
+    if (P.mc) return this.mcEnvitCall(p, this.mcWorlds(p));
+    if (!this.botWantsEnvit(p)) return 0;
+    // amb un envit dels que gairebé no perden, de vegades canta «tots» de primeres
+    return this.maxEnvitLevel() === 4 && this.teamEnvit(p) >= P.envRai[3] && this.rnd() < 0.5 ? 4 : 1;
+  }
+  mcEnvitCall(p, worlds) {
+    const P = this.bp(p), pe = this.mcEnvit(p, worlds), V = this.envitPts(1);
+    const uCall = Math.min(this.util(p, ENVIT_REFUSE[1], 0), pe * this.util(p, V, 0) + (1 - pe) * this.util(p, 0, V));
+    // «Envit tots» de primeres: si no el volen, 1 punt; si el volen, es juguen el que falta
+    let uFalta = -1;
+    if (this.maxEnvitLevel() === 4) { const F = this.envitPts(4); uFalta = Math.min(this.util(p, 1, 0), pe * this.util(p, F, 0) + (1 - pe) * this.util(p, 0, F)); }
+    if (uFalta > uCall && uFalta > this.util(p, 0, 0) + P.mEnvCall) return 4;
+    if (uCall > this.util(p, 0, 0) + P.mEnvCall || (pe < 0.3 && this.rnd() < P.envBluffMc)) return 1;
+    return 0;
   }
   mcTurn(p) {
     const H = this.H, P = this.bp(p), worlds = this.mcWorlds(p);
     if (this.canCallEnvit(p)) {
-      const pe = this.mcEnvit(p, worlds), V = this.envitPts(1);
-      const uCall = Math.min(this.util(p, ENVIT_REFUSE[1], 0), pe * this.util(p, V, 0) + (1 - pe) * this.util(p, 0, V));
-      if (uCall > this.util(p, 0, 0) + P.mEnvCall || (pe < 0.3 && this.rnd() < P.envBluffMc)) return { type: 'envit' };
+      const e = this.mcEnvitCall(p, worlds);
+      if (e) return e === 4 ? { type: 'envit', level: 4 } : { type: 'envit' };
     }
     const { idxs, vals } = this.mcHand(p, worlds), hand = H.hands[p];
     let k = 0;
@@ -645,7 +682,10 @@ class Game {
     }
     if (this.bp(p).sureTruc && this.canCallTruc(p) && this.sureWinNow(p)) return { type: 'truc' };
     if (this.bp(p).mc) return this.mcTurn(p);
-    if (this.canCallEnvit(p) && this.botWantsEnvit(p)) return { type: 'envit' };
+    if (this.canCallEnvit(p)) {
+      const e = this.botEnvitCall(p);
+      if (e) return e === 4 ? { type: 'envit', level: 4 } : { type: 'envit' };
+    }
     if (this.canCallTruc(p) && this.botWantsTruc(p)) return { type: 'truc' };
     return { type: 'play', idx: this.botChooseCard(p) };
   }
@@ -779,40 +819,59 @@ class Game {
   // ---------- Cants ----------
   // Retorna { d, by }: la resposta i el seient que l'ha donada.
   // Si a la parella que respon hi ha humans, tots ells poden contestar; el primer decideix.
-  async respond(callerP, kind, level) {
+  // envitOk: davant un truc de primeres, abans de contestar, encara poden envidar
+  async respond(callerP, kind, level, envitOk) {
     const c = [(callerP + 1) % 4, (callerP + 3) % 4];
     const humans = c.filter(s => this.isHuman(s));
     if (humans.length) {
-      const d = await this.ask(humans, 'respond', { kind, level, callerP });
+      const d = await this.ask(humans, 'respond', envitOk ? { kind, level, callerP, envitOk: true } : { kind, level, callerP });
       return { d, by: this.lastBy };
     }
     const r = c[0];
     this.emit({ e: 'debate', p: r, q: (r + 2) % 4 });
     this.snap();
     await this.sleep(1600);
+    if (envitOk) { const e = this.botEnvitCall(r); if (e) return { d: e === 4 ? 'envit4' : 'envit', by: r }; }
     return { d: kind === 'truc' ? this.botRespondTruc(r, level) : this.botRespondEnvit(r, level), by: r };
   }
-  async negotiate(kind, caller) {
+  // startLevel: als envits, de primeres es pot cantar «envit» (1) o «envit tots» (4)
+  async negotiate(kind, caller, startLevel) {
     const H = this.H, isTruc = kind === 'truc';
-    let level = (isTruc ? H.trucLevel : H.envitLevel) + 1;
-    let callerP = caller, callerTeam = caller % 2;
+    let level = isTruc ? H.trucLevel + 1 : startLevel === 4 ? 4 : H.envitLevel + 1;
+    // Si diuen «no vull», qui ha fet la darrera aposta guanya el que valia l'aposta anterior (1 si no n'hi havia)
+    let prev = isTruc ? H.trucLevel : H.envitLevel;
+    let callerP = caller, callerTeam = caller % 2, again = false;
+    // Qui truca sense haver envidat ja no pot envidar (la seva parella)
+    if (isTruc && level === 1 && !H.envitDone) H.noEnvit[callerTeam] = true;
     // El mestre recorda qui ha cantat què per endevinar les cartes dels rivals
     H.acts.push({ team: callerTeam, kind, a: 'call' });
     while (true) {
-      this.emit({ e: 'call', p: callerP, kind, level, pts: isTruc ? TRUC_VALUE[level] : this.envitPts(level) });
+      const refuse = isTruc ? TRUC_REFUSE[level] : prev ? this.envitPts(prev) : 1;
+      const respTeam = 1 - callerTeam;
+      // Truc de primeres i els rivals encara no han jugat cap carta: abans de contestar poden envidar (normativa, truc 9)
+      const envitOk = isTruc && level === 1 && H.trickNo === 0 && !H.envitDone && !H.noEnvit[respTeam] && !H.gone.some(x => x.p % 2 === respTeam);
+      if (!again) this.emit({ e: 'call', p: callerP, kind, level, pts: isTruc ? TRUC_VALUE[level] : this.envitPts(level) });
+      again = false;
       this.snap();
       await this.sleep(900);
-      const respTeam = 1 - callerTeam;
-      const { d, by: responder } = await this.respond(callerP, kind, level);
+      H.askRefuse = refuse; // el fan servir els bots per decidir
+      const { d, by: responder } = await this.respond(callerP, kind, level, envitOk);
+      if (isEnvAns(d) && envitOk) {
+        // Primer es resol l'envit (contesten els que han trucat) i després es contesta el truc
+        await this.negotiate('envit', responder, d === 'envit4' && this.maxEnvitLevel() === 4 ? 4 : 1);
+        if (H.over) return;
+        again = true;
+        continue;
+      }
       H.acts.push({ team: respTeam, kind, a: d });
       if (d === 'no') {
-        this.emit({ e: 'ans', p: responder, a: 'no' });
+        this.emit({ e: 'ans', p: responder, a: 'no', kind, level, pts: refuse, to: callerTeam });
         await this.sleep(800);
         if (isTruc) {
-          const pts = TRUC_REFUSE[level];
+          const pts = refuse;
           this.endHand(callerTeam, pts, { how: 'refuse', kind, respTeam });
         } else {
-          const pts = ENVIT_REFUSE[level];
+          const pts = refuse;
           H.envitDone = true;
           this.addScore(callerTeam, pts);
           this.snap();
@@ -821,7 +880,7 @@ class Game {
         return;
       }
       if (d === 'vull') {
-        this.emit({ e: 'ans', p: responder, a: 'vull' });
+        this.emit({ e: 'ans', p: responder, a: 'vull', kind, level, pts: isTruc ? TRUC_VALUE[level] : this.envitPts(level) });
         await this.sleep(800);
         if (isTruc) { H.trucLevel = level; H.trucOwner = respTeam; this.snap(); }
         else {
@@ -831,8 +890,10 @@ class Game {
         }
         return;
       }
+      // Puja: al truc, el següent; a l'envit, també pot saltar a «2 més» o a «tots»
+      const to = isTruc ? level + 1 : Math.max(level + 1, raiseTo(d, level));
       if (isTruc) { H.trucLevel = level; this.snap(); } else H.envitLevel = level;
-      callerP = responder; callerTeam = respTeam; level++;
+      callerP = responder; callerTeam = respTeam; prev = level; level = to;
     }
   }
   async showdownEnvit(level) {
@@ -867,11 +928,12 @@ class Game {
         return;
       }
       if (act.type === 'fold') {
-        const t = 1 - p % 2, pts = TRUC_VALUE[H.trucLevel];
-        this.endHand(t, pts, { how: 'fold', p });
+        // Si un dels tres primers se'n va sense que s'hagi envidat, els rivals guanyen també un punt d'envit (normativa, envits 2)
+        const t = 1 - p % 2, env = H.trickNo === 0 && !H.envitDone && H.played.length < 3 ? 1 : 0;
+        this.endHand(t, TRUC_VALUE[H.trucLevel] + env, { how: 'fold', p, envit: env });
         return;
       }
-      await this.negotiate(act.type, p);
+      await this.negotiate(act.type, p, act.level);
       if (H.over) return;
       H.turn = p; this.snap();
     }
@@ -882,7 +944,7 @@ class Game {
     const G = this.G, deck = shuffle(makeDeck(), this.dealRnd);
     const H = this.H = {
       hands: [[], [], [], []], initial: [], mano: (G.dealer + 1) % 4, trucLevel: 0, trucOwner: null,
-      envitLevel: 0, envitDone: false, envitPending: false, tricks: [], played: [], past: [], trickNo: 0, turn: null,
+      envitLevel: 0, envitDone: false, envitPending: false, noEnvit: [false, false], tricks: [], played: [], past: [], trickNo: 0, turn: null,
       over: false, winPlayer: null, dealt: false, result: null, gone: [], acts: [],
       info: [[], [], [], []], caught: [[], []], say: [null, null, null, null], ask: [false, false, false, false], askTruc: [false, false, false, false]
     };

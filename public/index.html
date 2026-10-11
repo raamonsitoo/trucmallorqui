@@ -230,6 +230,21 @@ body.immersive .coach{grid-area:actions;align-self:start;margin:0;font-size:.85r
 .lobby-err{color:var(--red);font-weight:700;min-height:1.4em;margin:10px 0 0}
 .linklike{background:none;border:0;color:var(--ink);text-decoration:underline;cursor:pointer;padding:8px 0;font:inherit}
 .conn{position:fixed;left:0;right:0;top:0;z-index:60;background:var(--red);color:#fff;text-align:center;padding:.4rem;font-weight:700}
+/* Cants i respostes: cartell gran de colors a la taula durant uns segons */
+.callban{position:absolute;left:50%;top:27%;transform:translate(-50%,-50%);z-index:7;pointer-events:none;width:max-content;min-width:min(70%,300px);max-width:92%;
+  text-align:center;padding:.55rem 1.1rem .6rem;border-radius:18px;color:#fff;background:rgba(10,24,21,.92);border:2px solid rgba(255,255,255,.3);box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.callban[hidden]{display:none}
+.callban b{display:block;font-size:1.55rem;line-height:1.15;font-weight:800}
+.callban small{display:block;font-size:.9rem;line-height:1.25;opacity:.95;margin-top:3px}
+.callban.truc{background:rgba(176,40,32,.95);border-color:#ffb1a8}
+.callban.envit{background:rgba(36,64,160,.95);border-color:#b3c4ff}
+.callban.raise{background:rgba(233,179,28,.97);border-color:#fff3c4;color:#2b1c00}
+.callban.ok{background:rgba(39,128,70,.96);border-color:#b4f2c7}
+.callban.no{background:rgba(28,28,28,.95);border-color:#ff9a9a}
+.callban.in{animation:cbIn .22s ease-out}
+.callban.out{opacity:0;transition:opacity .3s}
+@keyframes cbIn{from{transform:translate(-50%,-50%) scale(.85);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.callban.in{animation:none}}
 .banner{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;padding:.8rem 1.2rem;border-radius:16px;font-weight:700;text-align:center;z-index:6;max-width:92%}
 .codechip{font-weight:700;font-size:.85rem;border:2px solid var(--line);border-radius:999px;padding:.25rem .7rem}
 .actions{margin-top:10px;min-height:118px;display:flex;flex-direction:column;gap:8px}
@@ -241,7 +256,9 @@ body.immersive .coach{grid-area:actions;align-self:start;margin:0;font-size:.85r
 .respond{display:flex;flex-direction:column;gap:8px}
 .respond .q{margin:0;font-weight:700;font-size:1.05rem}
 .respond .q small{font-weight:400;color:var(--muted)}
-.bigbtns{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px}
+.bigbtns{display:flex;gap:8px}
+.bigbtns>*{flex:1 1 0;min-width:0}
+.bigbtns>.splitb{flex-grow:1.45} /* el botó amb fletxa, una mica més ample perquè el text hi càpiga */
 .turnbox{display:flex;flex-direction:column;gap:8px}
 .turnbox .status{font-size:1.02rem}
 .bigbtns .btn.ghost.armed{background:var(--gold);border-color:var(--gold);color:#2b1c00}
@@ -322,12 +339,18 @@ body.immersive .band,body.immersive .log,body.immersive .top>div:first-child{dis
     border:1px solid rgba(255,255,255,.13);backdrop-filter:blur(10px) saturate(1.2);-webkit-backdrop-filter:blur(10px) saturate(1.2)}
   body.immersive #actions>.status:empty{display:none}
   body.immersive #actions .status,body.immersive .respond .q{font-size:.82rem;line-height:1.3;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)}
-  body.immersive .bigbtns{grid-auto-flow:row;grid-auto-columns:auto;gap:6px}
+  body.immersive .bigbtns{display:grid;grid-auto-flow:row;grid-auto-columns:auto;gap:6px}
   body.immersive .bigbtns .btn{min-height:46px;font-size:1rem;box-shadow:none;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
   body.immersive .bigbtns .btn.truc{background:rgba(196,52,42,.8)}
   body.immersive .bigbtns .btn.envit{background:rgba(42,74,170,.8)}
   body.immersive .bigbtns .btn.ok{background:rgba(47,138,78,.82)}
   body.immersive .bigbtns .btn.ghost{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22)}
+  /* als costats els botons van un davall l'altre: el desplegable s'obre aquí mateix, davall la fletxa */
+  body.immersive .splitb{flex-wrap:wrap}
+  body.immersive .moremenu{position:static;flex-basis:100%;width:auto;max-width:none;padding:0;gap:6px;background:none;border:0;box-shadow:none}
+  body.immersive .preenv{flex-direction:column;align-items:stretch;gap:6px}
+  body.immersive .preenv>span{font-size:.78rem;color:#fff}
+  body.immersive .preenv .splitb{width:auto}
   body.immersive .side .coach{margin:0;font-size:.82rem;padding:8px 10px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);background:rgba(40,30,5,.55)}
   /* a l'ordinador, les rondes de la mà van a baix a la dreta (damunt el rellotge); només quan ja s'ha jugat alguna ronda */
   body.immersive:not(.phone) .hist{display:flex;flex-direction:column-reverse;gap:8px;position:fixed;right:10px;bottom:54px;z-index:4;width:max-content;max-width:min(330px,40vw);max-height:56vh;overflow:auto;scrollbar-width:none}
@@ -405,10 +428,23 @@ body.phone #btnFs,body.phone #btnFs2{display:none!important}
   body.immersive .stage{grid-area:stage;height:auto!important;min-height:0;border-radius:16px}
   body.immersive #actions{grid-area:actions;margin:0;min-height:0}
   body.immersive #talkBox,body.immersive #signBox{display:none}
-  body.immersive .bigbtns{grid-auto-flow:column;grid-auto-columns:1fr}
+  body.immersive .bigbtns{display:flex}
 }
 .bigbtns .btn{min-height:56px;font-size:1.08rem;border-radius:14px;padding:.4rem .5rem;line-height:1.15}
 .bigbtns .btn.ok{background:#2f8a4e;color:#fff}
+/* Envit amb desplegable: el botó de sempre i, a la fletxa, la resta (s'obren cap amunt, damunt els botons) */
+.splitb{position:relative;display:flex;gap:3px;min-width:0}
+.splitb>.btn:first-child{flex:1 1 auto;min-width:0;border-top-right-radius:6px;border-bottom-right-radius:6px}
+.splitb>.btn.more{flex:0 0 38px;padding:0;font-size:1.05rem;border-top-left-radius:6px;border-bottom-left-radius:6px}
+.splitb.open>.btn.more{box-shadow:inset 0 0 0 2px var(--gold)}
+.moremenu{position:absolute;left:0;bottom:calc(100% + 8px);min-width:100%;width:max-content;max-width:min(260px,calc(100vw - 24px));z-index:40;
+  display:flex;flex-direction:column;gap:6px;padding:6px;border-radius:16px;background:rgba(10,24,21,.96);border:1px solid rgba(255,255,255,.2);box-shadow:0 12px 32px rgba(0,0,0,.5)}
+.bigbtns .moremenu .btn{min-height:50px;width:100%;white-space:nowrap;padding:.4rem .9rem}
+/* Davant un truc de primeres: envidar abans de contestar */
+.preenv{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:12px;background:rgba(42,74,170,.14);border:1px dashed rgba(120,150,230,.45)}
+.preenv>span{flex:1;font-size:.9rem;line-height:1.25}
+.preenv .splitb{flex:0 0 auto;width:min(190px,48%)}
+.preenv .btn{min-height:42px;font-size:.98rem}
 .stage.calling{box-shadow:inset 0 0 0 4px var(--gold)}
 
 .signs{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
@@ -852,6 +888,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
     <div class="you nm" id="you">Tu</div>
     <div class="toast" id="toast" role="status"></div>
     <div class="banner" id="banner" hidden></div>
+    <div class="callban" id="callBan" hidden role="status" aria-live="polite"></div>
     <div class="clock" id="clock" role="timer"></div>
     <button class="fsmini" id="btnFs2" hidden aria-label="Pantalla completa" title="Pantalla completa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     <div class="nogl" id="nogl" hidden><p>El teu navegador no pot mostrar el 3D.<br>Prova amb un altre navegador o dispositiu.</p></div>
@@ -1797,7 +1834,10 @@ const callText=(k,l)=>k==='truc'?TRUC_CALL[l]:ENVIT_CALL[l];
 function log(t){G.log.unshift(t);if(G.log.length>40)G.log.pop();renderLog();}
 
 const canCallTruc=p=>!!H&&!H.over&&H.trucLevel<4&&(H.trucOwner===null||H.trucOwner===team(p));
-const canCallEnvit=p=>!!H&&!H.over&&H.trickNo===0&&!H.envitDone; // també després d'acceptar el truc
+// també després d'acceptar el truc; però si la teva parella ha trucat sense envidar, ja no
+const canCallEnvit=p=>!!H&&!H.over&&H.trickNo===0&&!H.envitDone&&!(H.noEnvit&&H.noEnvit[team(p)]);
+// Si te'n vas sent un dels tres primers de la primera ronda i no s'ha envidat, els rivals guanyen també 1 punt d'envit
+const foldEnvit=()=>H&&H.trickNo===0&&!H.envitDone&&(H.played||[]).length<3?1:0;
 // «Envit tots» val el que falta a la parella que va davant per arribar a 24
 const envitFalta=()=>H&&H.envitFalta!=null?H.envitFalta:24-Math.max(G.scores?G.scores[0]||0:0,G.scores?G.scores[1]||0:0);
 const envitPts=l=>l===4?envitFalta():ENVIT_VALUE[l];
@@ -2938,6 +2978,13 @@ function render2D(){
   const mine=H.hands[0]||[],can=UI.mode==='turn';
   $('#hand2d').innerHTML=mine.map((c,i)=>`<button data-play="${i}" ${can?'':'disabled'} aria-label="Tirar ${cardLabel(c)}">${cardSVG(c)}<span class="k">${i+1}</span></button>`).join('');
 }
+// Botó amb desplegable: el més habitual a la vista i, a la fletxa ▾, la resta d'opcions (s'obren cap amunt)
+function splitBtn(main,more){
+  if(!more.length)return main;
+  const open=!!UI.moreOpen;
+  return `<div class="splitb${open?' open':''}">${main}<button class="btn envit more" data-more aria-expanded="${open}" aria-label="Més opcions d'envit">${open?'▴':'▾'}</button>`
+    +(open?`<div class="moremenu" role="menu">${more.join('')}</div>`:'')+'</div>';
+}
 function renderActions(){
   const el=$('#actions');if(!el)return;
   let html=`<p class="status">${G.status||''}</p>`;
@@ -2945,8 +2992,10 @@ function renderActions(){
   if(UI.mode==='turn'&&H){
     const b=[];
     if(canCallTruc(0))b.push(`<button class="btn truc" data-act="truc">${TRUC_BTN[H.trucLevel+1]}</button>`);
-    if(canCallEnvit(0))b.push(`<button class="btn envit" data-act="envit">${envitBtn(H.envitLevel+1)}</button>`);
-    const cur=TRUC_VALUE[H.trucLevel];
+    // «Envit» a la vista; «Envit tots» (de primeres) al desplegable
+    if(canCallEnvit(0))b.push(splitBtn(`<button class="btn envit" data-act="envit">${envitBtn(H.envitLevel+1)}</button>`,
+      envitMax()===4&&H.envitLevel===0?[`<button class="btn envit" data-act="envit4">${envitBtn(4)}</button>`]:[]));
+    const cur=TRUC_VALUE[H.trucLevel]+foldEnvit();
     b.push(`<button class="btn ghost${UI.foldArm?' armed':''}" data-act="fold">${UI.foldArm?`Segur? Perds ${ptsText(cur)}`:'Me\'n vaig'}</button>`);
     const env=(H.trickNo===0&&H.initial[0])?` <small class="hint">· El teu envit: <b>${envitValue(H.initial[0])}</b></small>`:'';
     html=`<div class="turnbox"><p class="status">${G.status||''}${env} <span class="keyhint">· Tecles: 1 2 3 tirar, T truc, E envit</span></p><div class="timerbar" id="timerbar"><i></i></div><div class="bigbtns">${b.join('')}</div></div>`;
@@ -2955,10 +3004,18 @@ function renderActions(){
     const pts=isT?ptsText(TRUC_VALUE[r.level]):ptsText(envitPts(r.level));
     const mine=(!isT&&H&&H.initial[0])?` · El teu envit: <b>${envitValue(H.initial[0])}</b>`:'';
     const b=[];
-    if(r.level<(isT?4:envitMax()))b.push(`<button class="btn ${isT?'truc':'envit'}" data-act="raise">${isT?TRUC_BTN[r.level+1]:envitBtn(r.level+1)}</button>`);
+    // Pujar: el següent a la vista; als envits, també es pot saltar a «2 més» o a «tots» (al desplegable)
+    if(r.level<(isT?4:envitMax())){
+      const main=`<button class="btn ${isT?'truc':'envit'}" data-act="raise">${isT?TRUC_BTN[r.level+1]:envitBtn(r.level+1)}</button>`,more=[];
+      if(!isT)for(let l=r.level+2;l<=envitMax();l++)more.push(`<button class="btn envit" data-act="raise${l}">${envitBtn(l)}</button>`);
+      b.push(splitBtn(main,more));
+    }
     b.push(`<button class="btn ok" data-act="vull">Vaig!</button>`);
     b.push(`<button class="btn ghost" data-act="no">No hi vaig</button>`);
-    html=`<div class="respond"><p class="q"><span class="keyhint" style="float:right">V vull · N no · P pujar</span>${esc(NAMES[r.callerP])}: ${callText(r.kind,r.level)} <small>(en joc ${pts}${mine})</small></p><div class="timerbar" id="timerbar"><i></i></div><div class="bigbtns">${b.join('')}</div></div>`;
+    // Truc de primeres i encara no heu jugat: abans de contestar, podeu envidar (i ells contesten primer l'envit)
+    const pre=isT&&r.envitOk?`<div class="preenv"><span>Abans de contestar, podeu envidar${H&&H.initial[0]?` <small>(el teu envit: <b>${envitValue(H.initial[0])}</b>)</small>`:''}</span>`
+      +splitBtn(`<button class="btn envit" data-act="envit">${envitBtn(1)}</button>`,envitMax()===4?[`<button class="btn envit" data-act="envit4">${envitBtn(4)}</button>`]:[])+'</div>':'';
+    html=`<div class="respond"><p class="q"><span class="keyhint" style="float:right">V vull · N no · P pujar</span>${esc(NAMES[r.callerP])}: ${callText(r.kind,r.level)} <small>(en joc ${pts}${mine})</small></p><div class="timerbar" id="timerbar"><i></i></div>${pre}<div class="bigbtns">${b.join('')}</div></div>`;
   }
   el.innerHTML=html;
   updateClock();
@@ -3013,6 +3070,7 @@ function rulesHTML(backAttr,backLabel){
   <tr><td>Jo envit</td><td>4</td><td>2</td></tr>
   <tr><td>2 més</td><td>6</td><td>4</td></tr>
   <tr><td>Envit tots</td><td>el que falta per arribar a 24 a la parella que va davant</td><td>6</td></tr></table>
+  <p>Davant un envit es pot contestar directament «2 més» o «envit tots», sense passar per «jo envit»; i de primeres es pot cantar «envit» o «envit tots». Si no es vol, qui ha fet la darrera aposta guanya el que valia l'aposta anterior (1 punt si és el primer cant): envit → 2 més → no vull, 2 punts.</p>
   <h3>Cantó i partida</h3>
   <p>Un cantó es juga a 24 punts. A la partida llarga guanya qui guanya dos cantons; a la ràpida, amb un cantó n'hi ha prou.</p>
   ${signsGuideHTML()}
@@ -3022,7 +3080,9 @@ function rulesHTML(backAttr,backLabel){
     <li>Els seients buits els juguen bots. Si algú es desconnecta, un bot juga per ell fins que torni.</li>
     <li>Si les dues cartes més altes d'una ronda són iguals i de parelles diferents, la ronda s'empata. Si s'empata la primera, guanya la mà qui guanyi la segona. Si s'empata la segona, guanya qui va guanyar la primera. Si s'empaten les tres, guanya la parella de qui és mà.</li>
     <li>Després d'un empat, la ronda següent la surt qui va tirar primer de les cartes empatades.</li>
-    <li>L'envit es canta a la primera ronda. Si s'ha cantat truc i s'ha acceptat, encara es pot envidar mentre duri la primera ronda.</li>
+    <li>L'envit es canta a la primera ronda. Si s'ha cantat truc i s'ha acceptat, encara es pot envidar mentre duri la primera ronda; però la parella que truca sense haver envidat ja no pot envidar.</li>
+    <li>Si et truquen de primeres i la teva parella encara no ha tirat cap carta, abans de contestar el truc podeu envidar: primer es contesta l'envit i després el truc.</li>
+    <li>Si te'n vas a la primera ronda sense que s'hagi envidat i no ets el darrer a tirar, els rivals guanyen també 1 punt d'envit.</li>
     <li>«Envit tots» val els punts que falten a la parella que va davant per arribar a 24 (si van 15 a 9, val 9). Només es pot pujar a tots si val més que el «2 més».</li>
     <li>Només la parella que ha dit «vull» pot pujar el truc. Es canta quan és el teu torn, abans de tirar carta.</li>
     <li>Empat d'envits: guanya qui és més a prop de la mà.</li>
@@ -3834,13 +3894,14 @@ function applySnap(s){
      tricks:h.tricks.map(t=>vteam(t)),played:h.played.map(x=>({p:rel(x.p),card:x.card})),
      past:(h.past||[]).map(t=>({played:t.played.map(x=>({p:rel(x.p),card:x.card})),team:vteam(t.team),winner:t.winner==null?null:rel(t.winner)})),
      trucLevel:h.trucLevel,trucOwner:vteam(h.trucOwner),envitLevel:h.envitLevel,envitDone:h.envitDone,envitPending:h.envitPending,envitFalta:h.envitFalta,envitMax:h.envitMax,
-     winPlayer:h.winPlayer==null?null:rel(h.winPlayer),dealt:h.dealt,bubbles:prev};
+     winPlayer:h.winPlayer==null?null:rel(h.winPlayer),dealt:h.dealt,bubbles:prev,
+     noEnvit:h.noEnvit?[!!h.noEnvit[par],!!h.noEnvit[1-par]]:[false,false]};
   const was=UI.mode;
   if(h.pending){
     const pd=h.pending;
     UI.mode=pd.kind==='turn'?'turn':'respond';
-    UI.resp=pd.kind==='respond'?{kind:pd.data.kind,level:pd.data.level,callerP:rel(pd.data.callerP)}:null;
-    UI.resolve=a=>{UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();Net.send({t:'act',a});renderActions();renderTable();};
+    UI.resp=pd.kind==='respond'?{kind:pd.data.kind,level:pd.data.level,callerP:rel(pd.data.callerP),envitOk:!!pd.data.envitOk}:null;
+    UI.resolve=a=>{UI.mode='idle';UI.resolve=null;UI.resp=null;UI.moreOpen=false;clockStop();Net.send({t:'act',a});renderActions();renderTable();};
     if(was!==UI.mode)UI.foldArm=false;
     clockSet(pd.left);
   }else{UI.mode='idle';UI.resolve=null;UI.resp=null;clockStop();}
@@ -3855,6 +3916,18 @@ function applyGaze(g){
     View.setGaze(rel(a),t===-1?-1:(t===Me.seat?0:rel(t)));
   }
 }
+// Cartell gran de colors al mig de la taula: qui canta, qui puja i què responen (que no s'hagi d'endevinar)
+const CallBan={t:null,
+  show(title,sub,cls){
+    const el=$('#callBan');if(!el)return;
+    el.className='callban '+(cls||'');el.innerHTML=`<b>${title}</b>${sub?`<small>${sub}</small>`:''}`;el.hidden=false;
+    void el.offsetWidth;el.classList.add('in');
+    clearTimeout(this.t);this.t=setTimeout(()=>{el.classList.add('out');this.t=setTimeout(()=>{el.hidden=true;},320);},3500);
+  }
+};
+// La parella (vista des de tu): «Catalina i tu» o «Toni i Miquel»; i el verb, «voleu» o «volen»
+const pairTxt=t=>t===0?`${nm(2)} i tu`:`${nm(1)} i ${nm(3)}`;
+const kindTxt=k=>k==='truc'?'el truc':"l'envit";
 function showBanner(html,ms){
   const b=$('#banner');b.innerHTML=html;b.hidden=false;
   clearTimeout(showBanner.t);showBanner.t=setTimeout(()=>{b.hidden=true;},ms);
@@ -3866,24 +3939,40 @@ function onEvent(e){
   const P=a=>rel(a);
   switch(e.e){
     case 'deal':
-      G.log=[];renderLog();
+      G.log=[];renderLog();UI.lastCall=null;
       log(`Reparteix ${nm(P(e.dealer))}. Surt ${nm(P(e.mano))}.`);
       setStatus(`Reparteix ${nm(P(e.dealer))}. Surt ${nm(P(e.mano))}.`);break;
     case 'play':log(`${nm(P(e.p))} tira ${cardLabel(e.card)}`);break;
     case 'call':{
       const p=P(e.p),txt=callText(e.kind,e.level);
-      say(p,txt);setStatus(`${nm(p)}: ${txt}`);log(`${nm(p)} canta ${txt.replace('!','')}`);break;}
+      // si ve de l'altra parella mentre es negocia el mateix cant, és que puja
+      const lc=UI.lastCall,up=!!(lc&&lc.kind===e.kind&&team(lc.p)!==team(p)&&e.level>lc.level),pu=up?(p===0?' puges':' puja'):'';
+      UI.lastCall={kind:e.kind,level:e.level,p};
+      say(p,txt);setStatus(`${nm(p)}${pu}: ${txt}`);log(`${nm(p)} ${up?pu.trim():'canta'} ${txt.replace('!','')}`);
+      CallBan.show(`${nm(p)}${pu}: ${txt}${up?' ⬆':''}`,`En joc ${ptsText(e.pts)}`,up?'raise':e.kind);
+      break;}
     case 'debate':
       say(P(e.p),'Ho parlam…');setTimeout(()=>say(P(e.q),'Mmm…'),800);
       log(`${nm(P(e.p))} i ${nm(P(e.q))} ho parlen`);break;
     case 'teamAns':{
-      const w=P(e.p),t=e.a==='no'?'No vull':e.a==='vull'?'Vull':'Puj';
+      const up=e.a==='raise'?e.level+1:/^raise\d$/.test(e.a)?Number(e.a[5]):0;
+      const w=P(e.p),t=e.a==='no'?'No vull':e.a==='vull'?'Vull':e.a==='envit'?'Envit':e.a==='envit4'?'Envit tots':callText(e.kind,up).replace('!','');
       say(w,t+'…');log(`${nm(w)} diu «${t.toLowerCase()}»`);
       if(w===0)setStatus(`Has dit «${t.toLowerCase()}». Esperant què diu ${esc(NAMES[2])}…`);
       else if(w===2&&UI.mode==='respond')View.toast(`${NAMES[2]} diu «${t.toLowerCase()}». Si tu vols, mana el que vol!`,3200);
       break;}
-    case 'ans':
-      say(P(e.p),e.a==='vull'?'Vull!':'No vull');log(`${nm(P(e.p))}: ${e.a==='vull'?'vull':'no vull'}`);break;
+    case 'ans':{
+      const p=P(e.p),tm=team(p),yes=e.a==='vull',k=e.kind||(UI.lastCall&&UI.lastCall.kind)||'truc';
+      UI.lastCall=null;
+      say(p,yes?'Vull!':'No vull');log(`${nm(p)}: ${yes?'vull':'no vull'}`);
+      if(yes){
+        const m=`${cap(pairTxt(tm))} ${tm===0?'voleu':'volen'} ${kindTxt(k)}${e.pts!=null?`. En joc ${ptsText(e.pts)}`:''}${k==='envit'?' (es diu en acabar la mà)':''}.`;
+        setStatus(m);CallBan.show(`${nm(p)}: Vull! ✓`,m,'ok');
+      }else{
+        const m=`${cap(pairTxt(tm))} no ${tm===0?'voleu':'volen'} ${kindTxt(k)}${e.pts!=null?`. +${pt(e.pts)} per a ${tl(vteam(e.to))}`:''}.`;
+        setStatus(m);CallBan.show(`${nm(p)}: No vull ✗`,m,'no');
+      }
+      break;}
     case 'envitOk':{const m=`Envit acceptat (${ptsText(e.pts!=null?e.pts:envitPts(e.level))}). Es diran en acabar la mà.`;setStatus(m);log(m);break;}
     case 'envitSoon':setStatus('Mà acabada: toca dir els envits.');break;
     case 'envitShow':{
@@ -3896,7 +3985,7 @@ function onEvent(e){
       const m=e.tie?'Empat a la ronda.':`Ronda per a ${tl(vteam(e.team))}.`;setStatus(m);log(m);break;}
     case 'result':{
       let m;
-      if(e.how==='fold')m=`${e.p===Me.seat?'Te\'n vas':nm(P(e.p))+' se\'n va'}. Punts per a ${tl(vteam(e.t))} (+${pt(e.pts)})`;
+      if(e.how==='fold')m=`${e.p===Me.seat?'Te\'n vas':nm(P(e.p))+' se\'n va'}. Punts per a ${tl(vteam(e.t))} (+${pt(e.pts)}${e.envit?', amb 1 d\'envit perquè no s\'havia envidat':''})`;
       else if(e.how==='refuse'){const rt=vteam(e.respTeam);m=`${cap(tl(rt))} no ${rt===0?'volem':'volen'}. Punts per a ${tl(vteam(e.t))} (+${pt(e.pts)})`;}
       else m=`Mà per a ${tl(vteam(e.t))} (+${pt(e.pts)})`;
       setStatus(m);log(m);break;}
@@ -4003,12 +4092,17 @@ document.addEventListener('click',e=>{
     }
     return;
   }
+  // Fletxa del desplegable d'envits: l'obre o el tanca; un toc fora el tanca
+  if(e.target.closest('[data-more]')){UI.moreOpen=!UI.moreOpen;renderActions();return;}
+  if(UI.moreOpen&&!e.target.closest('.moremenu')){UI.moreOpen=false;renderActions();}
   const b=e.target.closest('[data-act]');
   if(!b||!UI.resolve)return;
   const a=b.dataset.act;
+  UI.moreOpen=false;
   if(UI.mode==='turn'){
     if(a==='truc')UI.resolve({type:'truc'});
     else if(a==='envit')UI.resolve({type:'envit'});
+    else if(a==='envit4')UI.resolve({type:'envit',level:4});
     else if(a==='fold'){
       if(UI.foldArm){UI.foldArm=false;UI.resolve({type:'fold'});}
       else{UI.foldArm=true;renderActions();}
@@ -4032,6 +4126,7 @@ document.addEventListener('keydown',e=>{
       if(k==='v'){UI.resolve('vull');return;}
       if(k==='n'){UI.resolve('no');return;}
       if(k==='p'&&UI.resp.level<(UI.resp.kind==='truc'?4:envitMax())){UI.resolve('raise');return;}
+      if(k==='e'&&UI.resp.envitOk){UI.resolve('envit');return;}
     }
   }
   const d=View.debug&&View.debug.V;
