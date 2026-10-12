@@ -422,17 +422,17 @@ class Game {
     const known = ids.filter(id => id !== 'buit').length;
     return infoPower(ids) + Math.max(0, n - known) * (ids.includes('buit') ? 0.2 : 0.7);
   }
+  // Un bot no veu les cartes del company (encara que sigui un bot): només el que li ha dit amb senyes, com les persones
   teamStrength(p) {
     const H = this.H, q = (p + 2) % 4, P = this.bp(p), a = this.botStrength(p, P);
-    const b = this.isBot(q) ? this.botStrength(q, P) : this.partnerEstimate(q);
+    const b = this.partnerEstimate(q);
     let s = P.wMax * Math.max(a, b) + (1 - P.wMax) * Math.min(a, b);
     s -= P.caughtPen * infoPower(H.caught[1 - p % 2]);
     return s;
   }
   teamEnvit(p) {
     const H = this.H, q = (p + 2) % 4, a = envitValue(H.initial[p]);
-    if (this.isBot(q)) return Math.max(a, envitValue(H.initial[q]));
-    let e = a;
+    let e = a; // del company, només el que sap per les senyes
     if (H.info[q].includes('amo')) e = Math.max(e, 28);
     else if (H.info[q].includes('madona')) e = Math.max(e, 27);
     return e;
@@ -479,7 +479,7 @@ class Game {
   // i dóna més pes a les mans que expliquen el que han cantat els rivals.
   mcWorlds(p) {
     const H = this.H, P = this.bp(p), q = (p + 2) % 4, me = p % 2;
-    const known = [0, 1, 2, 3].map(s => s === p || (s === q && this.isBot(q)));
+    const known = [0, 1, 2, 3].map(s => s === p); // només les seves cartes; del company, el que sap per les senyes
     const out = new Set();
     for (let s = 0; s < 4; s++) if (known[s]) H.hands[s].forEach(c => out.add(cardKey(c)));
     H.gone.forEach(x => out.add(cardKey(x.card)));
@@ -744,6 +744,9 @@ class Game {
         if (this.gaze[p] !== q) { this.gaze[p] = q; this.gazeDirty = true; }
         this.gzT[p] = SIGN_DUR[id] + 0.8;
         this.emit({ e: 'sign', p, id });
+        // El company ho veu (el mira); si un rival bot també el mirava, l'ha pillada
+        if (!H.info[p].includes(id)) H.info[p].push(id);
+        for (const o of [o1, o2]) if (this.isBot(o) && this.gaze[o] === p && !H.caught[p % 2].includes(id)) H.caught[p % 2].push(id);
         this.signUntil[p] = now + SIGN_DUR[id];
         this.signNext[p] = now + SIGN_DUR[id] + 0.5 + Math.random() * 0.5;
       } else this.signNext[p] = now + 0.3;

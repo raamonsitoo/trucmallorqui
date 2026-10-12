@@ -440,7 +440,7 @@ function scenario11(){
   const room={seats:[0,1,2,3].map(()=>({human:false})),sendAll(m){if(m.t==='ev'&&m.e.e==='sign')sent.push(m.e);},sendSeat(){},phase:'playing'};
   const g=new Game(room,{speed:0});
   const C=(n,s)=>({n,s});
-  g.H={over:false,dealt:true,hands:[[C(11,'bastos'),C(3,'oros'),C(4,'copes')],[C(5,'copes'),C(6,'oros'),C(4,'bastos')],[C(1,'espases'),C(3,'copes'),C(3,'bastos')],[C(10,'oros'),C(12,'copes'),C(5,'oros')]]};
+  g.H={over:false,dealt:true,info:[[],[],[],[]],caught:[[],[]],hands:[[C(11,'bastos'),C(3,'oros'),C(4,'copes')],[C(5,'copes'),C(6,'oros'),C(4,'bastos')],[C(1,'espases'),C(3,'copes'),C(3,'bastos')],[C(10,'oros'),C(12,'copes'),C(5,'oros')]]};
   g.signsReset();
   const ticks=n=>{for(let i=0;i<n;i++){g.signUntil=[0,0,0,0];g.signNext=[0,0,0,0];g.gzT=[9,9,9,9];g.tick(0.1);}};
   g.gaze=[-1,-1,-1,-1];ticks(10);
@@ -452,7 +452,19 @@ function scenario11(){
   assert.deepEqual(by(2),['asE','tres'],'dos tresos: la seña del 3 una sola vegada');
   assert.deepEqual(by(3),['madona']);
   assert(signOf(C(3,'oros'))==='tres');
-  console.log('11) senyes: una sola vegada per mà, només quan el company mira');
+  // els bots no es veuen les cartes: el company només sap el que li han dit amb senyes
+  assert.deepEqual(g.H.info[0],['amo','tres'],'el company del seient 0 sap l\'amo i el 3 per les senyes');
+  assert.deepEqual(g.H.info[1],['buit']);
+  assert.deepEqual(g.H.caught,[[],[]],'cap rival mirava: no han pillat res');
+  const q=new Game(room,{speed:0});
+  q.H={initial:[[C(7,'oros'),C(6,'oros'),C(5,'oros')],[],[C(11,'bastos'),C(1,'copes'),C(4,'bastos')],[]],hands:[[],[],[C(11,'bastos')],[]],info:[[],[],[],[]],caught:[[],[]],tricks:[]};
+  q.G.scores=[0,0];
+  assert.equal(q.teamEnvit(0),33,'sense senyes, el bot no sap que el company té l\'amo');
+  q.H.info[2]=['amo'];
+  assert.equal(q.teamEnvit(0),33,'amb la seña sap que en té almenys 28 (el seu 33 és més)');
+  q.H.initial[0]=[C(4,'copes'),C(5,'bastos'),C(12,'oros')];
+  assert.equal(q.teamEnvit(0),28,'i, si el seu és pitjor, compta amb el 28 de l\'amo del company');
+  console.log('11) senyes: una sola vegada per mà, només quan el company mira; els bots només saben del company el que els diu amb senyes');
 }
 // Estadístiques pròpies: visites (d'on venen i quin aparell), accions vàlides, partides i la pàgina privada
 async function scenario12(){
