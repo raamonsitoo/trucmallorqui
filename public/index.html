@@ -192,6 +192,9 @@ body.immersive .stage .clock{right:10px;bottom:10px}
 .seat.me{border-color:var(--gold);background:rgba(224,162,31,.14)}
 .seat span{font-size:.86rem;color:var(--muted);word-break:break-word}
 .backs{display:flex;gap:8px;flex-wrap:wrap}
+#backs{flex-direction:column;flex-wrap:nowrap;gap:10px}
+.backgrp h4{margin:0 0 5px;font-size:.74rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.backs-row{display:flex;gap:8px;flex-wrap:wrap}
 .backbtn{border:3px solid transparent;border-radius:9px;padding:0;background:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font:inherit;font-size:.72rem;color:var(--ink);width:66px}
 .backbtn img{width:48px;height:72px;border-radius:5px;box-shadow:0 1px 4px rgba(0,0,0,.3);display:block;background:var(--line)}
 .backbtn.on{border-color:var(--gold);background:rgba(224,162,31,.14)}
@@ -587,6 +590,8 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
 .shop-item.mine{border-color:var(--gold);background:rgba(233,179,28,.08)}
 .shop-prev{display:flex;gap:8px;align-items:flex-end}
 .shop-prev img{width:54px;height:81px;border-radius:6px;box-shadow:0 3px 10px rgba(0,0,0,.35)}
+.shop-prev.many{flex-wrap:wrap;gap:5px} /* packs amb molts reversos: més petits perquè hi càpiguen tots en una fila */
+.shop-prev.many img{width:36px;height:54px;border-radius:4px}
 .shop-prev .fund{font-size:1.9rem;margin:0 0 6px 6px}
 .shop-txt b{display:block;font-size:1.05rem}
 .shop-txt small{color:var(--muted);font-size:.85rem;line-height:1.35;display:block;margin-top:2px}
@@ -1572,9 +1577,10 @@ return {cardSVG,cardLabel};
 // ---------- Aspectes: capells i reversos ----------
 const HAT_OPTS=[['palla','Capell de palla'],['pallaAmple','Palla d\'ala ampla'],['pallaNegre','Palla amb cinta negra'],['gorra','Gorra vermella i negra'],['barretina','Barretina'],['mocador','Mocador'],['res','Sense res']];
 const BACK_OPTS=[['llenguesBlau','Llengües blau'],['llenguesVermell','Llengües vermell'],['llenguesVerd','Llengües verd'],['rajola','Rajola hidràulica'],['siurell','Siurell'],['tramuntana','Tramuntana'],
-  ['fundador','Fundador'],['dimonis','Dimonis'],['foguero','Fogueró'],['cossiers','Cossiers']];
+  ['fundador','Fundador'],['dimonis','Dimonis'],['foguero','Fogueró'],['cossiers','Cossiers'],
+  ['much','Es Much'],['vermar','Es Vermar'],['santantoni','Sant Antoni'],['moros','Moros i cristians']];
 // Reversos de la botiga i el pack que els du
-const BACK_PACK={fundador:'fundador',dimonis:'festes',foguero:'festes',cossiers:'festes'};
+const BACK_PACK={fundador:'fundador',dimonis:'festes',foguero:'festes',cossiers:'festes',much:'festes',vermar:'festes',santantoni:'festes',moros:'festes'};
 const DEF_HAT={palla:'palla',barretina:'barretina',mocador:'mocador'};
 const LL_COL={llenguesBlau:['#2a4a9a','#b8322a'],llenguesVermell:['#b8322a','#2a4a9a'],llenguesVerd:['#3f6b43','#e0a21f']};
 function tileSVG(bg,mid){
@@ -1583,6 +1589,318 @@ function tileSVG(bg,mid){
    +"<path d='M0 24C0 12 9 6 18 0C27 6 36 12 36 24Z' fill='#f3ece0'/>"
    +`<path d='M6 24C6 15 12 10 18 6C24 10 30 15 30 24Z' fill='${mid}'/>`
    +`<path d='M12 24C12 18 15 15 18 12C21 15 24 18 24 24Z' fill='${bg}'/></svg>`;
+}
+// Reversos del Pack Festes de Mallorca, dibuixats sobre 200×300 (el que crida ja ha escalat el canvas)
+function drawFesta(x, id) {
+  let sd = 11; const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647; // sempre igual
+  const P = Math.PI;
+  const lin = (x0, y0, x1, y1, stops) => { const g = x.createLinearGradient(x0, y0, x1, y1); stops.forEach(([o, c]) => g.addColorStop(o, c)); return g; };
+  const rad = (cx, cy, r0, r1, stops) => { const g = x.createRadialGradient(cx, cy, r0, cx, cy, r1); stops.forEach(([o, c]) => g.addColorStop(o, c)); return g; };
+  const flame = (cx, base, fh, fw, fill) => {
+    x.fillStyle = fill; x.beginPath(); x.moveTo(cx - fw, base);
+    x.bezierCurveTo(cx - fw * 1.1, base - fh * 0.45, cx - fw * 0.2, base - fh * 0.55, cx - fw * 0.15, base - fh * 0.75);
+    x.bezierCurveTo(cx + fw * 0.1, base - fh * 0.6, cx + fw * 0.05, base - fh * 0.85, cx, base - fh);
+    x.bezierCurveTo(cx + fw * 0.7, base - fh * 0.7, cx + fw * 1.15, base - fh * 0.35, cx + fw, base); x.closePath(); x.fill();
+  };
+  const fireFlame = (cx, base, fh, fw) => flame(cx, base, fh, fw, lin(0, base, 0, base - fh, [[0, '#d9361b'], [0.45, '#f08a1c'], [1, '#ffd166']]));
+  const star = (cx, cy, ro, ri, n = 5) => { x.beginPath(); for (let i = 0; i < n * 2; i++) { const r = i % 2 ? ri : ro, a = -P / 2 + i * P / n; x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } x.closePath(); };
+  const sparks = (n, x0, x1, y0, y1, c) => { x.fillStyle = c; for (let i = 0; i < n; i++) { x.globalAlpha = 0.45 + rnd() * 0.55; x.beginPath(); x.arc(x0 + rnd() * (x1 - x0), y0 + rnd() * (y1 - y0), rnd() * 1.6 + 0.4, 0, 7); x.fill(); } x.globalAlpha = 1; };
+  const ribbon = (txt, y, c) => {
+    x.fillStyle = c || '#b8322a'; x.beginPath(); x.moveTo(40, y - 12); x.lineTo(160, y - 12); x.lineTo(172, y); x.lineTo(160, y + 12); x.lineTo(40, y + 12); x.lineTo(28, y); x.closePath(); x.fill();
+    x.fillStyle = 'rgba(0,0,0,.18)'; x.fillRect(40, y + 6, 120, 6);
+    x.fillStyle = '#fbf6e9'; x.font = 'bold 15px Georgia, serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(txt, 100, y + 1);
+  };
+  const frame = c => { x.strokeStyle = c; x.lineWidth = 1.5; x.strokeRect(12, 12, 176, 276); };
+  // Cap de dimoni de màscara mallorquina (centre cx,cy; escala s)
+  const dimoniHead = (cx, cy, s) => {
+    x.save(); x.translate(cx, cy); x.scale(s, s);
+    // banyes amb anelles
+    for (const sg of [-1, 1]) {
+      x.fillStyle = lin(sg * 20, 0, sg * 50, -80, [[0, '#a8875a'], [1, '#fff3d6']]);
+      x.beginPath(); x.moveTo(sg * 22, -40); x.quadraticCurveTo(sg * 62, -62, sg * 50, -104); x.quadraticCurveTo(sg * 42, -66, sg * 6, -46); x.closePath(); x.fill();
+      x.strokeStyle = 'rgba(90,60,30,.45)'; x.lineWidth = 1.4;
+      for (let k = 1; k < 5; k++) { const t = k / 5; x.beginPath(); x.moveTo(sg * (22 + 20 * t), -40 - 30 * t); x.lineTo(sg * (8 + 36 * t), -46 - 30 * t); x.stroke(); }
+    }
+    // orelles punxegudes
+    x.fillStyle = '#1b1414';
+    for (const sg of [-1, 1]) { x.beginPath(); x.moveTo(sg * 40, -10); x.lineTo(sg * 66, -30); x.lineTo(sg * 46, 8); x.closePath(); x.fill(); }
+    // pèl: corona de punxes i textura
+    x.fillStyle = '#120d0d'; x.beginPath();
+    for (let i = 0; i <= 28; i++) { const a = i * 2 * P / 28, r = (i % 2 ? 52 : 62) * (a > 0.2 && a < P - 0.2 ? 0.92 : 1); x.lineTo(Math.cos(a) * r * 0.95, Math.sin(a) * r * 1.1 - 4); }
+    x.fill();
+    x.strokeStyle = '#2f2424'; x.lineWidth = 1.2;
+    for (let i = 0; i < 70; i++) { const a = rnd() * 2 * P, r = 30 + rnd() * 26; const px = Math.cos(a) * r * 0.95, py = Math.sin(a) * r * 1.1 - 4; x.beginPath(); x.moveTo(px, py); x.lineTo(px + Math.cos(a) * 5, py + Math.sin(a) * 5); x.stroke(); }
+    // cara
+    x.fillStyle = rad(0, -6, 4, 46, [[0, '#3b2a2a'], [1, '#1a1212']]); x.beginPath(); x.ellipse(0, 2, 38, 46, 0, 0, 7); x.fill();
+    // celles vermelles
+    x.fillStyle = '#d23a2a';
+    for (const sg of [-1, 1]) { x.beginPath(); x.moveTo(sg * 4, -14); x.lineTo(sg * 32, -30); x.lineTo(sg * 34, -22); x.lineTo(sg * 8, -8); x.closePath(); x.fill(); }
+    // ulls
+    for (const sg of [-1, 1]) {
+      x.save(); x.translate(sg * 17, -6); x.rotate(sg * 0.3);
+      x.fillStyle = '#fbf6e9'; x.beginPath(); x.ellipse(0, 0, 11, 7, 0, 0, 7); x.fill();
+      x.fillStyle = '#e0a21f'; x.beginPath(); x.arc(sg * 2, 1, 4.6, 0, 7); x.fill();
+      x.fillStyle = '#111'; x.beginPath(); x.ellipse(sg * 2, 1, 1.6, 4, 0, 0, 7); x.fill();
+      x.fillStyle = '#fff'; x.beginPath(); x.arc(sg * 2 - 1.5, -1.5, 1.2, 0, 7); x.fill();
+      x.restore();
+    }
+    // nas
+    x.fillStyle = '#7a1d16'; x.beginPath(); x.moveTo(-7, 14); x.quadraticCurveTo(0, -4, 7, 14); x.quadraticCurveTo(0, 19, -7, 14); x.fill();
+    // galtes
+    x.fillStyle = 'rgba(210,58,42,.35)'; for (const sg of [-1, 1]) { x.beginPath(); x.arc(sg * 24, 14, 7, 0, 7); x.fill(); }
+    // boca oberta amb dents i llengua
+    x.fillStyle = '#5c0f0b'; x.beginPath(); x.moveTo(-24, 22); x.quadraticCurveTo(0, 52, 24, 22); x.quadraticCurveTo(0, 30, -24, 22); x.fill();
+    x.fillStyle = '#fbf6e9';
+    for (let i = -3; i <= 3; i++) { x.beginPath(); x.moveTo(i * 6 - 3, 24 + Math.abs(i) * -0.6); x.lineTo(i * 6 + 3, 24 + Math.abs(i) * -0.6); x.lineTo(i * 6, 31 - Math.abs(i)); x.closePath(); x.fill(); }
+    x.beginPath(); x.moveTo(-15, 30); x.lineTo(-9, 30); x.lineTo(-12, 22); x.closePath(); x.fill();
+    x.beginPath(); x.moveTo(15, 30); x.lineTo(9, 30); x.lineTo(12, 22); x.closePath(); x.fill();
+    x.fillStyle = '#e2453a'; x.beginPath(); x.moveTo(-7, 33); x.quadraticCurveTo(0, 62, 7, 33); x.quadraticCurveTo(0, 38, -7, 33); x.fill();
+    x.strokeStyle = '#9b2a22'; x.lineWidth = 1; x.beginPath(); x.moveTo(0, 36); x.lineTo(0, 52); x.stroke();
+    x.restore();
+  };
+
+  if (id === 'dimonis') {
+    x.fillStyle = rad(100, 120, 10, 210, [[0, '#c8321f'], [0.6, '#7c140d'], [1, '#2c0605']]); x.fillRect(0, 0, 200, 300);
+    // forca (trident) darrere
+    x.save(); x.translate(100, 160); x.rotate(-0.42);
+    x.fillStyle = lin(-3, 0, 3, 0, [[0, '#4a2c12'], [0.5, '#8a5a2b'], [1, '#4a2c12']]); x.fillRect(-3, -96, 6, 260);
+    x.fillStyle = '#2f2f33';
+    x.beginPath(); x.moveTo(-22, -96); x.quadraticCurveTo(-24, -118, -16, -136); x.lineTo(-14, -118); x.quadraticCurveTo(-12, -104, 0, -100);
+    x.quadraticCurveTo(12, -104, 14, -118); x.lineTo(16, -136); x.quadraticCurveTo(24, -118, 22, -96); x.quadraticCurveTo(0, -84, -22, -96); x.fill();
+    x.beginPath(); x.moveTo(-3, -100); x.lineTo(0, -144); x.lineTo(3, -100); x.fill();
+    x.restore();
+    // flames
+    x.save(); x.globalAlpha = 0.9;
+    for (let i = 0; i < 10; i++) fireFlame(-4 + i * 23, 302, 80 + rnd() * 50, 17);
+    x.restore();
+    for (let i = 0; i < 10; i++) flame(6 + i * 23, 302, 34 + rnd() * 24, 8, '#ffe08a');
+    dimoniHead(100, 140, 0.9);
+    sparks(30, 10, 190, 150, 260, '#ffcf6b');
+    frame('rgba(255,209,102,.5)');
+  } else if (id === 'foguero') {
+    x.fillStyle = lin(0, 0, 0, 300, [[0, '#070d24'], [0.55, '#241634'], [1, '#4d1f1a']]); x.fillRect(0, 0, 200, 300);
+    // estels (alguns amb creu)
+    for (let i = 0; i < 46; i++) { const sx = rnd() * 200, sy = rnd() * 150, r = rnd() * 1.3 + 0.3; x.fillStyle = '#fff6da'; x.globalAlpha = 0.35 + rnd() * 0.65; x.beginPath(); x.arc(sx, sy, r, 0, 7); x.fill(); if (r > 1.3) { x.fillRect(sx - 3, sy - 0.3, 6, 0.6); x.fillRect(sx - 0.3, sy - 3, 0.6, 6); } }
+    x.globalAlpha = 1;
+    // lluna amb halo
+    x.fillStyle = rad(150, 50, 4, 40, [[0, 'rgba(255,243,207,.35)'], [1, 'rgba(255,243,207,0)']]); x.fillRect(100, 0, 100, 100);
+    x.fillStyle = '#fff3cf'; x.beginPath(); x.arc(150, 50, 15, 0, 7); x.fill(); x.fillStyle = '#0b1230'; x.beginPath(); x.arc(157, 45, 14, 0, 7); x.fill();
+    // poble al fons: cases i campanar
+    x.fillStyle = '#120b1c';
+    x.beginPath(); x.moveTo(0, 196);
+    for (const [px, py] of [[14, 196], [14, 186], [34, 186], [34, 192], [52, 192], [52, 180], [62, 172], [72, 180], [72, 192], [128, 192], [128, 184], [146, 184], [146, 150], [150, 140], [154, 150], [154, 184], [170, 184], [170, 190], [200, 190]]) x.lineTo(px, py);
+    x.lineTo(200, 300); x.lineTo(0, 300); x.closePath(); x.fill();
+    x.fillStyle = '#ffcf6b'; for (const [wx, wy] of [[20, 190], [42, 195], [134, 188], [176, 194]]) x.fillRect(wx, wy, 3, 3);
+    // resplendor del foc
+    x.fillStyle = rad(100, 236, 8, 130, [[0, 'rgba(255,160,50,.7)'], [1, 'rgba(255,160,50,0)']]); x.fillRect(0, 90, 200, 210);
+    // flames
+    fireFlame(100, 262, 150, 50); fireFlame(80, 262, 104, 30); fireFlame(122, 262, 112, 30);
+    flame(100, 262, 76, 22, lin(0, 262, 0, 186, [[0, '#ffb03a'], [1, '#fff3c0']]));
+    // brasa
+    x.fillStyle = rad(100, 268, 2, 50, [[0, '#ffb347'], [1, 'rgba(120,30,10,0)']]); x.fillRect(40, 250, 120, 40);
+    // troncs amb escorça
+    for (const [r, dy] of [[-0.32, 0], [0.32, 0], [0.04, 4]]) {
+      x.save(); x.translate(100, 266 + dy); x.rotate(r);
+      x.fillStyle = lin(0, -7, 0, 7, [[0, '#8a5a32'], [0.5, '#6b4423'], [1, '#3e2512']]); x.fillRect(-64, -7, 128, 14);
+      x.strokeStyle = 'rgba(40,20,8,.6)'; x.lineWidth = 1; for (let k = -56; k < 60; k += 9) { x.beginPath(); x.moveTo(k, -6); x.lineTo(k + 5, 6); x.stroke(); }
+      for (const ex of [-64, 64]) { x.fillStyle = '#c99a62'; x.beginPath(); x.ellipse(ex, 0, 3.5, 7, 0, 0, 7); x.fill(); x.strokeStyle = '#7a5530'; x.beginPath(); x.ellipse(ex, 0, 1.8, 4, 0, 0, 7); x.stroke(); }
+      x.restore();
+    }
+    // siluetes que ballen: un dimoni amb forca i una persona
+    x.fillStyle = '#0c0710';
+    const person = (px, arms) => { x.beginPath(); x.arc(px, 214, 7, 0, 7); x.fill(); x.fillRect(px - 6, 221, 12, 30); x.fillRect(px - 6, 250, 5, 24); x.fillRect(px + 1, 250, 5, 24);
+      x.save(); x.lineWidth = 4; x.strokeStyle = '#0c0710'; x.lineCap = 'round'; x.beginPath(); x.moveTo(px - 5, 226); x.lineTo(px - 16, arms[0]); x.moveTo(px + 5, 226); x.lineTo(px + 16, arms[1]); x.stroke(); x.restore(); };
+    person(30, [206, 214]);
+    person(170, [212, 204]);
+    x.beginPath(); x.moveTo(165, 208); x.lineTo(162, 198); x.lineTo(168, 206); x.moveTo(175, 208); x.lineTo(178, 198); x.lineTo(172, 206); x.fill(); // banyes del dimoni
+    x.fillRect(184, 186, 2.5, 70); x.beginPath(); x.moveTo(178, 190); x.lineTo(180, 180); x.lineTo(185, 188); x.lineTo(185, 178); x.lineTo(188, 188); x.lineTo(192, 180); x.lineTo(193, 190); x.closePath(); x.fill();
+    sparks(36, 55, 145, 50, 200, '#ffb347');
+    frame('rgba(255,207,107,.45)');
+  } else if (id === 'cossiers') {
+    x.fillStyle = '#fbf6e9'; x.fillRect(0, 0, 200, 300);
+    // cintes entreteixides amb ombra
+    for (let i = -300; i < 500; i += 34) {
+      for (const [c, d, off] of [['#c4302b', '#8e1f1b', 0], ['#3f8a3a', '#26582a', 17]]) {
+        const dir = off ? -1 : 1;
+        x.lineWidth = 10; x.strokeStyle = c; x.beginPath(); x.moveTo(i + off, off ? 300 : 0); x.lineTo(i + off + 300, off ? 0 : 300); x.stroke();
+        x.lineWidth = 2; x.strokeStyle = d; x.beginPath(); x.moveTo(i + off + 4 * dir, off ? 300 : 0); x.lineTo(i + off + 300 + 4 * dir, off ? 0 : 300); x.stroke();
+      }
+    }
+    // cascavells
+    for (let gx = -1; gx < 8; gx++) for (let gy = -1; gy < 10; gy++) {
+      const cx = gx * 34 + 8.5 + (gy % 2 ? 17 : 0), cy = gy * 34;
+      x.fillStyle = rad(cx - 1.5, cy - 1.5, 0.5, 6, [[0, '#fff1b0'], [0.5, '#e0a21f'], [1, '#8a5a00']]); x.beginPath(); x.arc(cx, cy, 5, 0, 7); x.fill();
+      x.strokeStyle = '#5a3a00'; x.lineWidth = 1; x.beginPath(); x.moveTo(cx - 3, cy + 1); x.lineTo(cx + 3, cy + 1); x.stroke();
+    }
+    // medalló amb el capell de flors
+    x.fillStyle = 'rgba(0,0,0,.18)'; x.beginPath(); x.arc(102, 134, 56, 0, 7); x.fill();
+    x.fillStyle = '#fbf6e9'; x.beginPath(); x.arc(100, 130, 56, 0, 7); x.fill(); x.strokeStyle = '#e0a21f'; x.lineWidth = 4; x.stroke(); x.lineWidth = 1; x.strokeStyle = '#b07d10'; x.beginPath(); x.arc(100, 130, 50, 0, 7); x.stroke();
+    // cintes que pengen del capell
+    const rib = ['#c4302b', '#3f8a3a', '#e0a21f', '#2a4a9a', '#e86a8e', '#c4302b'];
+    x.lineWidth = 5; rib.forEach((c, i) => { x.strokeStyle = c; x.beginPath(); x.moveTo(78 + i * 9, 150); x.bezierCurveTo(70 + i * 12, 190, 90 + i * 6, 220, 72 + i * 11, 268); x.stroke(); });
+    // capell: ala i copa
+    x.fillStyle = lin(0, 140, 0, 156, [[0, '#f4e7c4'], [1, '#c9b07a']]); x.beginPath(); x.ellipse(100, 148, 46, 10, 0, 0, 7); x.fill();
+    x.fillStyle = lin(0, 100, 0, 148, [[0, '#fbf3dc'], [1, '#d8c38f']]); x.beginPath(); x.moveTo(70, 148); x.quadraticCurveTo(68, 104, 100, 100); x.quadraticCurveTo(132, 104, 130, 148); x.closePath(); x.fill();
+    // flors al capell
+    const flower = (cx, cy, r, c) => { x.fillStyle = c; for (let i = 0; i < 6; i++) { const a = i * P / 3; x.beginPath(); x.arc(cx + Math.cos(a) * r * 0.7, cy + Math.sin(a) * r * 0.7, r * 0.5, 0, 7); x.fill(); } x.fillStyle = '#e0a21f'; x.beginPath(); x.arc(cx, cy, r * 0.38, 0, 7); x.fill(); };
+    x.fillStyle = '#3f8a3a'; for (let i = 0; i < 9; i++) { const a = -P + i * P / 8, lx = 100 + Math.cos(a) * 30, ly = 128 + Math.sin(a) * 22; x.save(); x.translate(lx, ly); x.rotate(a); x.beginPath(); x.ellipse(0, 0, 9, 3.5, 0, 0, 7); x.fill(); x.restore(); }
+    flower(100, 116, 14, '#c4302b'); flower(80, 128, 9, '#2a4a9a'); flower(120, 128, 9, '#2a4a9a'); flower(88, 108, 7, '#e86a8e'); flower(112, 108, 7, '#e86a8e'); flower(100, 136, 7, '#fbf6e9');
+    frame('rgba(196,48,43,.5)');
+  } else if (id === 'much') {
+    // Es Much de Sineu: el dimoni-bou del Puig de Reig
+    // tot de rosa, com la gent a la Mucada
+    x.fillStyle = lin(0, 0, 0, 300, [[0, '#ffb3d4'], [0.5, '#ec5f9a'], [1, '#6a1440']]); x.fillRect(0, 0, 200, 300);
+    x.fillStyle = rad(100, 120, 5, 120, [[0, 'rgba(255,235,245,.6)'], [1, 'rgba(255,235,245,0)']]); x.fillRect(0, 0, 200, 260);
+    for (let i = 0; i < 46; i++) { x.fillStyle = ['#ffffff', '#ff7ab6', '#c2185b', '#ffd1e6'][i % 4]; x.save(); x.translate(rnd() * 200, rnd() * 200); x.rotate(rnd() * P); x.fillRect(-2.2, -1.1, 4.4, 2.2); x.restore(); }
+    // el puig amb l'ermita
+    x.fillStyle = '#4a0d2c'; x.beginPath(); x.moveTo(0, 262); x.quadraticCurveTo(60, 200, 104, 214); x.quadraticCurveTo(150, 226, 200, 250); x.lineTo(200, 300); x.lineTo(0, 300); x.closePath(); x.fill();
+    x.fillRect(96, 200, 14, 14); x.beginPath(); x.moveTo(94, 200); x.lineTo(103, 192); x.lineTo(112, 200); x.fill(); x.fillRect(101, 186, 2, 7); x.fillRect(98.5, 188.5, 7, 2);
+    x.save(); x.translate(100, 116);
+    // banyes grans de bou
+    for (const sg of [-1, 1]) {
+      x.fillStyle = lin(sg * 30, 0, sg * 90, -40, [[0, '#cfb68a'], [1, '#fff6e0']]);
+      x.beginPath(); x.moveTo(sg * 30, -18); x.bezierCurveTo(sg * 64, -20, sg * 80, -40, sg * 72, -70); x.bezierCurveTo(sg * 68, -46, sg * 56, -34, sg * 28, -4); x.closePath(); x.fill();
+      x.strokeStyle = 'rgba(110,80,40,.4)'; x.lineWidth = 1.3; for (let k = 1; k < 4; k++) { x.beginPath(); x.moveTo(sg * (32 + k * 10), -16 - k * 2); x.lineTo(sg * (30 + k * 10), -6 - k * 4); x.stroke(); }
+    }
+    // orelles
+    x.fillStyle = '#3a2418'; for (const sg of [-1, 1]) { x.beginPath(); x.ellipse(sg * 44, -4, 14, 6, sg * 0.5, 0, 7); x.fill(); }
+    // cap ample i peludet
+    x.fillStyle = rad(0, -10, 6, 60, [[0, '#5a3524'], [1, '#24130c']]);
+    x.beginPath(); x.moveTo(-38, -26); x.quadraticCurveTo(0, -44, 38, -26); x.quadraticCurveTo(46, 20, 26, 54); x.quadraticCurveTo(0, 66, -26, 54); x.quadraticCurveTo(-46, 20, -38, -26); x.fill();
+    // tupè entre les banyes
+    x.fillStyle = '#1a0d07'; x.beginPath(); for (let i = 0; i <= 8; i++) { const px = -22 + i * 5.5, py = -30 - (i % 2 ? 14 : 4); x.lineTo(px, py); } x.lineTo(22, -24); x.lineTo(-22, -24); x.fill();
+    // ulls vermells que brillen
+    for (const sg of [-1, 1]) {
+      x.fillStyle = rad(sg * 16, -2, 1, 14, [[0, 'rgba(255,90,40,.9)'], [1, 'rgba(255,90,40,0)']]); x.beginPath(); x.arc(sg * 16, -2, 14, 0, 7); x.fill();
+      x.fillStyle = '#ffd25a'; x.beginPath(); x.ellipse(sg * 16, -2, 7, 5, sg * 0.25, 0, 7); x.fill();
+      x.fillStyle = '#1a0d07'; x.beginPath(); x.ellipse(sg * 16, -2, 2, 4.5, 0, 0, 7); x.fill();
+      x.fillStyle = '#1a0d07'; x.beginPath(); x.moveTo(sg * 6, -12); x.lineTo(sg * 28, -16); x.lineTo(sg * 26, -10); x.closePath(); x.fill();
+    }
+    // morro clar amb narius i anella
+    x.fillStyle = lin(0, 18, 0, 56, [[0, '#c98f6a'], [1, '#8f5a3c']]); x.beginPath(); x.ellipse(0, 36, 24, 18, 0, 0, 7); x.fill();
+    x.fillStyle = '#2a140c'; x.beginPath(); x.ellipse(-9, 34, 4, 5.5, 0.3, 0, 7); x.ellipse(9, 34, 4, 5.5, -0.3, 0, 7); x.fill();
+    x.strokeStyle = '#e0a21f'; x.lineWidth = 3.5; x.beginPath(); x.arc(0, 46, 9, 0.15 * P, 0.85 * P); x.stroke();
+    // somriure amb ullals
+    x.strokeStyle = '#2a140c'; x.lineWidth = 2; x.beginPath(); x.moveTo(-14, 50); x.quadraticCurveTo(0, 58, 14, 50); x.stroke();
+    x.fillStyle = '#fbf6e9'; for (const sg of [-1, 1]) { x.beginPath(); x.moveTo(sg * 10, 52); x.lineTo(sg * 14, 52); x.lineTo(sg * 12, 60); x.closePath(); x.fill(); }
+    x.restore();
+    ribbon('ES MUCH', 264, '#c2185b');
+    frame('rgba(255,255,255,.55)');
+  } else if (id === 'vermar') {
+    // Festa des Vermar de Binissalem: raïm, parra, vinyes al capvespre i la batalla del raïm
+    x.fillStyle = lin(0, 0, 0, 300, [[0, '#f6c25a'], [0.4, '#e3874a'], [0.75, '#7a2f5a'], [1, '#3a1430']]); x.fillRect(0, 0, 200, 300);
+    x.fillStyle = rad(150, 70, 4, 60, [[0, 'rgba(255,240,190,.9)'], [0.35, 'rgba(255,220,140,.5)'], [1, 'rgba(255,220,140,0)']]); x.fillRect(80, 0, 120, 140);
+    x.fillStyle = '#fff1c4'; x.beginPath(); x.arc(150, 70, 13, 0, 7); x.fill();
+    // serra al fons i fileres de vinya
+    x.fillStyle = '#8a4a6a'; x.beginPath(); x.moveTo(0, 168); x.quadraticCurveTo(40, 140, 80, 156); x.quadraticCurveTo(130, 136, 200, 160); x.lineTo(200, 300); x.lineTo(0, 300); x.closePath(); x.fill();
+    x.fillStyle = '#4f6b2a'; x.fillRect(0, 176, 200, 124);
+    for (let i = -6; i <= 6; i++) { x.strokeStyle = i % 2 ? '#6f8f36' : '#3d5520'; x.lineWidth = 5; x.beginPath(); x.moveTo(100 + i * 6, 176); x.lineTo(100 + i * 40, 300); x.stroke(); }
+    // fulles de parra
+    const leaf = (cx, cy, s, a, c) => {
+      x.save(); x.translate(cx, cy); x.rotate(a); x.scale(s, s); x.fillStyle = c;
+      x.beginPath(); x.moveTo(0, 0);
+      for (const [px, py, qx, qy] of [[-14, -6, -22, -20], [-20, -30, -8, -38], [-6, -44, 0, -52], [6, -44, 8, -38], [20, -30, 22, -20], [14, -6, 0, 0]]) x.quadraticCurveTo(px, py, qx, qy);
+      x.fill(); x.strokeStyle = 'rgba(20,50,10,.55)'; x.lineWidth = 1.2;
+      for (const [ex, ey] of [[0, -46], [-18, -30], [18, -30], [-16, -14], [16, -14]]) { x.beginPath(); x.moveTo(0, -4); x.lineTo(ex * 0.8, ey * 0.8); x.stroke(); }
+      x.restore();
+    };
+    leaf(70, 70, 1.15, -0.5, '#4f8a2f'); leaf(132, 66, 1.05, 0.55, '#5f9a3a'); leaf(100, 58, 0.9, 0.05, '#3f7a28');
+    // sarment i circells
+    x.strokeStyle = '#6b4423'; x.lineWidth = 5; x.lineCap = 'round'; x.beginPath(); x.moveTo(40, 40); x.quadraticCurveTo(100, 30, 160, 44); x.stroke();
+    x.strokeStyle = '#6b8f2a'; x.lineWidth = 1.6; x.beginPath(); x.moveTo(150, 46); x.bezierCurveTo(166, 52, 160, 66, 150, 60); x.bezierCurveTo(144, 56, 150, 50, 156, 54); x.stroke();
+    x.lineCap = 'butt';
+    x.strokeStyle = '#5a3a1a'; x.lineWidth = 3; x.beginPath(); x.moveTo(100, 40); x.lineTo(100, 78); x.stroke();
+    // el raïm: grans de dalt a baix, amb llum
+    const rows = [6, 6, 5, 5, 4, 3, 2, 1];
+    rows.forEach((n, r) => {
+      for (let i = 0; i < n; i++) {
+        const gx = 100 + (i - (n - 1) / 2) * 15 + (r % 2 ? 2 : -2), gy = 86 + r * 14;
+        x.fillStyle = rad(gx - 3, gy - 4, 1, 10, [[0, '#b77bd0'], [0.45, '#6a2a8a'], [1, '#2e0f3e']]); x.beginPath(); x.arc(gx, gy, 8.2, 0, 7); x.fill();
+        x.fillStyle = 'rgba(255,255,255,.55)'; x.beginPath(); x.ellipse(gx - 3, gy - 3.5, 2.2, 1.4, -0.6, 0, 7); x.fill();
+      }
+    });
+    // la batalla del raïm: esquitxos
+    x.fillStyle = 'rgba(122,30,96,.85)';
+    for (let i = 0; i < 22; i++) { const sx = 18 + rnd() * 164, sy = 190 + rnd() * 70, r = 1.5 + rnd() * 4; x.beginPath(); x.arc(sx, sy, r, 0, 7); x.fill(); if (r > 3.6) { x.beginPath(); x.ellipse(sx + r * 1.4, sy - r * 0.8, r * 0.45, r * 0.3, -0.6, 0, 7); x.fill(); } }
+    // senalla plena de raïm
+    x.fillStyle = lin(0, 222, 0, 262, [[0, '#d8a85a'], [1, '#8a5a24']]); x.beginPath(); x.moveTo(62, 224); x.lineTo(138, 224); x.lineTo(128, 262); x.lineTo(72, 262); x.closePath(); x.fill();
+    x.strokeStyle = 'rgba(90,55,20,.7)'; x.lineWidth = 1; for (let k = 0; k < 5; k++) { x.beginPath(); x.moveTo(63 + k * 2, 230 + k * 7); x.lineTo(137 - k * 2, 230 + k * 7); x.stroke(); }
+    for (let i = 0; i < 9; i++) { const gx = 70 + i * 7.5, gy = 220 - (i % 2) * 4; x.fillStyle = rad(gx - 2, gy - 2, 1, 6, [[0, '#a66cc0'], [1, '#3a1450']]); x.beginPath(); x.arc(gx, gy, 5, 0, 7); x.fill(); }
+    ribbon('ES VERMAR', 276, '#6a1f4a');
+    frame('rgba(255,241,196,.5)');
+  } else if (id === 'santantoni') {
+    // Sant Antoni amb el seu porquet, la creu en T, la campaneta i els foguerons
+    x.fillStyle = rad(100, 110, 10, 200, [[0, '#2f56a8'], [1, '#132653']]); x.fillRect(0, 0, 200, 300);
+    // estrelles petites al fons
+    x.fillStyle = 'rgba(255,240,190,.55)'; for (let i = 0; i < 18; i++) { star(rnd() * 200, rnd() * 120, 2.2, 0.9); x.fill(); }
+    // aurèola
+    x.fillStyle = rad(100, 82, 10, 46, [[0, 'rgba(255,224,138,.95)'], [0.7, 'rgba(224,162,31,.85)'], [1, 'rgba(224,162,31,0)']]); x.beginPath(); x.arc(100, 82, 46, 0, 7); x.fill();
+    x.strokeStyle = '#ffe08a'; x.lineWidth = 2; x.beginPath(); x.arc(100, 82, 34, 0, 7); x.stroke();
+    // bastó amb la T i la campaneta
+    x.fillStyle = '#6b4423'; x.fillRect(150, 60, 6, 190); x.fillRect(138, 56, 30, 7);
+    x.strokeStyle = '#6b4423'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(141, 63); x.lineTo(141, 76); x.stroke();
+    x.fillStyle = lin(132, 0, 150, 0, [[0, '#b07d10'], [0.5, '#ffe08a'], [1, '#b07d10']]); x.beginPath(); x.moveTo(135, 90); x.quadraticCurveTo(134, 76, 141, 75); x.quadraticCurveTo(148, 76, 147, 90); x.closePath(); x.fill();
+    x.fillStyle = '#6b4a10'; x.beginPath(); x.arc(141, 92, 2.4, 0, 7); x.fill();
+    // hàbit marró amb caputxa
+    x.fillStyle = lin(60, 0, 140, 0, [[0, '#4a2e17'], [0.5, '#7a5230'], [1, '#4a2e17']]);
+    x.beginPath(); x.moveTo(52, 260); x.quadraticCurveTo(56, 150, 78, 118); x.quadraticCurveTo(100, 108, 122, 118); x.quadraticCurveTo(144, 150, 148, 260); x.closePath(); x.fill();
+    x.fillStyle = '#5c3a1e'; x.beginPath(); x.ellipse(100, 84, 30, 34, 0, 0, 7); x.fill();
+    // cara, cabells i barba blanca
+    x.fillStyle = '#efc49e'; x.beginPath(); x.ellipse(100, 84, 19, 23, 0, 0, 7); x.fill();
+    x.fillStyle = '#f4f1ea'; x.beginPath(); x.moveTo(82, 86); x.quadraticCurveTo(80, 128, 100, 140); x.quadraticCurveTo(120, 128, 118, 86); x.quadraticCurveTo(110, 100, 100, 98); x.quadraticCurveTo(90, 100, 82, 86); x.fill();
+    x.strokeStyle = '#d6d0c4'; x.lineWidth = 1; for (let i = 0; i < 6; i++) { x.beginPath(); x.moveTo(88 + i * 5, 104); x.quadraticCurveTo(90 + i * 4, 120, 96 + i * 2, 132); x.stroke(); }
+    x.fillStyle = '#f4f1ea'; x.beginPath(); x.ellipse(100, 94, 9, 3.5, 0, 0, 7); x.fill(); // bigoti
+    x.fillStyle = '#3b2a1a'; x.beginPath(); x.arc(93, 80, 1.8, 0, 7); x.arc(107, 80, 1.8, 0, 7); x.fill();
+    x.strokeStyle = '#a07050'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(100, 82); x.lineTo(98, 89); x.lineTo(101, 89); x.stroke();
+    x.fillStyle = '#f4f1ea'; x.beginPath(); x.arc(100, 64, 15, P, 2 * P); x.fill(); // corona de cabells
+    // cordó
+    x.strokeStyle = '#d8c38f'; x.lineWidth = 3; x.beginPath(); x.moveTo(64, 176); x.quadraticCurveTo(100, 186, 136, 176); x.stroke(); x.beginPath(); x.moveTo(110, 182); x.lineTo(112, 214); x.stroke();
+    // el porquet
+    x.save(); x.translate(76, 238);
+    x.fillStyle = lin(0, -16, 0, 16, [[0, '#f7b9c4'], [1, '#e38c9c']]); x.beginPath(); x.ellipse(0, 0, 30, 18, 0, 0, 7); x.fill();
+    x.beginPath(); x.ellipse(-30, -4, 13, 12, 0, 0, 7); x.fill();
+    x.fillStyle = '#e07d8f'; x.beginPath(); x.ellipse(-40, -2, 6, 5, 0, 0, 7); x.fill();
+    x.fillStyle = '#7a2a3a'; x.beginPath(); x.arc(-42, -3, 1.2, 0, 7); x.arc(-38, -3, 1.2, 0, 7); x.fill();
+    x.fillStyle = '#1d1d1d'; x.beginPath(); x.arc(-31, -9, 1.8, 0, 7); x.fill();
+    x.fillStyle = '#e38c9c'; x.beginPath(); x.moveTo(-28, -14); x.lineTo(-20, -24); x.lineTo(-20, -12); x.closePath(); x.fill();
+    x.fillRect(-18, 12, 6, 12); x.fillRect(-4, 12, 6, 12); x.fillRect(10, 12, 6, 12); x.fillRect(20, 10, 6, 12);
+    x.strokeStyle = '#e38c9c'; x.lineWidth = 2; x.beginPath(); x.moveTo(29, -4); x.bezierCurveTo(38, -10, 34, 2, 40, -2); x.stroke();
+    x.fillStyle = lin(-8, 0, 8, 0, [[0, '#b07d10'], [0.5, '#ffe08a'], [1, '#b07d10']]); x.beginPath(); x.moveTo(-26, 8); x.quadraticCurveTo(-27, 0, -22, -1); x.quadraticCurveTo(-17, 0, -18, 8); x.closePath(); x.fill(); // esquelleta al coll
+    x.restore();
+    // foguerons a les cantonades de baix
+    for (const fx of [24, 176]) { fireFlame(fx, 292, 46, 14); flame(fx, 292, 24, 7, '#ffe08a'); }
+    frame('rgba(255,224,138,.6)');
+  } else if (id === 'moros') {
+    // Moros i cristians (Pollença, Sóller): mitja lluna i creu, espasa i simitarra
+    x.save(); x.beginPath(); x.moveTo(0, 0); x.lineTo(200, 0); x.lineTo(0, 300); x.closePath(); x.clip();
+    x.fillStyle = lin(0, 0, 120, 160, [[0, '#2f7a57'], [1, '#174a33']]); x.fillRect(0, 0, 200, 300);
+    x.strokeStyle = 'rgba(224,162,31,.18)'; x.lineWidth = 1; for (let i = 0; i < 12; i++) { star(20 + (i % 4) * 44, 30 + Math.floor(i / 4) * 52, 9, 4, 8); x.stroke(); }
+    x.fillStyle = '#ffe08a'; x.beginPath(); x.arc(52, 62, 22, 0, 7); x.fill(); x.fillStyle = '#245f43'; x.beginPath(); x.arc(61, 56, 19, 0, 7); x.fill();
+    x.fillStyle = '#ffe08a'; star(78, 50, 7, 3); x.fill();
+    x.restore();
+    x.save(); x.beginPath(); x.moveTo(200, 0); x.lineTo(200, 300); x.lineTo(0, 300); x.closePath(); x.clip();
+    x.fillStyle = lin(200, 300, 80, 140, [[0, '#7a1212'], [1, '#b8322a']]); x.fillRect(0, 0, 200, 300);
+    x.strokeStyle = 'rgba(255,255,255,.12)'; x.lineWidth = 1; for (let i = -300; i < 500; i += 14) { x.beginPath(); x.moveTo(i, 300); x.lineTo(i + 300, 0); x.stroke(); }
+    x.fillStyle = '#fbf6e9'; x.fillRect(138, 214, 14, 52); x.fillRect(122, 230, 46, 14);
+    x.restore();
+    x.strokeStyle = '#e0a21f'; x.lineWidth = 3; x.beginPath(); x.moveTo(200, 0); x.lineTo(0, 300); x.stroke();
+    // escut rodó al mig
+    x.fillStyle = rad(100, 150, 4, 46, [[0, '#d9b36a'], [1, '#8a5a1a']]); x.beginPath(); x.arc(100, 150, 44, 0, 7); x.fill();
+    x.strokeStyle = '#5a3a10'; x.lineWidth = 3; x.stroke();
+    x.fillStyle = '#b07d10'; for (let i = 0; i < 12; i++) { const a = i * P / 6; x.beginPath(); x.arc(100 + Math.cos(a) * 37, 150 + Math.sin(a) * 37, 2.2, 0, 7); x.fill(); }
+    // espasa recta (cristians)
+    x.save(); x.translate(100, 150); x.rotate(-0.72);
+    x.fillStyle = lin(-4, 0, 4, 0, [[0, '#9aa4ad'], [0.5, '#f1f4f6'], [1, '#8a939b']]); x.beginPath(); x.moveTo(-4, -20); x.lineTo(4, -20); x.lineTo(3, 92); x.lineTo(0, 102); x.lineTo(-3, 92); x.closePath(); x.fill();
+    x.fillStyle = '#e0a21f'; x.fillRect(-18, -24, 36, 6); x.fillStyle = '#6b4423'; x.fillRect(-3, -50, 6, 26); x.fillStyle = '#e0a21f'; x.beginPath(); x.arc(0, -54, 5, 0, 7); x.fill();
+    x.restore();
+    // simitarra (moros)
+    x.save(); x.translate(100, 150); x.rotate(0.72);
+    x.fillStyle = lin(-6, 0, 10, 0, [[0, '#8a939b'], [0.5, '#f1f4f6'], [1, '#9aa4ad']]); x.beginPath(); x.moveTo(-4, -20); x.quadraticCurveTo(-10, 46, 34, 94); x.quadraticCurveTo(22, 96, 14, 72); x.quadraticCurveTo(4, 40, 6, -20); x.closePath(); x.fill();
+    x.fillStyle = '#e0a21f'; x.beginPath(); x.moveTo(-16, -22); x.quadraticCurveTo(0, -30, 16, -22); x.lineTo(16, -17); x.quadraticCurveTo(0, -24, -16, -17); x.closePath(); x.fill();
+    x.fillStyle = '#2a1a10'; x.fillRect(-3, -48, 6, 26); x.fillStyle = '#e0a21f'; x.beginPath(); x.arc(0, -52, 5, 0, 7); x.fill();
+    x.restore();
+    frame('rgba(224,162,31,.6)');
+  }
 }
 // Dibuixa el revers «id» en un canvas 2D (w×h). «done» es crida quan acaba (pot ser asíncron).
 function drawBack(x,w,h,id,done){
@@ -1655,54 +1973,7 @@ function drawBack(x,w,h,id,done){
       x.fillStyle=sg;star(100,142,31,13);x.fill();
       x.fillStyle='#b8322a';x.beginPath();x.moveTo(42,200);x.lineTo(158,200);x.lineTo(170,212);x.lineTo(158,224);x.lineTo(42,224);x.lineTo(30,212);x.closePath();x.fill();
       x.fillStyle='#fbf6e9';x.font='bold 16px Georgia, serif';x.textAlign='center';x.textBaseline='middle';x.fillText('FUNDADOR',100,213);
-    }else if(id==='dimonis'){
-      const g=x.createLinearGradient(0,0,0,300);g.addColorStop(0,'#c0392b');g.addColorStop(1,'#5e110c');
-      x.fillStyle=g;x.fillRect(0,0,200,300);
-      for(let i=0;i<9;i++)flame(10+i*23,300,70+rnd()*45,16,i%2?'#e8541e':'#f39c12');
-      for(let i=0;i<9;i++)flame(20+i*23,300,30+rnd()*25,8,'#ffd166');
-      // banyes
-      x.fillStyle='#efe0bb';
-      x.beginPath();x.moveTo(70,104);x.quadraticCurveTo(42,74,54,34);x.quadraticCurveTo(66,72,90,94);x.closePath();x.fill();
-      x.beginPath();x.moveTo(130,104);x.quadraticCurveTo(158,74,146,34);x.quadraticCurveTo(134,72,110,94);x.closePath();x.fill();
-      // cap pelut
-      x.fillStyle='#171212';x.beginPath();x.ellipse(100,140,46,56,0,0,7);x.fill();
-      x.beginPath();for(let i=0;i<=12;i++){const a=Math.PI+i*Math.PI/12,r=i%2?50:60;x.lineTo(100+Math.cos(a)*r*0.95,128+Math.sin(a)*r);}x.fill();
-      // ulls, celles i boca
-      x.fillStyle='#fbf6e9';
-      for(const s of [-1,1]){x.save();x.translate(100+s*19,130);x.rotate(s*0.35);x.beginPath();x.ellipse(0,0,11,7,0,0,7);x.fill();x.restore();}
-      x.fillStyle='#e0a21f';x.beginPath();x.arc(83,131,4,0,7);x.arc(117,131,4,0,7);x.fill();
-      x.strokeStyle='#c0392b';x.lineWidth=5;x.lineCap='round';
-      x.beginPath();x.moveTo(68,112);x.lineTo(93,122);x.moveTo(132,112);x.lineTo(107,122);x.stroke();
-      x.fillStyle='#fbf6e9';x.beginPath();x.moveTo(72,160);x.quadraticCurveTo(100,192,128,160);x.quadraticCurveTo(100,174,72,160);x.fill();
-      x.strokeStyle='#171212';x.lineWidth=2;x.lineCap='butt';for(const tx of [86,100,114]){x.beginPath();x.moveTo(tx,164);x.lineTo(tx,178);x.stroke();}
-    }else if(id==='foguero'){
-      const g=x.createLinearGradient(0,0,0,300);g.addColorStop(0,'#0b1430');g.addColorStop(0.6,'#2a1838');g.addColorStop(1,'#5a2622');
-      x.fillStyle=g;x.fillRect(0,0,200,300);
-      x.fillStyle='#fff3cf';for(let i=0;i<40;i++){x.globalAlpha=0.4+rnd()*0.6;x.beginPath();x.arc(rnd()*200,rnd()*170,rnd()*1.4+0.4,0,7);x.fill();}
-      x.globalAlpha=1;
-      x.fillStyle='#fff3cf';x.beginPath();x.arc(150,52,16,0,7);x.fill();x.fillStyle='#0f1734';x.beginPath();x.arc(157,47,15,0,7);x.fill();
-      const halo=x.createRadialGradient(100,230,10,100,230,120);halo.addColorStop(0,'rgba(255,170,60,.55)');halo.addColorStop(1,'rgba(255,170,60,0)');
-      x.fillStyle=halo;x.fillRect(0,100,200,200);
-      flame(100,262,150,52,'#e8541e');flame(84,262,105,30,'#f39c12');flame(118,262,115,30,'#f39c12');flame(100,262,80,22,'#ffe08a');
-      x.fillStyle='#6b4423';
-      for(const [r,dx] of [[-0.35,0],[0.35,0],[0,0]]){x.save();x.translate(100+dx,266);x.rotate(r);x.fillRect(-62,-7,124,14);x.fillStyle='#4a2e17';x.beginPath();x.arc(-62,0,7,0,7);x.arc(62,0,7,0,7);x.fill();x.fillStyle='#6b4423';x.restore();}
-      x.fillStyle='#ffb347';for(let i=0;i<26;i++){x.globalAlpha=0.5+rnd()*0.5;x.beginPath();x.arc(60+rnd()*80,60+rnd()*110,rnd()*1.8+0.6,0,7);x.fill();}
-      x.globalAlpha=1;
-    }else{ // cossiers: cintes de colors, cascavells i el capell de flors
-      x.fillStyle='#fbf6e9';x.fillRect(0,0,200,300);
-      x.lineWidth=9;
-      for(let i=-300;i<500;i+=34){x.strokeStyle='#c4302b';x.beginPath();x.moveTo(i,0);x.lineTo(i+300,300);x.stroke();x.strokeStyle='#3f8a3a';x.beginPath();x.moveTo(i+17,300);x.lineTo(i+317,0);x.stroke();}
-      x.fillStyle='#e0a21f';x.strokeStyle='#8a5a00';x.lineWidth=1;
-      for(let gx=-1;gx<8;gx++)for(let gy=-1;gy<10;gy++){const cx=gx*34+8.5+(gy%2?17:0),cy=gy*34;x.beginPath();x.arc(cx,cy,4.5,0,7);x.fill();x.stroke();}
-      // medalló amb el capell de flors i les cintes que pengen
-      x.fillStyle='#fbf6e9';x.beginPath();x.arc(100,130,52,0,7);x.fill();x.strokeStyle='#e0a21f';x.lineWidth=3;x.stroke();
-      const rib=['#c4302b','#3f8a3a','#e0a21f','#2a4a9a','#c4302b'];
-      x.lineWidth=5;rib.forEach((c,i)=>{x.strokeStyle=c;x.beginPath();x.moveTo(80+i*10,172);x.quadraticCurveTo(76+i*12,215,82+i*9,250);x.stroke();});
-      x.fillStyle='#fbf6e9';x.beginPath();x.arc(100,130,48,0,7);x.fill();
-      x.fillStyle='#3f8a3a';for(let i=0;i<8;i++){const a=i*Math.PI/4+0.4;x.save();x.translate(100+Math.cos(a)*30,130+Math.sin(a)*30);x.rotate(a);x.beginPath();x.ellipse(0,0,10,4,0,0,7);x.fill();x.restore();}
-      const flower=(cx,cy,r,c)=>{x.fillStyle=c;for(let i=0;i<6;i++){const a=i*Math.PI/3;x.beginPath();x.arc(cx+Math.cos(a)*r*0.7,cy+Math.sin(a)*r*0.7,r*0.5,0,7);x.fill();}x.fillStyle='#e0a21f';x.beginPath();x.arc(cx,cy,r*0.4,0,7);x.fill();};
-      flower(100,130,18,'#c4302b');flower(76,112,10,'#2a4a9a');flower(124,112,10,'#2a4a9a');flower(78,150,10,'#e86a8e');flower(122,150,10,'#e86a8e');
-    }
+    }else drawFesta(x,id); // Pack Festes de Mallorca
     x.restore();border();done();return;
   }
   // tramuntana
@@ -3211,7 +3482,7 @@ const Shop={items:null,anon:false,test:false,busy:'',pending:null,checking:null,
       const prev=it.gives.map(g=>g.startsWith('back:')?`<img alt="" data-thumb="${esc(g.slice(5))}">`:g==='badge:fundador'?'<span class="fund" aria-hidden="true">★</span>':'').join('');
       const btn=mine?'<button class="shop-buy own" disabled>✓ Ja és teu</button>'
         :`<button class="shop-buy" data-buy="${esc(it.id)}"${logged&&ok&&!this.busy?'':' disabled'}>${this.busy===it.id?'Obrint el pagament…':'Comprar · '+eur(it.price)}</button>`;
-      return `<div class="shop-item${mine?' mine':''}"><div class="shop-prev">${prev}</div><div class="shop-txt"><b>${esc(it.name)}</b><small>${esc(it.desc)}</small></div>${btn}</div>`;
+      return `<div class="shop-item${mine?' mine':''}"><div class="shop-prev${it.gives.length>4?' many':''}">${prev}</div><div class="shop-txt"><b>${esc(it.name)}</b><small>${esc(it.desc)}</small></div>${btn}</div>`;
     }).join('');
     L.querySelectorAll('[data-thumb]').forEach(img=>thumbOf(img.dataset.thumb,u=>{img.src=u;}));
   },
@@ -3245,7 +3516,12 @@ function renderBacks(){
   const key=list.map(([id])=>id+(locked(id)?'!':'')).join();
   if(el.dataset.key!==key){
     el.dataset.key=key;
-    el.innerHTML=list.map(([id,l])=>`<button class="backbtn${locked(id)?' locked':''}" data-back="${id}" aria-label="${l}${locked(id)?' (botiga)':''}"><img alt="">${l}</button>`).join('');
+    // separats per grups: els de sempre, els del Pack Festes i el del Pack Fundador
+    const btn=([id,l])=>`<button class="backbtn${locked(id)?' locked':''}" data-back="${id}" aria-label="${l}${locked(id)?' (botiga)':''}"><img alt="">${l}</button>`;
+    el.innerHTML=[['','Predeterminats'],['festes','Festes de Mallorca'],['fundador','Pack Fundador']].map(([g,t])=>{
+      const items=list.filter(([id])=>(BACK_PACK[id]||'')===g);
+      return items.length?`<div class="backgrp"><h4>${t}</h4><div class="backs-row">${items.map(btn).join('')}</div></div>`:'';
+    }).join('');
     el.querySelectorAll('.backbtn').forEach(b=>thumbOf(b.dataset.back,u=>{b.querySelector('img').src=u;}));
   }
   el.querySelectorAll('.backbtn').forEach(c=>c.classList.toggle('on',c.dataset.back===Me.back));

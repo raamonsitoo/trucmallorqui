@@ -24,8 +24,9 @@ const ITEMS = {
     desc: "Revers exclusiu «Fundador» i una estrella al costat del teu nom. Només per als primers que donen suport al joc."
   },
   festes: {
-    name: 'Pack Festes de Mallorca', price: 199, gives: ['back:dimonis', 'back:foguero', 'back:cossiers'],
-    desc: 'Tres reversos de cartes: dimonis de Sant Antoni, fogueró i cossiers.'
+    name: 'Pack Festes de Mallorca', price: 199,
+    gives: ['back:dimonis', 'back:foguero', 'back:cossiers', 'back:much', 'back:vermar', 'back:santantoni', 'back:moros'],
+    desc: 'Set reversos de cartes de les festes de Mallorca: dimonis, fogueró, cossiers, Es Much de Sineu, Es Vermar de Binissalem, Sant Antoni i moros i cristians.'
   }
 };
 const PREMIUM_BACKS = new Set();
