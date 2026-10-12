@@ -111,8 +111,14 @@ function scenario5(){
   g.G.scores=[3,0];assert.equal(g.envitPts(4),21);
   g.G.scores=[0,0];assert.equal(g.envitPts(4),24);
   g.G.scores=[10,20];assert.equal(g.envitPts(4),4);assert.equal(g.maxEnvitLevel(),3,'si tots val 6 o menys, no es pot pujar a tots');
-  assert.equal(g.envitPts(1),2);assert.equal(g.envitPts(3),6);
-  console.log('5) regles: envit després del truc i «envit tots» = el que falta (15-9 → 9; 10-20 → només fins a 2 més)');
+  assert.equal(g.envitPts(1),2);assert.equal(g.envitPts(2),4);assert.equal(g.envitPts(3),4,'el 2 més no pot valer més del que falta');
+  // Mai no es guanyen més punts d'envit que els que falten a qui va davant (normativa, envits 9)
+  g.G.scores=[23,10];assert.deepEqual([1,2,3].map(l=>g.envitPts(l)),[1,1,1],'a 23 tots els envits valen 1');
+  assert.equal(g.maxEnvitLevel(),3,'a 23 es pot seguir pujant');assert.equal(g.envitRefuse(3),1);
+  g.G.scores=[5,22];assert.deepEqual([1,2,3].map(l=>g.envitPts(l)),[2,2,2],'a 22 valen 2');
+  g.G.scores=[21,21];assert.deepEqual([1,2,3].map(l=>g.envitPts(l)),[2,3,3],'a 21: envit 2, jo envit i 2 més 3');
+  g.G.scores=[0,0];assert.deepEqual([1,2,3].map(l=>g.envitPts(l)),[2,4,6]);
+  console.log('5) regles: envit després del truc, «envit tots» = el que falta, i cap envit val més del que falta (23 → 1, 22 → 2, 21 → 3)');
 }
 // Comptes: entrar, guanyar experiència, tornar a entrar, canviar el nom i esborrar
 async function scenario6(){

@@ -374,7 +374,10 @@ class Game {
   canCallEnvit(p) { const H = this.H; return !!H && !H.over && H.trickNo === 0 && !H.envitDone && !(H.noEnvit && H.noEnvit[p % 2]); }
   // «Envit tots» val els punts que falten a la parella que va davant per arribar a 24.
   envitFalta() { const sc = this.G.scores; return 24 - Math.max(sc[0], sc[1]); }
-  envitPts(level) { return level === 4 ? this.envitFalta() : ENVIT_VALUE[level]; }
+  // Mai no es poden guanyar més punts d'envit que els que falten a qui va davant (normativa, envits 9):
+  // si van a 23 tots els envits valen 1, a 22 valen 2... però es poden seguir pujant igual.
+  envitPts(level) { return Math.min(ENVIT_VALUE[level], this.envitFalta()); }
+  envitRefuse(level) { return Math.min(ENVIT_REFUSE[level], this.envitFalta()); }
   // Només es pot pujar a «tots» si val més que el «2 més» (6 punts).
   maxEnvitLevel() { return this.envitFalta() > ENVIT_VALUE[3] ? 4 : 3; }
 
@@ -558,7 +561,7 @@ class Game {
     } else {
       pw = this.mcEnvit(p, worlds);
       // si no el volen, el que valia l'aposta anterior; i, com s'han entrenat, només pugen d'un en un
-      V = this.envitPts(level); R = H.askRefuse != null ? H.askRefuse : ENVIT_REFUSE[level]; top = Math.min(this.maxEnvitLevel(), level + 1);
+      V = this.envitPts(level); R = H.askRefuse != null ? H.askRefuse : this.envitRefuse(level); top = Math.min(this.maxEnvitLevel(), level + 1);
     }
     const uNo = this.util(p, 0, R), uAcc = pw * this.util(p, V, 0) + (1 - pw) * this.util(p, 0, V);
     // Si pujam a t, els rivals triaran el que menys ens convé: no voler (ens donen V) o jugar-s'ho a t.
@@ -579,7 +582,7 @@ class Game {
   }
   mcEnvitCall(p, worlds) {
     const P = this.bp(p), pe = this.mcEnvit(p, worlds), V = this.envitPts(1);
-    const uCall = Math.min(this.util(p, ENVIT_REFUSE[1], 0), pe * this.util(p, V, 0) + (1 - pe) * this.util(p, 0, V));
+    const uCall = Math.min(this.util(p, this.envitRefuse(1), 0), pe * this.util(p, V, 0) + (1 - pe) * this.util(p, 0, V));
     if (uCall > this.util(p, 0, 0) + P.mEnvCall || (pe < 0.3 && this.rnd() < P.envBluffMc)) return 1;
     return 0;
   }

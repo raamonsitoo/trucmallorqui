@@ -2111,9 +2111,10 @@ const canCallEnvit=p=>!!H&&!H.over&&H.trickNo===0&&!H.envitDone&&!(H.noEnvit&&H.
 const foldEnvit=()=>H&&H.trickNo===0&&!H.envitDone&&(H.played||[]).length<3?1:0;
 // «Envit tots» val el que falta a la parella que va davant per arribar a 24
 const envitFalta=()=>H&&H.envitFalta!=null?H.envitFalta:24-Math.max(G.scores?G.scores[0]||0:0,G.scores?G.scores[1]||0:0);
-const envitPts=l=>l===4?envitFalta():ENVIT_VALUE[l];
+// i cap envit no pot valer més d'això: si van a 23 tots valen 1, a 22 valen 2...
+const envitPts=l=>Math.min(ENVIT_VALUE[l],envitFalta());
 const envitMax=()=>H&&H.envitMax?H.envitMax:4;
-const envitBtn=l=>l===4?`Envit tots (${envitFalta()>=24?'el cantó':envitFalta()})`:ENVIT_BTN[l];
+const envitBtn=l=>l===4?`Envit tots (${envitFalta()>=24?'el cantó':envitFalta()})`:`${ENVIT_BTN[l].replace(/ \(\d+\)$/,'')} (${envitPts(l)})`;
 const helpOn=()=>{const e=$('#help');return !!e&&e.checked;};
 
 // ================== VISTA 3D ==================
@@ -3355,6 +3356,7 @@ function rulesHTML(backAttr,backLabel){
     <li>Si et truquen de primeres i la teva parella encara no ha tirat cap carta, abans de contestar el truc podeu envidar: primer es contesta l'envit i després el truc.</li>
     <li>Si te'n vas a la primera ronda sense que s'hagi envidat i no ets el darrer a tirar, els rivals guanyen també 1 punt d'envit.</li>
     <li>«Envit tots» val els punts que falten a la parella que va davant per arribar a 24 (si van 15 a 9, val 9). Només es pot pujar a tots si val més que el «2 més».</li>
+    <li>Mai no es poden guanyar més punts d'envit que els que falten a la parella que va davant: si va a 23, qualsevol envit val 1; si va a 22, en val 2; si va a 21, en val 3. Es pot pujar igualment, però el valor no canvia.</li>
     <li>Només la parella que ha dit «vull» pot pujar el truc. Es canta quan és el teu torn, abans de tirar carta.</li>
     <li>Empat d'envits: guanya qui és més a prop de la mà.</li>
     <li>Els envits es canten i s'accepten a la primera ronda, però no es diuen fins que acaba la mà. Es veu l'envit de qui guanya i el millor de l'altra parella (al registre de la mà, els de tothom). Un envit acceptat es diu igualment encara que la mà acabi abans, i els seus punts se sumen abans dels de la mà.</li>
