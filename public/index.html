@@ -677,6 +677,13 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
 .shop-note{margin:8px 0 0;min-height:1.2em;font-size:.85rem;color:#ff9d93}
 .shop-note.ok{color:#8fe08a;font-weight:700}
 .backbtn.locked{position:relative}
+/* capells de regal (la boina): amb cadenat fins que entres amb Google */
+.chip.locked{border-style:dashed;opacity:.85}
+.chip.gift:not(.locked){border-color:#e9b31c}
+.hat-note{margin:8px 0 0;padding:10px 12px;border-radius:12px;background:rgba(233,179,28,.12);border:1px solid rgba(233,179,28,.4);font-size:.9rem;line-height:1.35;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.hat-note p{margin:0}
+.hat-note #hatGsi:empty{display:none}
+.hat-note[hidden]{display:none}
 .backbtn.locked img{filter:grayscale(.35) brightness(.75)}
 .backbtn.locked::after{content:'🔒';position:absolute;top:4px;right:4px;font-size:.8rem}
 .lb-linkbtn.inl{padding:0;color:var(--gold);text-decoration:underline;font-size:inherit}
@@ -1153,7 +1160,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
         <button class="chip" data-lk="barretina">Padrí</button>
         <button class="chip" data-lk="mocador">Padrina</button>
       </div></div>
-    <div class="fld"><span>Capell</span><div class="chips" id="hats"></div></div>
+    <div class="fld"><span>Capell</span><div class="chips" id="hats"></div><div class="hat-note" id="hatNote" hidden><p>🎁 La <b>Boina de Mallorca</b> és el regal per a qui entra amb Google. Entra i és teva!</p><div id="hatGsi"></div></div></div>
     <div class="fld"><span>Revers de les teves cartes</span><div class="backs" id="backs"></div></div>
     <p class="hint" id="backsShop" hidden>Els reversos amb 🔒 són de la <button class="lb-linkbtn inl" data-openshop>botiga</button>.</p>
     <button class="lb-play sm" id="btnLookOk"><span><b>Fet</b></span></button>
@@ -1665,7 +1672,7 @@ function cardSVG(c){
 return {cardSVG,cardLabel};
 })();
 // ---------- Aspectes: capells i reversos ----------
-const HAT_OPTS=[['palla','Capell de palla'],['pallaAmple','Palla d\'ala ampla'],['pallaNegre','Palla amb cinta negra'],['gorra','Gorra vermella i negra'],['barretina','Barretina'],['mocador','Mocador'],['res','Sense res']];
+const HAT_OPTS=[['palla','Capell de palla'],['pallaAmple','Palla d\'ala ampla'],['pallaNegre','Palla amb cinta negra'],['gorra','Gorra vermella i negra'],['boina','Boina de Mallorca'],['barretina','Barretina'],['mocador','Mocador'],['res','Sense res']];
 const BACK_OPTS=[['llenguesBlau','Llengües blau'],['llenguesVermell','Llengües vermell'],['llenguesVerd','Llengües verd'],['rajola','Rajola hidràulica'],['siurell','Siurell'],['tramuntana','Tramuntana'],
   ['fundador','Fundador'],['dimonis','Dimonis'],['foguero','Fogueró'],['cossiers','Cossiers'],
   ['much','Es Much'],['vermar','Es Vermar'],['santantoni','Sant Antoni'],['moros','Moros i cristians']];
@@ -2108,10 +2115,18 @@ function avatarSVG(look,hat,tint){
   if(hat==='palla')h='<ellipse cx="50" cy="34" rx="40" ry="7" fill="#cdb36b"/><path d="M33 34 Q34 16 50 15 Q66 16 67 34Z" fill="#d9c07a"/><rect x="33" y="28" width="34" height="5" fill="#8a2a22"/>';
   else if(hat==='pallaAmple')h='<ellipse cx="50" cy="35" rx="47" ry="8" fill="#d8bf74"/><path d="M34 35 Q35 19 50 18 Q65 19 66 35Z" fill="#e2cb86"/><rect x="34" y="29" width="32" height="5" fill="#2a4a9a"/>';
   else if(hat==='pallaNegre')h='<ellipse cx="50" cy="35" rx="37" ry="6.5" fill="#bfa25a"/><path d="M35 35 Q35 13 50 12 Q65 13 65 35Z" fill="#c9ad62"/><rect x="35" y="28" width="30" height="6" fill="#161414"/>';
+  else if(hat==='boina'){const k='bo'+Math.random().toString(36).slice(2,7);
+    // copa tova que cau cap a la dreta, cinta fosca i el rabet; la bandera de Mallorca estampada
+    const cap='M27 33 C22 27 26 17 40 14.5 C55 12 72 14 80 22 C85 27 83 34 77 35.5 C70 37 64 33.5 52 33 C42 32.6 32 36 27 33Z';
+    h=`<defs><clipPath id="${k}"><path d="${cap}"/></clipPath></defs>`
+      +`<g clip-path="url(#${k})"><rect x="18" y="10" width="70" height="30" fill="#f2bf12"/>${[0,1,2,3].map(i=>`<rect x="18" y="${13.3+i*6.6}" width="70" height="3.3" fill="#c4142c"/>`).join('')}`
+      +`<rect x="18" y="10" width="27" height="16.5" fill="#5a2a82"/><path d="M24.5 24.5 h15 v-3.2 h-0.9 v-2.6 h-1.6 v2.6 h-1.4 v-3.4 h-1.6 v3.4 h-1.6 v-4.6 h-1.8 v4.6 h-1.6 v-3.4 h-1.6 v3.4 h-1.4 v-2.6 h-1.6 v2.6 h-0.9Z" fill="#fbf6e9" stroke="#2a0f40" stroke-opacity=".45" stroke-width=".4"/><path d="M31.3 24.5 v-1.3 a0.7 0.7 0 0 1 1.4 0 v1.3Z" fill="#4a2170"/></g>`
+      +`<path d="${cap}" fill="none" stroke="#231226" stroke-opacity=".55" stroke-width="1.2"/>`
+      +`<path d="M31 33.5 Q50 30.5 69 33.5 L69 36.2 Q50 33.4 31 36.2Z" fill="#231226"/><path d="M53 13.2 q1 -3.2 2.6 -3.6" stroke="#5a2a82" stroke-width="2" fill="none" stroke-linecap="round"/>`;}
   else if(hat==='gorra')h='<path d="M28 38 Q28 16 50 15 Q72 16 72 38Z" fill="#b8322a"/><path d="M45 15.5 Q50 15 55 15.5 L57 38 L43 38Z" fill="#161414"/><path d="M50 38 Q74 36 84 43 Q70 44 50 42Z" fill="#161414"/><circle cx="50" cy="15.5" r="2.5" fill="#161414"/>';
   else if(hat==='barretina')h='<path d="M30 36 Q30 24 50 23 Q70 24 70 36Z" fill="#1c1a18"/><path d="M33 26 Q40 6 62 10 Q70 12 66 26Z" fill="#b8322a"/>';
   else if(hat==='mocador')h='<path d="M27 52 Q24 20 50 18 Q76 20 73 52 Q66 34 50 33 Q34 34 27 52Z" fill="#2a4a9a"/><path d="M29 40 Q50 30 71 40" fill="none" stroke="#f3ece0" stroke-width="2.5"/>';
-  const hair=hat==='res'||hat==='gorra'?`<path d="M30 46 Q30 22 50 22 Q70 22 70 46 Q64 32 50 32 Q36 32 30 46Z" fill="${L.hair}"/>`:'';
+  const hair=hat==='res'||hat==='gorra'||hat==='boina'?`<path d="M30 46 Q30 22 50 22 Q70 22 70 46 Q64 32 50 32 Q36 32 30 46Z" fill="${L.hair}"/>`:'';
   return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="100" height="100" fill="#f1e3c4"/>
   <path d="M14 104 Q16 74 50 72 Q84 74 86 104Z" fill="${shirt}"/><rect x="43" y="62" width="14" height="14" fill="${L.skin}"/>
   <ellipse cx="50" cy="50" rx="21" ry="23" fill="${L.skin}"/>${hair}
@@ -2660,6 +2675,30 @@ const View=(function(){
     for(let i=0;i<w;i+=2){x.fillStyle='rgba(0,0,0,.05)';x.fillRect(i,0,1,h);}
     for(let j=0;j<4;j++)for(let i=0;i<4;i++){const cx=i*32+(j%2)*16+8,cy=j*32+8;x.fillStyle='#f4efe2';for(let k=0;k<5;k++){const a=k/5*Math.PI*2;x.beginPath();x.arc(cx+Math.cos(a)*3.2,cy+Math.sin(a)*3.2,2.2,0,Math.PI*2);x.fill();}x.fillStyle='#e8b52a';x.beginPath();x.arc(cx,cy,1.8,0,Math.PI*2);x.fill();}});
   texScarf.wrapS=texScarf.wrapT=THREE.RepeatWrapping;texScarf.repeat.set(5,3);
+  // bandera de Mallorca (la de la boina): quatre barres vermelles sobre groc i el quarter morat amb el castell blanc
+  const texFlag=canvasTex(512,512,(x,w,h)=>{
+    x.fillStyle='#f2bf12';x.fillRect(0,0,w,h);
+    x.fillStyle='#c4142c';for(let i=0;i<4;i++)x.fillRect(0,(2*i+1)*h/9,w,h/9);
+    const cw=w*0.44,ch=h*5/9;x.fillStyle='#5a2a82';x.fillRect(0,0,cw,ch);
+    // castell blanc de cinc torres (la del mig, més alta): merlets, finestres en arc, portal i carreus
+    const cx=cw/2,by=ch*0.86,bw=cw*0.78,bh=ch*0.26,tw=bw*0.15,gap=(bw-tw)/4;
+    const towers=[0,1,2,3,4].map(k=>({x:cx-bw/2+k*gap,h:ch*[0.46,0.53,0.64,0.53,0.46][k]}));
+    const shape=()=>{x.beginPath();x.rect(cx-bw/2,by-bh,bw,bh);
+      for(const t of towers){x.rect(t.x,by-t.h,tw,t.h);const m=tw/5;for(let j=0;j<3;j++)x.rect(t.x+j*2*m,by-t.h-m*1.3,m,m*1.3+1);}};
+    shape();x.fillStyle='#fbf6e9';x.fill();
+    x.save();shape();x.clip();
+    x.strokeStyle='rgba(90,42,130,.28)';x.lineWidth=1.5;
+    for(let yy=by;yy>by-ch*0.66;yy-=ch*0.045){x.beginPath();x.moveTo(0,yy);x.lineTo(cw,yy);x.stroke();
+      const row=Math.round((by-yy)/(ch*0.045));for(let xx=(row%2)*10;xx<cw;xx+=20){x.beginPath();x.moveTo(xx,yy);x.lineTo(xx,yy-ch*0.045);x.stroke();}}
+    x.restore();
+    x.fillStyle='#4a2170';
+    const arch=(ax,ay,aw,ah)=>{x.beginPath();x.moveTo(ax-aw/2,ay);x.lineTo(ax-aw/2,ay-ah+aw/2);x.arc(ax,ay-ah+aw/2,aw/2,Math.PI,0);x.lineTo(ax+aw/2,ay);x.closePath();x.fill();};
+    for(const t of towers)arch(t.x+tw/2,by-t.h+t.h*0.42,tw*0.34,t.h*0.2);
+    arch(cx,by,bw*0.13,bh*0.72);
+    shape();x.strokeStyle='rgba(40,14,64,.55)';x.lineWidth=2;x.stroke();
+    // textura de feltre
+    for(let i=0;i<9000;i++){x.fillStyle=Math.random()<0.5?'rgba(0,0,0,.05)':'rgba(255,255,255,.05)';x.fillRect(Math.random()*w,Math.random()*h,2,2);}
+  });
   // Superfície paramètrica (u fa la volta, v puja)
   function surf(nu,nv,fn){
     const pos=[],uv=[],idx=[];
@@ -2890,6 +2929,27 @@ const View=(function(){
       head.add(mesh(new THREE.SphereGeometry(0.026,8,6),blk,0,0.255,-0.01));
       const band=mesh(new THREE.CylinderGeometry(0.227,0.227,0.035,24,1,true),blk,0,0.085,-0.01);band.scale.z=1.05;head.add(band);
       const visor=mesh(new THREE.CylinderGeometry(0.19,0.19,0.014,20,1,false,-Math.PI/2,Math.PI),blk,0,0.08,0.17);visor.rotation.x=0.14;visor.scale.set(0.95,1,0.85);head.add(visor);
+    }else if(cfg.hat==='boina'){
+      // boina de feltre: la copa, tova, sobresurt de la cinta i cau un poc cap a un costat; la bandera de Mallorca estampada a dalt
+      const R=0.29,band=M(0x231226,{roughness:0.7});
+      const prof=[[0.2,0],[0.228,0.004],[0.258,0.014],[0.281,0.03],[0.29,0.046],[0.284,0.061],[0.262,0.075],[0.222,0.088],[0.165,0.098],[0.1,0.104],[0.04,0.107],[0,0.108]].map(([r,y])=>new THREE.Vector2(r,y));
+      const geo=new THREE.LatheGeometry(prof,56),pos=geo.attributes.position,uv=geo.attributes.uv;
+      for(let i=0;i<pos.count;i++){
+        let px=pos.getX(i),py=pos.getY(i),pz=pos.getZ(i);
+        const s=Math.max(0,px/R),fr=Math.max(0,pz/R); // cau cap a un costat i un poc cap endavant
+        py-=0.042*s*s*(0.35+py/0.108)+0.012*fr*fr;px+=0.018*s*s;
+        // un poc irregular, com el feltre de veres
+        py+=0.004*Math.sin(Math.atan2(pz,px)*5);
+        pos.setXYZ(i,px,py,pz);
+        // la bandera vista des de dalt, un poc més grossa que la copa i corruda perquè el castell quedi a la part que es veu
+        uv.setXY(i,Math.min(1,Math.max(0,(px+0.8*R)/(1.7*R))),Math.min(1,Math.max(0,1-(pz+0.5*R)/(1.7*R))));
+      }
+      geo.computeVertexNormals();
+      const bo=new THREE.Group();bo.position.set(0.012,0.165,0.02);bo.rotation.x=0.38;bo.rotation.z=-0.1;head.add(bo);
+      bo.add(new THREE.Mesh(geo,M(0xffffff,{map:texFlag,roughness:0.97,side:THREE.DoubleSide})));
+      const cinta=mesh(new THREE.CylinderGeometry(0.203,0.207,0.034,32,1,true),band,0,-0.012,0);bo.add(cinta);
+      const vora=mesh(new THREE.TorusGeometry(0.205,0.007,6,40),band,0,-0.029,0);vora.rotation.x=Math.PI/2;bo.add(vora);
+      const tito=mesh(new THREE.CylinderGeometry(0.007,0.011,0.034,8),M(0x5a2a82,{roughness:0.95}),-0.008,0.12,-0.01);tito.rotation.z=0.35;bo.add(tito);
     }else if(cfg.hat==='barretina'){
       const bn=mesh(new THREE.CylinderGeometry(0.2,0.212,0.06,20),M(0x1c1a18),0,0.2,0);head.add(bn);
       const sock=mesh(new THREE.CylinderGeometry(0.03,0.2,0.4,14),M(0xb8322a),0.03,0.398,-0.02);sock.rotation.z=-0.3;head.add(sock);
@@ -3485,7 +3545,7 @@ const LEVEL_TITLES=[[1,'Aprenent'],[3,'Jugador de cafè'],[6,'Trucador'],[10,"Me
 const xpForLevel=L=>50*L*(L-1);
 function acctInit(){
   if(!GCLIENT||GCLIENT.charAt(0)==='_')return;
-  Acct.on=true;Friends.readLink();renderAcct();Friends.render();
+  Acct.on=true;Friends.readLink();renderAcct();Friends.render();renderHats();
   $('#frCodeForm').addEventListener('submit',e=>{e.preventDefault();const v=$('#frCodeIn').value.trim();if(v)Net.send({t:'frCode',code:v});});
   $('#frSheet').addEventListener('click',e=>{if(e.target.id==='frSheet')Friends.close();});
   $('#frHide').addEventListener('change',e=>{Net.send({t:'frHide',on:e.target.checked});});
@@ -3808,7 +3868,18 @@ const Shop={items:null,anon:false,test:false,busy:'',pending:null,checking:null,
   }
 };
 // Reversos a «El teu aspecte»: els de la botiga surten amb cadenat si no els tens
+// Capells: la boina (regal per tenir compte) surt amb cadenat a qui no ha entrat amb Google; sense comptes al servidor, no surt
+const GIFT_HATS={boina:1};
+function renderHats(){
+  const el=$('#hats');if(!el)return;
+  const locked=id=>GIFT_HATS[id]&&!owns('hat:'+id);
+  if(Me.hat&&locked(Me.hat)){Me.hat=DEF_HAT[Me.look]||'palla';store.set('truc_hat',Me.hat);setTimeout(renderLobby,0);} // ha tancat la sessió
+  const hat=Me.hat||DEF_HAT[Me.look]||'palla';
+  el.innerHTML=HAT_OPTS.filter(([id])=>!GIFT_HATS[id]||Acct.on).map(([id,l])=>`<button class="chip${GIFT_HATS[id]?' gift':''}${locked(id)?' locked':''}${id===hat?' on':''}" data-hat="${id}"${locked(id)?' aria-label="'+l+' (bloquejat: entra amb Google)"':''}>${locked(id)?'🔒 ':GIFT_HATS[id]?'🎁 ':''}${l}</button>`).join('');
+  const n=$('#hatNote');if(n&&!locked('boina'))n.hidden=true;
+}
 function renderBacks(){
+  renderHats();
   const el=$('#backs');if(!el)return;
   const see=Shop.canSee(),locked=id=>!!BACK_PACK[id]&&!owns('back:'+id);
   // un revers de pagament que no és teu (o has tancat la sessió) torna al de sempre; si el compte encara carrega, s'espera
@@ -4347,10 +4418,15 @@ function setupLobby(){
   $('#btnLook').addEventListener('click',openLook);$('#btnLook2').addEventListener('click',openLook);
   $('#btnLookClose').addEventListener('click',closeLook);$('#btnLookOk').addEventListener('click',closeLook);
   $('#lookSheet').addEventListener('click',e=>{if(e.target.id==='lookSheet')closeLook();});
-  $('#hats').innerHTML=HAT_OPTS.map(([id,l])=>`<button class="chip" data-hat="${id}">${l}</button>`).join('');
   renderBacks();
   const sendStyle=()=>{renderLobby();if(Me.code){const p=readProfile();Net.send(Object.assign({t:'profile'},p));}else readProfile();};
-  $('#hats').addEventListener('click',e=>{const c=e.target.closest('[data-hat]');if(!c)return;Me.hat=c.dataset.hat;sendStyle();});
+  $('#hats').addEventListener('click',e=>{const c=e.target.closest('[data-hat]');if(!c)return;
+    const n=$('#hatNote');
+    if(c.classList.contains('locked')){n.hidden=false;
+      // el botó de Google, aquí mateix (en entrar, la boina queda desbloquejada i la pot triar)
+      const g=$('#hatGsi');if(Acct.gsi&&g&&!g.dataset.done){g.dataset.done='1';try{google.accounts.id.renderButton(g,{theme:'filled_black',size:'medium',shape:'pill',text:'signin_with',locale:'ca'});}catch(e){}}
+      return;}
+    n.hidden=true;Me.hat=c.dataset.hat;sendStyle();});
   $('#backs').addEventListener('click',e=>{const c=e.target.closest('[data-back]');if(!c)return;
     if(c.classList.contains('locked')){Shop.open();return;}
     Me.back=c.dataset.back;sendStyle();});

@@ -123,13 +123,15 @@ function cleanChat(s) {
 const READY_MS = 3000; // quan tots estan llests, la partida comença al cap de 3 s (encara es pot desfer)
 const cleanLook = l => (LOOKS.includes(l) ? l : 'palla');
 // Aspectes («El meu aspecte»): capell i revers de cartes. Llista blanca: el servidor no accepta res més.
-const HATS = ['palla', 'pallaAmple', 'pallaNegre', 'gorra', 'barretina', 'mocador', 'res'];
+const HATS = ['palla', 'pallaAmple', 'pallaNegre', 'gorra', 'boina', 'barretina', 'mocador', 'res'];
 const BACKS = ['llenguesBlau', 'llenguesVermell', 'llenguesVerd', 'rajola', 'siurell', 'tramuntana'];
 const DEF_HAT = { palla: 'palla', barretina: 'barretina', mocador: 'mocador' };
-const cleanHat = (h, look) => (HATS.includes(h) ? h : DEF_HAT[look] || 'palla');
+// La boina de Mallorca és el regal per entrar amb Google: només la pot dur qui té compte (`owned` hi duu 'hat:boina')
+const GIFT_HATS = new Set(['boina']);
+const cleanHat = (h, look, owned) => (HATS.includes(h) && (!GIFT_HATS.has(h) || (owned && owned.has('hat:' + h))) ? h : DEF_HAT[look] || 'palla');
 // Els reversos de la botiga només els pot dur qui els ha comprat (`owned`: el que té desbloquejat)
 const cleanBack = (b, owned) => (BACKS.includes(b) || (shop.PREMIUM_BACKS.has(b) && owned && owned.has('back:' + b)) ? b : 'llenguesBlau');
-const cleanStyle = (m, look, owned) => ({ hat: cleanHat(m && m.hat, look), back: cleanBack(m && m.back, owned) });
+const cleanStyle = (m, look, owned) => ({ hat: cleanHat(m && m.hat, look, owned), back: cleanBack(m && m.back, owned) });
 const newToken = () => crypto.randomBytes(16).toString('hex');
 function newCode() {
   for (let k = 0; k < 50; k++) {
@@ -986,6 +988,7 @@ function setSeatAccount(ws) {
   const x = room.seats[ws.ctx.seat];
   x.uid = ws.ctx.uid || null; x.lvl = ws.ctx.uid ? ws.ctx.lvl || 1 : 0; x.badge = ws.ctx.uid ? ws.ctx.badge || '' : '';
   x.back = cleanBack(x.back, ws.ctx.owned);
+  x.hat = cleanHat(x.hat, x.look, ws.ctx.owned); // si tanca la sessió, es lleva la boina
   room.broadcastRoom();
 }
 function prefsFrom(m, owned) {
@@ -995,6 +998,7 @@ function prefsFrom(m, owned) {
 // El que ha comprat el compte de la connexió (reversos i insígnia)
 async function loadOwned(c) {
   c.owned = c.uid ? shop.entitlements(await acc.store.owned(c.uid)) : new Set();
+  if (c.uid) for (const h of GIFT_HATS) c.owned.add('hat:' + h); // regal per tenir compte
   c.badge = c.owned.has('badge:fundador') ? 'fundador' : '';
 }
 function forgetAccount(c) { c.uid = null; c.lvl = 0; c.owned = new Set(); c.badge = ''; }

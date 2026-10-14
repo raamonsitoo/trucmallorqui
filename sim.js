@@ -231,6 +231,23 @@ async function scenario21(){
   await a.until(()=>!rooms.has(code),3000);
   for(const x of [a,b2,c])x.ws.close();
 }
+// La boina de Mallorca: regal per tenir compte (sense compte no es pot dur; en tancar la sessió es lleva)
+async function scenario22(){
+  const x=new Bot('X');await x.connect();
+  const last=t=>{const l=(x.msgs||[]).filter(m=>m.t===t);return l[l.length-1];};
+  x.send({t:'create',name:'Pep',look:'palla',hat:'boina'});await x.until(()=>x.room);
+  const code=x.room.code,mine=()=>x.room.seats[x.room.you];
+  assert.equal(mine().hat,'palla','sense compte, la boina no');
+  x.send({t:'login',credential:'test:boina',name:'Pep',look:'palla'});await x.until(()=>last('login'),5000);
+  assert(last('login').profile.owned.includes('hat:boina'),'el compte la té');
+  x.send({t:'profile',name:'Pep',look:'palla',hat:'boina'});
+  assert(await x.until(()=>mine().hat==='boina',3000),'amb compte, la duu a la taula');
+  x.send({t:'logout'});
+  assert(await x.until(()=>mine().hat==='palla',3000),'en tancar la sessió, es lleva');
+  x.send({t:'leave'});await x.until(()=>!rooms.has(code),3000);
+  console.log('22) boina de Mallorca: només amb compte, a la taula, i es lleva en tancar la sessió');
+  x.ws.close();
+}
 async function scenario7(){
   const fb=require('./feedback');
   const a=new Bot('F');await a.connect();
@@ -300,7 +317,7 @@ async function scenario10(){
   a.send({t:'login',credential:'test:compradora',name:'Marga',look:'mocador'});
   await a.until(()=>msgs('login').length,5000);
   const prof=msgs('login')[0].profile;
-  assert(prof.shop&&prof.owned.length===0,'botiga visible i res comprat');
+  assert(prof.shop&&prof.owned.filter(g=>!g.startsWith('hat:')).length===0,'botiga visible i res comprat (la boina és el regal del compte)');
   a.send({t:'prefs',name:'Marga',look:'mocador',hat:'mocador',back:'dimonis'});
   await a.until(()=>msgs('me').length>=1,3000);
   assert.equal(msgs('me')[0].profile.back,'llenguesBlau','un revers de pagament no es pot dur sense comprar-lo');
@@ -861,7 +878,7 @@ async function scenario16(){
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();scenario11();scenario17();await scenario9();await scenario7();await scenario6();await scenario21();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario18();await scenario16();await scenario19();await scenario20();await scenario12();
+    scenario5();scenario11();scenario17();await scenario9();await scenario7();await scenario6();await scenario21();await scenario22();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario18();await scenario16();await scenario19();await scenario20();await scenario12();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });
