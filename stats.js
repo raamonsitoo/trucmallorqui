@@ -144,6 +144,7 @@ h2{font-size:1.05rem;margin:26px 0 10px;color:#e9b31c}.hint{color:#a8c3b9;font-s
 </style></head><body><div class="wrap">
 <h1>Estadístiques</h1><p class="hint">Dades agregades per dia, sense galetes ni IPs. Hora de Mallorca.</p>
 <h2>Ara mateix</h2><div class="live"><div><b>${live.connexions}</b>connexions</div><div><b>${live.jugadorsEnSales}</b>jugadors en sales</div><div><b>${live.partidesEnJoc}</b>partides en joc</div><div><b>${live.salesCercantRivals}</b>sales cercant rivals</div></div>
+${live.comptes ? `<h2>Comptes i amics</h2><div class="live"><div><b>${live.comptes.comptes}</b>comptes creats</div><div><b>${live.comptes.amb_amics}</b>jugadors amb amics</div><div><b>${live.comptes.amistats}</b>amistats</div></div>` : ''}
 <h2>Resum</h2><div class="cards">${card('Avui', today)}${card('Darrers 7 dies', 23)}${card('Darrers 30 dies', 0)}</div>
 <h2>Darrers 30 dies</h2><div class="chart">${chart}</div><div class="legend"><i style="background:#5fb8a0"></i>Visites<i style="background:#e9b31c"></i>Partides començades</div>
 <div class="two">

@@ -604,7 +604,8 @@ const server = http.createServer((req, res) => {
     for (const r of rooms.values()) { humans += r.humans(); if (r.phase === 'playing') playing++; if (r.searching) searching++; }
     const live = { connexions: wss.clients.size, jugadorsEnSales: humans, sales: rooms.size, partidesEnJoc: playing, salesCercantRivals: searching };
     if (url === '/stats') {
-      stats.page(live).then(html => {
+      // comptes i amics (només números); si la base de dades no respon, la pàgina surt igual
+      (acc.ENABLED ? acc.store.totals().catch(() => null) : Promise.resolve(null)).then(t => { live.comptes = t; return stats.page(live); }).then(html => {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' });
         res.end(html);
       }).catch(e => { console.error('stats', e.message); res.writeHead(500, { 'Content-Type': 'text/plain' }); res.end('Error'); });

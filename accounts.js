@@ -224,6 +224,13 @@ function pgStore() {
       await pool.query('INSERT INTO blocks (who, whom) VALUES ($1,$2) ON CONFLICT DO NOTHING', [me, other]);
     },
     async setHidden(id, on) { await ready; await pool.query('UPDATE players SET hidden = $2 WHERE id = $1', [id, !!on]); },
+    // Per a /stats: només números, sense noms
+    async totals() {
+      await readyFriends;
+      return (await pool.query(`SELECT (SELECT count(*)::int FROM players) AS comptes,
+        (SELECT count(*)::int FROM friends WHERE ok) AS amistats,
+        (SELECT count(*)::int FROM (SELECT lo AS x FROM friends WHERE ok UNION SELECT hi FROM friends WHERE ok) t) AS amb_amics`)).rows[0];
+    },
     async close() { await pool.end(); }
   };
 }
@@ -279,6 +286,10 @@ function memStore() {
     async friendRemove(me, other) { links.delete(key(me, other)); },
     async block(me, other) { links.delete(key(me, other)); blocks.add(me + '>' + other); },
     async setHidden(id, on) { const p = byId.get(id); if (p) p.hidden = !!on; },
+    async totals() {
+      const ok = Array.from(links).filter(([, f]) => f.ok).map(([k]) => k.split(':'));
+      return { comptes: byId.size, amistats: ok.length, amb_amics: new Set(ok.flat()).size };
+    },
     async owned(id) { return Array.from(new Set(buys.filter(b => b.id === id).map(b => b.item))); },
     async grant(id, item, ref, amount) {
       if (!byId.has(id) || buys.some(b => b.ref === ref)) return false;

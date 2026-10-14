@@ -573,6 +573,7 @@ async function scenario12(){
   assert.equal((await req('GET','/stats?key=dolenta')).code,404,'sense la clau no es veu');
   const pg=await req('GET','/stats?key=clau-de-prova');
   assert(pg.code===200&&pg.body.includes('Estadístiques')&&pg.body.includes('Instagram'),'pàgina d\'estadístiques');
+  assert(/<b>\d+<\/b>jugadors amb amics/.test(pg.body)&&/<b>\d+<\/b>comptes creats/.test(pg.body),'comptes i amics a les estadístiques');
   const js=JSON.parse((await req('GET','/stats.json?key=clau-de-prova')).body);
   assert('connexions' in js,'dades en directe en JSON');
   console.log('12) estadístiques: visites per origen i aparell, accions vàlides, partides i pàgina /stats amb clau');
