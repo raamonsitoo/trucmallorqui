@@ -660,6 +660,8 @@ const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
 const send = (ws, o) => { if (ws.readyState === 1) ws.send(JSON.stringify(o)); };
 const err = (ws, m) => send(ws, { t: 'err', m });
 const friends = require('./friends')({ acc, send, err, roomOf: ws => ctxRoom(ws), joinable: r => joinable(r), stats });
+// Un error que s'escapi d'una tasca en segon pla no ha d'aturar tot el servidor (i les partides de tothom): s'apunta al registre
+process.on('unhandledRejection', e => console.error('error no recollit', e && e.stack || e));
 const FRIEND_MSGS = new Set(['friends', 'frAdd', 'frCode', 'frAns', 'frDel', 'frBlock', 'frHide', 'frInvite', 'frInvAns']);
 
 function clientIp(req) {
@@ -865,7 +867,7 @@ function handle(ws, m) {
   if (m.t === 'feedback') { feedbackMsg(ws, m); return; }
   if (m.t === 'shop') { if (shop.visibleTo(c.uid)) send(ws, { t: 'shop', items: shop.catalog(), test: shop.TEST }); return; }
   if (m.t === 'buy' || m.t === 'buyCheck') { shopMsg(ws, m); return; }
-  if (FRIEND_MSGS.has(m.t)) { friends.handle(ws, m); return; }
+  if (FRIEND_MSGS.has(m.t)) { friends.handle(ws, m).catch(e => console.error('amics', e)); return; }
 
   const room = ctxRoom(ws);
   if (!room) return;
@@ -1012,7 +1014,7 @@ async function accountMsg(ws, m) {
       await loadOwned(c);
       send(ws, { t: 'login', session: acc.signSession(p.id), profile: profileOf(c, p) });
       setSeatAccount(ws);
-      friends.onAuth(ws, p);
+      friends.onAuth(ws, p).catch(e => console.error('amics', e));
     } else if (m.t === 'auth') {
       const id = acc.verifySession(m.session);
       const p = id && await acc.store.get(id);
@@ -1021,7 +1023,7 @@ async function accountMsg(ws, m) {
       await loadOwned(c);
       send(ws, { t: 'me', profile: profileOf(c, p) });
       setSeatAccount(ws);
-      friends.onAuth(ws, p);
+      friends.onAuth(ws, p).catch(e => console.error('amics', e));
     } else if (m.t === 'prefs') {
       if (!c.uid) return;
       const p = await acc.store.prefs(c.uid, prefsFrom(m, c.owned));
@@ -1035,7 +1037,7 @@ async function accountMsg(ws, m) {
       const uid = c.uid, mates = friends.friendIds(uid);
       friends.onLeave(ws);
       await acc.store.remove(uid);
-      friends.onDeleted(uid, mates);
+      friends.onDeleted(uid, mates).catch(e => console.error('amics', e));
       forgetAccount(c); setSeatAccount(ws);
       send(ws, { t: 'deleted' });
     }
