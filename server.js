@@ -202,11 +202,12 @@ class Room {
         ready: x.human ? !!x.ready : false,
         human: x.human, name: x.human ? x.name : DEF_NAMES[i], look: x.human ? x.look : DEF_LOOKS[i],
         hat: x.human ? x.hat : DEF_HAT[DEF_LOOKS[i]], back: x.human ? x.back : 'llenguesBlau', connected: x.human ? x.connected : true,
-        lvl: x.human && x.uid ? x.lvl : 0, badge: x.human && x.uid ? x.badge || '' : ''
+        lvl: x.human && x.uid ? x.lvl : 0, badge: x.human && x.uid ? x.badge || '' : '',
+        uid: x.human && x.uid ? x.uid : 0 // per saber, en acabar, a qui pots demanar d'afegir com a amic
       }))
     };
   }
-  broadcastRoom() { this.checkReady(); for (let s = 0; s < 4; s++) this.sendSeat(s, this.roster(s)); this.persist(); }
+  broadcastRoom() { this.checkReady(); for (let s = 0; s < 4; s++) this.sendSeat(s, this.roster(s)); this.persist(); friends.soon(); }
   // ---------- Sobreviure als reinicis del servidor (vegeu handoff.js) ----------
   tokens() { return this.seats.filter(x => x.human && x.token).map(x => x.token); }
   // Tot el que cal per refer la sala en un altre servidor; d'una partida, el marcador d'abans de la mà en joc.
@@ -397,6 +398,7 @@ class Room {
     for (const x of this.seats) { if (x.freeTimer) clearTimeout(x.freeTimer); if (x.token) sessions.delete(x.token); }
     if (!this.moved) handoff.remove(this.code);
     rooms.delete(this.code);
+    friends.soon();
   }
 }
 
@@ -656,6 +658,8 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
 const send = (ws, o) => { if (ws.readyState === 1) ws.send(JSON.stringify(o)); };
 const err = (ws, m) => send(ws, { t: 'err', m });
+const friends = require('./friends')({ acc, send, err, roomOf: ws => ctxRoom(ws), joinable: r => joinable(r), stats });
+const FRIEND_MSGS = new Set(['friends', 'frAdd', 'frCode', 'frAns', 'frDel', 'frBlock', 'frHide', 'frInvite', 'frInvAns']);
 
 function clientIp(req) {
   // Render és darrere un proxy: la IP real és la primera de x-forwarded-for
@@ -685,6 +689,7 @@ wss.on('connection', (ws, req) => {
   });
   ws.on('close', () => {
     const c = ws.ctx; if (!c) return;
+    friends.onLeave(ws);
     if (!c.code) { dropJoinWait(ws); return; } // esperava per seure a una partida: deixa el lloc
     const room = rooms.get(c.code);
     if (room && room.seats[c.seat] && room.seats[c.seat].ws === ws) {
@@ -859,6 +864,7 @@ function handle(ws, m) {
   if (m.t === 'feedback') { feedbackMsg(ws, m); return; }
   if (m.t === 'shop') { if (shop.visibleTo(c.uid)) send(ws, { t: 'shop', items: shop.catalog(), test: shop.TEST }); return; }
   if (m.t === 'buy' || m.t === 'buyCheck') { shopMsg(ws, m); return; }
+  if (FRIEND_MSGS.has(m.t)) { friends.handle(ws, m); return; }
 
   const room = ctxRoom(ws);
   if (!room) return;
@@ -990,7 +996,7 @@ async function loadOwned(c) {
 }
 function forgetAccount(c) { c.uid = null; c.lvl = 0; c.owned = new Set(); c.badge = ''; }
 // Perfil per al client: progrés, què té comprat i si veu la botiga
-const profileOf = (c, p) => Object.assign(acc.publicProfile(p), { owned: Array.from(c.owned), badge: c.badge, shop: shop.visibleTo(c.uid), shopTest: shop.TEST });
+const profileOf = (c, p) => Object.assign(acc.publicProfile(p), { owned: Array.from(c.owned), badge: c.badge, shop: shop.visibleTo(c.uid), shopTest: shop.TEST, fcode: acc.friendCode(p.id) });
 async function accountMsg(ws, m) {
   const c = ws.ctx;
   if (!acc.ENABLED) return;
@@ -1000,10 +1006,12 @@ async function accountMsg(ws, m) {
       const sub = await acc.verifyGoogle(m.credential);
       if (!sub) return err(ws, "No s'ha pogut entrar amb Google. Torna-ho a provar.");
       const p = await acc.store.login(sub, prefsFrom(m));
+      if (c.uid && c.uid !== p.id) friends.onLeave(ws); // canvia de compte
       c.uid = p.id; c.lvl = acc.levelOf(p.xp);
       await loadOwned(c);
       send(ws, { t: 'login', session: acc.signSession(p.id), profile: profileOf(c, p) });
       setSeatAccount(ws);
+      friends.onAuth(ws, p);
     } else if (m.t === 'auth') {
       const id = acc.verifySession(m.session);
       const p = id && await acc.store.get(id);
@@ -1012,15 +1020,21 @@ async function accountMsg(ws, m) {
       await loadOwned(c);
       send(ws, { t: 'me', profile: profileOf(c, p) });
       setSeatAccount(ws);
+      friends.onAuth(ws, p);
     } else if (m.t === 'prefs') {
       if (!c.uid) return;
       const p = await acc.store.prefs(c.uid, prefsFrom(m, c.owned));
       if (p) send(ws, { t: 'me', profile: profileOf(c, p) });
     } else if (m.t === 'logout') {
+      friends.onLeave(ws);
       forgetAccount(c); setSeatAccount(ws);
+      send(ws, { t: 'friends', list: [], hidden: false });
     } else if (m.t === 'delete') {
       if (!c.uid) return;
-      await acc.store.remove(c.uid);
+      const uid = c.uid, mates = friends.friendIds(uid);
+      friends.onLeave(ws);
+      await acc.store.remove(uid);
+      friends.onDeleted(uid, mates);
       forgetAccount(c); setSeatAccount(ws);
       send(ws, { t: 'deleted' });
     }
@@ -1124,6 +1138,9 @@ setInterval(() => {
     if (room.humans() === 0 && now - room.lastActive > 10 * 60 * 1000) room.destroy();
   }
 }, 30000);
+
+// Amics: qui ha canviat de lloc (menú, sala, partida) ho veuen els seus amics
+setInterval(() => { try { friends.tick(); } catch (e) { console.error('amics', e); } }, 4000).unref();
 
 // Les sales d'aquest servidor continuen essent seves (si s'aturàs de cop, un altre les podria agafar al cap de LEASE_MS)
 setInterval(() => { handoff.renew(Array.from(rooms.values()).filter(r => !r.moved).map(r => r.code)); }, Math.max(1000, Math.floor(handoff.LEASE_MS / 3))).unref();

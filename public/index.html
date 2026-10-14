@@ -555,6 +555,76 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
 .joinoffer .btn{align-self:flex-start}
 .lb-note{margin:0;padding:12px 14px;border-radius:14px;border:1px solid var(--lb-gold);background:rgba(233,179,28,.12);color:var(--lb-ink);font-size:.95rem}
 .lb-note[hidden]{display:none}
+/* Amics: la llista (al menú i a la sala), la finestra amb tots i els avisos (invitació, sol·licitud, s'ha connectat) */
+.lobby{--fr-on:#3fd17a}
+.lobby[data-theme="migdia"]{--fr-on:#1f8a4c}
+.lb-fr[hidden]{display:none}
+.lb-fr h3 .fr-n{margin-left:auto;text-transform:none;letter-spacing:0;font-size:.8rem;color:var(--fr-on)}
+.fr-list{display:flex;flex-direction:column;gap:6px}
+.fr-row{display:flex;align-items:center;gap:10px;border:1px solid var(--lb-line);background:var(--lb-card2);border-radius:12px;padding:6px 8px}
+.fr-row.fr-req{border-color:var(--lb-gold);background:rgba(233,179,28,.12)}
+.fr-av{position:relative;width:40px;height:40px;flex:none}
+.fr-av svg{width:100%;height:100%;border-radius:50%;display:block}
+.fr-av i{position:absolute;right:-2px;bottom:-2px;width:13px;height:13px;border-radius:50%;border:2px solid var(--lb-card2);background:#8a9a95;display:none}
+.fr-av i.on,.fr-av i.room{display:block;background:#3fd17a}
+.fr-av i.game{display:block;background:#e9b31c}
+.fr-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.fr-txt b{font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fr-txt small{font-size:.78rem;color:var(--lb-muted)}
+.fr-txt small.on{color:var(--fr-on);font-weight:700}
+.fr-txt small.game{color:var(--lb-gold);font-weight:700}
+.fr-btns{display:flex;gap:6px;flex:none;align-items:center}
+.fr-btn{font:inherit;font-weight:700;font-size:.82rem;border:0;border-radius:999px;padding:.4rem .85rem;cursor:pointer;background:var(--lb-gold,#e9b31c);color:#2b1c00;min-height:36px;white-space:nowrap}
+.fr-btn.ghost{background:transparent;border:1px solid var(--lb-line,rgba(255,255,255,.25));color:var(--lb-ink,#fbf6e9)}
+.fr-btn[disabled]{opacity:.65;cursor:default}
+.fr-dots{font:inherit;font-size:1.1rem;line-height:1;background:none;border:0;color:var(--lb-muted);cursor:pointer;padding:6px 8px;min-height:36px}
+.fr-empty{margin:0;font-size:.9rem;color:var(--lb-muted);line-height:1.4}
+.fr-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px}
+.fr-foot .lb-linkbtn{padding:4px 2px;text-decoration:underline}
+#frSheet .fr-row{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.1)}
+#frSheet .fr-av i{border-color:#1a3a34}
+#frSheet .fr-txt small{color:var(--muted)}
+#frSheet .fr-txt small.on{color:#3fd17a}
+#frSheet .fr-btn.ghost{border-color:rgba(255,255,255,.2);color:var(--ink)}
+#frSheet .fr-dots{color:var(--muted)}
+#frSheet h3{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:12px 0 6px}
+.fr-manage{display:flex;gap:8px;flex-wrap:wrap;padding:2px 4px 6px 54px}
+.fr-manage .danger{color:#ff9a8a}
+.fr-add{margin:12px 0 4px;padding:12px;border-radius:14px;background:rgba(233,179,28,.1);border:1px solid rgba(233,179,28,.35);display:flex;flex-direction:column;gap:10px}
+.fr-code{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.fr-code small{color:var(--muted);font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.fr-code b{font-family:var(--serif);font-weight:400;font-size:1.7rem;letter-spacing:.12em;color:#ffd25a}
+.fr-share{display:flex;gap:8px}
+.fr-share .lb-chipbtn{flex:1;text-align:center;text-decoration:none}
+.fr-codeform{display:flex;gap:8px}
+.fr-codeform input{flex:1;min-width:0;font:inherit;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--ink);background:rgba(0,0,0,.2);border:1px dashed rgba(255,255,255,.3);border-radius:12px;padding:.5rem .8rem;min-height:44px}
+.fr-codeform input:focus{outline:none;border-style:solid;border-color:#e9b31c}
+.fr-codeform .fr-btn{min-height:44px;padding:.4rem 1.1rem}
+.fr-hide{display:flex;gap:10px;align-items:flex-start;margin:14px 0 4px;cursor:pointer}
+.fr-hide input{width:20px;height:20px;margin-top:2px;accent-color:#e9b31c;flex:none}
+.fr-hide b{display:block}
+.fr-hide small{color:var(--muted);font-size:.82rem}
+.fr-pop{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:60;width:min(360px,calc(100% - 24px));background:rgba(10,24,21,.96);color:#fff;
+  border:2px solid #e9b31c;border-radius:16px;padding:12px;box-shadow:0 12px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:10px;animation:frin .22s ease-out}
+.fr-pop[hidden]{display:none}
+.fr-pop.soft{border-color:rgba(255,255,255,.22)}
+.fr-pop-top{display:flex;align-items:center;gap:10px}
+.fr-pop-top .fr-av{width:44px;height:44px}
+.fr-pop-top .fr-av i{border-color:#0a1815}
+.fr-pop p{margin:0;font-size:.95rem;line-height:1.35}
+.fr-pop .fr-btns{justify-content:stretch}
+.fr-pop .fr-btns .fr-btn{flex:1;background:#e9b31c;color:#2b1c00}
+.fr-pop .fr-btns .fr-btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.25);color:#fff}
+@keyframes frin{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
+/* al resum de la partida: a qui pots afegir com a amic */
+.ov-fr{margin:10px 0 2px;display:flex;flex-direction:column;gap:6px}
+.ov-fr:empty{display:none}
+.ov-fr>small{color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.ov-fr .fr-row{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12)}
+.ov-fr .fr-av i{display:none}
+.ov-fr .fr-txt small{color:var(--muted)}
+.ov-fr .fr-btn.ghost{border-color:rgba(255,255,255,.25);color:var(--ink)}
+.ov-fr .fr-note{font-size:.85rem;color:var(--muted);margin:0}
 /* ancorada a dalt: si a baix surten o desapareixen els botons de cantar, la finestra no es mou sota el dit */
 .joinask{position:absolute;left:50%;top:52px;transform:translateX(-50%);z-index:8;max-height:calc(100% - 60px);overflow:auto;width:min(340px,92%);background:rgba(10,24,21,.95);color:#fff;
   border:2px solid #e9b31c;border-radius:16px;padding:14px;box-shadow:0 12px 40px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:10px}
@@ -718,6 +788,9 @@ table.k td,table.k th{border-bottom:1px solid var(--line);padding:4px 10px 4px 0
 .tm-seat .nm2 b{font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--lb-ink)}
 .tm-seat .nm2 small{font-size:.72rem;color:var(--lb-muted)}
 .tm-seat .sitbtn{font:inherit;font-size:.72rem;font-weight:700;margin-top:3px;background:var(--lb-gold);color:#2b1c00;border:0;border-radius:999px;padding:.15rem .6rem;cursor:pointer;align-self:flex-start}
+.tm-seat .sitbtn.frb{background:transparent;border:1px solid var(--lb-gold);color:var(--lb-ink)}
+.tm-seat .frtag{font-size:.72rem;font-weight:700;color:var(--fr-on);margin-top:3px}
+.tm-seat .frtag.off{color:var(--lb-muted)}
 .lobby .searchbox{background:var(--lb-card);border:1px solid var(--lb-line);border-radius:18px;color:var(--lb-ink)}
 .lobby .searchbox.on{border-color:var(--lb-gold);background:rgba(233,179,28,.1)}
 .lobby .searchbox .btn{border-radius:12px}
@@ -934,6 +1007,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
   </div>
 </main>
 <div class="conn" id="conn" hidden>Connexió perduda. Tornant a connectar…</div>
+<div class="fr-pop" id="frPop" hidden role="alertdialog" aria-live="assertive"></div>
 <div class="rotate" role="alert"><div><b aria-hidden="true">📱</b><p>Posa el mòbil dret</p><span>El Truc es juga amb el mòbil en vertical.</span></div></div>
 <div class="lobby" id="lobby">
  <div class="lb-wrap">
@@ -966,6 +1040,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
       <button class="lb-tile" id="btnCreate"><span class="ico" aria-hidden="true">👥</span><b>Amb amics</b><small>Crea una sala i comparteix l'enllaç</small></button>
       <button class="lb-tile" id="btnQuick"><span class="ico" aria-hidden="true">🤖</span><b>Contra bots</b><small>Partida ràpida, ara mateix</small></button>
     </div>
+    <section class="lb-open lb-fr" id="frBox" hidden aria-label="Amics"></section>
     <div class="lb-join">
       <input id="codeIn" maxlength="4" placeholder="CODI" autocapitalize="characters" aria-label="Codi de la sala">
       <button class="lb-joinbtn" id="btnJoin">Entrar amb codi</button>
@@ -982,6 +1057,7 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
       <div><span class="lb-label">Codi de la sala</span><b class="bigcode" id="roomCode"></b></div>
       <div class="lb-share"><input id="shareUrl" readonly aria-label="Enllaç per convidar"><button class="lb-chipbtn" id="btnCopy">Copiar enllaç</button><a class="lb-chipbtn wa" id="btnWa" target="_blank" rel="noopener">WhatsApp</a></div>
     </div>
+    <section class="lb-open lb-fr" id="frRoomBox" hidden aria-label="Convida un amic"></section>
     <div class="tablemap" id="tablemap" aria-label="Seients de la taula">
       <div class="tm-felt"><svg viewBox="0 0 64 64" aria-hidden="true"><g transform="rotate(-14 26 36)"><rect x="12" y="14" width="26" height="38" rx="4" fill="#2a4a9a" stroke="#fbf6e9" stroke-width="2.5"/></g><g transform="rotate(10 36 34)"><rect x="24" y="12" width="28" height="40" rx="4" fill="#fbf8ef" stroke="#222" stroke-width="1.5"/><circle cx="38" cy="32" r="8.5" fill="#e9b31c" stroke="#8a5a00" stroke-width="1.5"/></g></svg></div>
       <div class="tm-seat s-bottom" id="seat0"></div><div class="tm-seat s-right" id="seat1"></div><div class="tm-seat s-top" id="seat2"></div><div class="tm-seat s-left" id="seat3"></div>
@@ -1016,6 +1092,20 @@ body.ui2 .overlay .sheet{background:#13302b;color:var(--ink);border:1px solid rg
     <div class="fld"><span>Nivells</span><ul class="acc-levels" id="accLevels"></ul></div>
     <p class="hint">Guanyes experiència a cada partida que acabes: més si guanyes, per cada cantó i per cada mà. Contra bots en guanyes la meitat.</p>
     <div class="acc-acts"><button class="lb-chipbtn" data-acc="logout">Tancar sessió</button><button class="lb-linkbtn danger" data-acc="delete" id="accDel">Esborrar el meu compte</button><a class="lb-linkbtn" href="/privacitat">Privacitat</a></div>
+  </div>
+ </div>
+
+ <div class="lb-sheet" id="frSheet" hidden role="dialog" aria-modal="true" aria-label="Amics">
+  <div class="lb-sheet-card">
+    <div class="lb-sheet-head"><span class="lvl-ico" aria-hidden="true">👥</span><div><h2>Amics</h2><p id="frSub"></p></div><button class="lb-x" data-fr="close" aria-label="Tancar">✕</button></div>
+    <div class="fr-add">
+      <div class="fr-code"><small>El teu codi d'amic</small><b id="frMyCode">—</b></div>
+      <div class="fr-share"><button class="lb-chipbtn" type="button" data-fr="copy">Copiar enllaç</button><a class="lb-chipbtn wa" id="frWa" target="_blank" rel="noopener">WhatsApp</a></div>
+      <form class="fr-codeform" id="frCodeForm"><input id="frCodeIn" maxlength="12" placeholder="Codi d'un amic" autocapitalize="characters" autocomplete="off" aria-label="Codi d'un amic"><button class="fr-btn" type="submit">Afegir</button></form>
+    </div>
+    <div id="frAll"></div>
+    <label class="fr-hide"><input type="checkbox" id="frHide"><span><b>Mode invisible</b><small>Els teus amics et veuran desconnectat i no et podran convidar.</small></span></label>
+    <p class="hint">També pots afegir la gent amb qui jugues: toca «＋ Amic» a la sala o en acabar la partida.</p>
   </div>
  </div>
 
@@ -3395,7 +3485,10 @@ const LEVEL_TITLES=[[1,'Aprenent'],[3,'Jugador de cafè'],[6,'Trucador'],[10,"Me
 const xpForLevel=L=>50*L*(L-1);
 function acctInit(){
   if(!GCLIENT||GCLIENT.charAt(0)==='_')return;
-  Acct.on=true;renderAcct();
+  Acct.on=true;Friends.readLink();renderAcct();Friends.render();
+  $('#frCodeForm').addEventListener('submit',e=>{e.preventDefault();const v=$('#frCodeIn').value.trim();if(v)Net.send({t:'frCode',code:v});});
+  $('#frSheet').addEventListener('click',e=>{if(e.target.id==='frSheet')Friends.close();});
+  $('#frHide').addEventListener('change',e=>{Net.send({t:'frHide',on:e.target.checked});});
   const sc=document.createElement('script');sc.src='https://accounts.google.com/gsi/client';sc.async=true;
   sc.onload=()=>{try{
     google.accounts.id.initialize({client_id:GCLIENT,auto_select:false,cancel_on_tap_outside:true,
@@ -3420,7 +3513,7 @@ function acctClear(msg){
   Acct.profile=null;Acct.session='';store.set('truc_session','');
   try{if(window.google&&google.accounts)google.accounts.id.disableAutoSelect();}catch(e){}
   $('#accSheet').hidden=true;const d=$('#accDel');if(d){d.classList.remove('armed');d.textContent='Esborrar el meu compte';}
-  renderAcct();Shop.update();if(msg)View.toast(msg,2500);
+  renderAcct();Shop.update();Friends.clear();if(msg)View.toast(msg,2500);
 }
 function renderAcct(){
   const box=$('#acctBox');if(!box||!Acct.on)return;
@@ -3451,7 +3544,7 @@ function acctProfile(prof,apply){
     Acct.lastPrefs=JSON.stringify([Me.name,Me.look,Me.hat,Me.back]);
     renderLobby();
   }
-  renderAcct();Shop.update();
+  renderAcct();Shop.update();Friends.render();Friends.sendLink();
 }
 function acctSavePrefs(p){
   if(!Acct.profile)return;
@@ -3463,6 +3556,212 @@ function acctGained(g){ // resum d'experiència al final de la partida
   const pct=Math.max(0,Math.min(100,(p.xp-p.levelXp)/Math.max(1,p.nextXp-p.levelXp)*100));
   el.innerHTML=(g.levelUp?`🎉 <b>Has pujat al nivell ${p.level}: ${esc(p.title)}!</b><br>`:'')+`+${g.xp} d'experiència · Nivell ${p.level}<span class="xpbar"><i style="width:${pct}%"></i></span>`;
 }
+// ---------- Amics ----------
+// Només amb compte. La llista diu on és cada amic (connectat, a una sala, jugant o fa quant que no ve);
+// les sol·licituds es fan en acabar una partida («＋ Amic») i des d'una sala es pot convidar qui està connectat.
+function agoText(s){
+  if(s==null)return 'Desconnectat';if(s<90)return 'Fa un moment';
+  const m=Math.round(s/60);if(m<60)return `Fa ${m} min`;
+  const h=Math.round(m/60);if(h<24)return `Fa ${h} ${h===1?'hora':'hores'}`;
+  const d=Math.round(h/24);return d===1?'Ahir':d<30?`Fa ${d} dies`:'Fa temps';
+}
+const Friends={list:[],hidden:false,known:false,prev:new Map(),sent:new Map(),res:{},menu:0,armed:'',after:0,inv:null,popKind:'',popAt:0,popT:0,
+  ok(){return this.list.filter(f=>f.ok);},
+  reqs(){return this.list.filter(f=>!f.ok&&!f.mine);},
+  outs(){return this.list.filter(f=>!f.ok&&f.mine);},
+  live(){return this.ok().filter(f=>f.st!=='off');},
+  byId(id){return this.list.find(f=>f.id===id);},
+  sorted(){const w={room:0,on:1,game:2,off:3};return this.ok().sort((a,b)=>(w[a.st]-w[b.st])||((a.ago==null?1e12:a.ago)-(b.ago==null?1e12:b.ago))||a.name.localeCompare(b.name));},
+  statusText(f){
+    if(f.st==='game')return `${f.bots?'Contra bots':'Jugant'}${f.sc?` · ${f.sc[0]} a ${f.sc[1]}`:''}`;
+    if(f.st==='room')return 'A una sala';
+    if(f.st==='on')return 'Connectat';
+    return agoText(f.ago==null?null:f.ago+Math.round((Date.now()-(this.at||Date.now()))/1000)); // el servidor només el reenvia si canvia res més
+  },
+  invited(f){const t=this.sent.get(f.id);return !!t&&Date.now()-t<30000;},
+  actions(f){
+    // és a una sala amb lloc i tu no: hi pots entrar; si no, el convides a la teva (o a una de nova)
+    if(f.st==='room'&&f.code&&!Me.code)return `<button class="fr-btn" data-fr="go" data-code="${esc(f.code)}">Entrar</button>`;
+    if(f.st==='on'||f.st==='room')return `<button class="fr-btn" data-fr="invite" data-id="${f.id}"${this.invited(f)?' disabled':''}>${this.invited(f)?'Convidat ✓':'Convidar'}</button>`;
+    if(f.st==='game'&&f.ask&&!Me.code)return `<button class="fr-btn ghost" data-fr="ask" data-id="${f.id}">Demanar seure</button>`;
+    return '';
+  },
+  rowHTML(f,manage){
+    return `<div class="fr-row"><span class="fr-av">${avatarSVG(f.look,f.hat)}<i class="${f.st==='off'?'':f.st}"></i></span>`
+      +`<span class="fr-txt"><b>${esc(f.name)}${lvTag(f.lvl)}</b><small class="${f.st==='game'?'game':f.st!=='off'?'on':''}">${this.statusText(f)}</small></span>`
+      +`<span class="fr-btns">${this.actions(f)}${manage?`<button class="fr-dots" data-fr="menu" data-id="${f.id}" aria-label="Opcions de ${esc(f.name)}">⋯</button>`:''}</span></div>`
+      +(manage&&this.menu===f.id?`<div class="fr-manage"><button class="lb-chipbtn" data-fr="del" data-id="${f.id}">${this.armed==='del'+f.id?'Segur? Torna a tocar':'Treure de la llista'}</button>`
+        +`<button class="lb-linkbtn danger" data-fr="block" data-id="${f.id}">${this.armed==='block'+f.id?'Segur? No et podrà tornar a demanar':'Bloquejar'}</button></div>`:'');
+  },
+  reqHTML(f){
+    return `<div class="fr-row fr-req"><span class="fr-av">${avatarSVG(f.look,f.hat)}</span><span class="fr-txt"><b>${esc(f.name)}${lvTag(f.lvl)}</b><small>Vol ser el teu amic</small></span>`
+      +`<span class="fr-btns"><button class="fr-btn" data-fr="yes" data-id="${f.id}">Acceptar</button><button class="fr-btn ghost" data-fr="no" data-id="${f.id}">No</button></span></div>`;
+  },
+  render(){this.renderMenu();this.renderRoom();this.renderSheet();this.renderOv();},
+  // Menú: les sol·licituds, els primers amics (els connectats primer) i «Veure'ls tots»
+  renderMenu(){
+    const el=$('#frBox');if(!el)return;
+    el.hidden=!Acct.on;if(!Acct.on)return;
+    if(!Acct.profile){el.innerHTML=`<h3>👥 Amics</h3><p class="fr-empty">${this.code?"<b>T'han passat un enllaç d'amic.</b> Entra amb Google (aquí dalt) i li enviarem la sol·licitud.":'Entra amb Google (aquí dalt) per afegir amics, veure quan estan connectats i convidar-los a jugar.'}</p>`;return;}
+    const all=this.sorted(),live=this.live().length,reqs=this.reqs(),top=all.slice(0,4);
+    let h=`<h3>${live?'<span class="dot-live" aria-hidden="true"></span>':'👥 '}Amics${live?`<span class="fr-n">${live} ${live===1?'connectat':'connectats'}</span>`:''}</h3><div class="fr-list">`;
+    h+=reqs.map(f=>this.reqHTML(f)).join('')+top.map(f=>this.rowHTML(f,false)).join('')+'</div>';
+    if(!all.length&&!reqs.length)h+=`<p class="fr-empty">Encara no en tens. Passa el teu codi d'amic per WhatsApp, o toca <b>«＋ Amic»</b> al costat de la gent amb qui jugues.</p>`;
+    h+=`<div class="fr-foot"><button class="fr-btn ghost" data-fr="open">＋ Afegir amic</button>${all.length>top.length?`<button class="lb-linkbtn" data-fr="open">Veure'ls tots (${all.length})</button>`:all.length?'<button class="lb-linkbtn" data-fr="open">Gestionar</button>':''}</div>`;
+    el.innerHTML=h;
+  },
+  // Sala d'espera: els amics connectats que encara no hi són, per convidar-los
+  renderRoom(){
+    const el=$('#frRoomBox');if(!el)return;
+    const here=new Set(Me.players.filter(x=>x.human&&x.uid).map(x=>x.uid));
+    const can=Me.code&&Me.phase==='lobby'&&Me.players.some(x=>!x.human);
+    const fs=this.sorted().filter(f=>(f.st==='on'||f.st==='room')&&!here.has(f.id));
+    el.hidden=!Acct.profile||!can||!fs.length;if(el.hidden)return;
+    el.innerHTML=`<h3><span class="dot-live" aria-hidden="true"></span>Convida un amic<span class="fr-n">${fs.length} ${fs.length===1?'connectat':'connectats'}</span></h3><div class="fr-list">${fs.slice(0,5).map(f=>this.rowHTML(f,false)).join('')}</div>`;
+  },
+  renderSheet(){
+    const s=$('#frSheet');if(!s||s.hidden)return;
+    const all=this.sorted(),reqs=this.reqs(),outs=this.outs(),live=this.live().length;
+    $('#frSub').textContent=all.length?`${all.length} ${all.length===1?'amic':'amics'}${live?` · ${live} ${live===1?'connectat':'connectats'} ara`:''}`:'Encara no en tens cap';
+    $('#frHide').checked=this.hidden;
+    const code=(Acct.profile&&Acct.profile.fcode)||'';
+    $('#frMyCode').textContent=code||'—';
+    $('#frWa').href='https://wa.me/?text='+encodeURIComponent(`Afegeix-me com a amic al Truc mallorquí i jugam junts 🃏 ${this.link()} (el meu codi: ${code})`);
+    let h='';
+    if(reqs.length)h+=`<h3>Sol·licituds</h3><div class="fr-list">${reqs.map(f=>this.reqHTML(f)).join('')}</div>`;
+    if(all.length)h+=`<h3>Amics</h3><div class="fr-list">${all.map(f=>this.rowHTML(f,true)).join('')}</div>`;
+    if(outs.length)h+=`<h3>Esperant resposta</h3><div class="fr-list">${outs.map(f=>`<div class="fr-row"><span class="fr-av">${avatarSVG(f.look,f.hat)}</span><span class="fr-txt"><b>${esc(f.name)}</b><small>Li has enviat la sol·licitud</small></span><span class="fr-btns"><button class="fr-btn ghost" data-fr="del" data-id="${f.id}">Cancel·lar</button></span></div>`).join('')}</div>`;
+    $('#frAll').innerHTML=h;
+  },
+  // Sala d'espera: a la fitxa de cada persona (amb compte), «＋ Amic» o com estau
+  seatTag(i){
+    const x=Me.players[i];if(!Acct.profile||!x||!x.human||!x.uid)return '';
+    const f=this.byId(x.uid),r=this.res[i];
+    if(f&&f.ok)return '<span class="frtag">✓ Amics</span>';
+    if(f&&!f.ok&&!f.mine)return `<button class="sitbtn" data-fr="yes" data-id="${f.id}">Acceptar amic</button>`;
+    if((f&&f.mine)||r==='asked'||r==='pending')return '<span class="frtag off">Sol·licitud enviada</span>';
+    return `<button class="sitbtn frb" data-fr="add" data-seat="${i}">＋ Amic</button>`;
+  },
+  // s'ha de tornar a pintar la sala quan canvien els amics (o la resposta a «＋ Amic»)
+  seats(){if(Me.code&&Me.phase==='lobby'&&!$('#lobby').hidden)renderLobby();},
+  // Resum de la partida: amb qui has jugat i «＋ Amic»
+  renderOv(){
+    const el=$('#ovFr');if(!el)return;
+    const others=Me.players.map((x,i)=>({x,i})).filter(o=>o.i!==Me.seat&&o.x.human);
+    if(!Acct.on||!others.length){el.innerHTML='';return;}
+    if(!Acct.profile){el.innerHTML=`<small>Amics</small><p class="fr-note">Entra amb Google per afegir com a amics la gent amb qui has jugat.</p>`;return;}
+    el.innerHTML='<small>Has jugat amb</small>'+others.map(({x,i})=>{
+      const f=x.uid&&this.byId(x.uid),r=this.res[i];
+      let st,btn='';
+      if(!x.uid)st='No ha entrat amb Google';
+      else if(f&&f.ok)st='✓ Ja sou amics';
+      else if(f&&!f.ok&&!f.mine){st='Et vol afegir com a amic';btn=`<button class="fr-btn" data-fr="yes" data-id="${f.id}">Acceptar</button>`;}
+      else if((f&&f.mine)||r==='asked'||r==='pending')st='Sol·licitud enviada';
+      else{st=i%2===Me.seat%2?'Company':'Rival';btn=`<button class="fr-btn" data-fr="add" data-seat="${i}">＋ Amic</button>`;}
+      return `<div class="fr-row"><span class="fr-av">${avatarSVG(x.look,x.hat,i)}</span><span class="fr-txt"><b>${esc(x.name)}${lvTag(x.lvl)}</b><small>${st}</small></span><span class="fr-btns">${btn}</span></div>`;
+    }).join('');
+  },
+  open(){this.menu=0;this.armed='';$('#frSheet').hidden=false;this.renderSheet();},
+  close(){$('#frSheet').hidden=true;},
+  // Avisos a dalt: invitació > sol·licitud > «ja sou amics» > s'ha connectat / informació
+  pop(kind,html,ms){
+    const pri={invite:3,req:2,ok:1,on:0,info:0},el=$('#frPop');if(!el)return;
+    if(this.popKind&&!el.hidden&&pri[this.popKind]>pri[kind])return;
+    el.className='fr-pop'+(kind==='on'||kind==='info'?' soft':'');el.innerHTML=html;el.hidden=false;
+    this.popKind=kind;this.popAt=Date.now();clearTimeout(this.popT);this.popT=setTimeout(()=>this.unpop(kind),ms);
+  },
+  unpop(kind){if(kind&&this.popKind!==kind)return;const el=$('#frPop');if(el)el.hidden=true;this.popKind='';clearTimeout(this.popT);if(kind==='invite')this.inv=null;},
+  info(html,ms){this.pop('info',`<p>${html}</p>`,ms||3200);},
+  onMsg(m){
+    switch(m.t){
+      case 'friends':{
+        const list=Array.isArray(m.list)?m.list:[];
+        // qui s'acaba de connectar (no en entrar tu, ni enmig d'una partida)
+        if(this.known&&Me.phase!=='playing')for(const f of list){
+          const was=this.prev.get(f.id);
+          if(f.ok&&was==='off'&&(f.st==='on'||f.st==='room'))
+            this.pop('on',`<div class="fr-pop-top"><span class="fr-av">${avatarSVG(f.look,f.hat)}<i class="on"></i></span><p><b>${esc(f.name)}</b> s'ha connectat</p></div><div class="fr-btns"><button class="fr-btn" data-fr="invite" data-id="${f.id}">Convidar</button></div>`,6000);
+        }
+        this.list=list;this.at=Date.now();this.hidden=!!m.hidden;this.known=!!Acct.profile;this.prev=new Map(list.map(f=>[f.id,f.ok?f.st:'off']));
+        this.render();this.seats();break;}
+      case 'frRes':{
+        if(m.seat!=null){this.res[m.seat]=m.res;this.renderOv();this.seats();}
+        if(m.res==='asked'||m.res==='accepted'){const i=$('#frCodeIn');if(i)i.value='';}
+        const n=m.name?`<b>${esc(m.name)}</b>`:'aquesta persona';
+        const t={asked:`Sol·licitud enviada a ${n}. Quan l'accepti, us veureu a la llista d'amics.`,accepted:`🎉 Ara tu i ${n} sou amics!`,already:`Ja ets amic de ${n}.`,pending:`Ja li has enviat la sol·licitud a ${n}.`,
+          blocked:`No pots afegir ${n} com a amic.`,full:'Ja tens massa amics a la llista.',
+          nocode:"Aquest codi d'amic no existeix. Mira que estigui ben escrit.",self:"Aquest és el teu codi! Passa'l als teus amics."}[m.res];
+        if(t)this.info(t,3600);break;}
+      case 'frReq':
+        this.pop('req',`<div class="fr-pop-top"><span class="fr-av">${avatarSVG((this.byId(m.id)||{}).look,(this.byId(m.id)||{}).hat)}</span><p><b>${esc(m.name)}</b> vol ser el teu amic</p></div>`
+          +`<div class="fr-btns"><button class="fr-btn" data-fr="yes" data-id="${m.id}">Acceptar</button><button class="fr-btn ghost" data-fr="later">Ara no</button></div>`,15000);break;
+      case 'frOk':this.pop('ok',`<p>🎉 Ara tu i <b>${esc(m.name)}</b> sou amics!</p>`,4000);break;
+      case 'frInvite':{
+        this.inv=m;const ms=m.ms||30000;
+        this.pop('invite',`<div class="fr-pop-top"><span class="fr-av">${avatarSVG(m.look,m.hat)}<i class="room"></i></span><p><b>${esc(m.name)}</b> et convida a jugar a la seva sala</p></div>`
+          +`<div class="fr-btns"><button class="fr-btn" data-fr="invYes">${Me.code?'Anar-hi (deixes aquesta sala)':'Entrar'}</button><button class="fr-btn ghost" data-fr="invNo">Ara no</button></div>`
+          +`<div class="ja-bar"><i style="animation-duration:${ms}ms"></i></div>`,ms);
+        break;}
+      case 'frInvited':this.sent.set(m.id,Date.now());this.render();this.info(`Has convidat <b>${esc(m.name)}</b>. Té 30 segons per contestar.`,3000);
+        setTimeout(()=>this.render(),30500);break;
+      case 'frInvAns':this.sent.delete(m.id);this.render();
+        this.info(m.ok?`<b>${esc(m.name)}</b> ve cap a la teva sala!`:`<b>${esc(m.name)}</b> ara no pot venir.`,3600);break;
+    }
+  },
+  // Convidar: si no ets a cap sala, primer se'n crea una (i, en entrar-hi, s'envia la invitació)
+  invite(id){
+    if(Me.code&&Me.phase==='lobby'){Net.send({t:'frInvite',id});return;}
+    if(Me.code)return;
+    this.after=id;lobbyError('');track('sala-creada');
+    const p=readProfile();Net.send(Object.assign({t:'create',level:Me.botLevel,cantons:Me.cantons,noJoin:!Me.allowJoin},p));
+  },
+  onRoom(){
+    if(Me.phase==='playing')this.res={}; // partida nova: es torna a poder demanar
+    if(this.after&&Me.code&&Me.phase==='lobby'){Net.send({t:'frInvite',id:this.after});this.after=0;}
+    this.render();
+  },
+  answerInvite(yes){
+    const m=this.inv;this.unpop('invite');if(!m)return;
+    Net.send({t:'frInvAns',id:m.id,ok:!!yes});
+    if(!yes)return;
+    if(Me.code&&Me.phase==='lobby')Net.send({t:'leave'});
+    if(Me.code&&Me.phase!=='lobby')return;
+    const p=readProfile();Net.send(Object.assign({t:'join',code:m.code},p));
+  },
+  click(b){
+    const a=b.dataset.fr,id=Number(b.dataset.id);
+    // un avís surt de cop: un toc dins el primer mig segon era per a una altra cosa
+    if(b.closest('#frPop')&&Date.now()-this.popAt<600)return;
+    if(a==='open')return this.open();
+    if(a==='copy'){const u=this.link(),ok=()=>this.info("Enllaç copiat. Passa'l als teus amics!",2400);
+      try{navigator.clipboard.writeText(u).then(ok,()=>prompt('Copia aquest enllaç:',u));}catch(e){prompt('Copia aquest enllaç:',u);}return;}
+    if(a==='close')return this.close();
+    if(a==='invite'){if(b.closest('#frPop'))this.unpop();return this.invite(id);}
+    if(a==='go'){const p=readProfile();Net.send(Object.assign({t:'join',code:b.dataset.code},p));return;}
+    if(a==='ask'){const f=this.byId(id);if(!f||!f.ask)return;Join.request(f.ask,false);if(Join.pending){Join.pending.host=f.name;Join.pendingNote();}return;}
+    if(a==='add'){Net.send({t:'frAdd',seat:Number(b.dataset.seat)});this.res[Number(b.dataset.seat)]='asked';this.renderOv();this.seats();return;}
+    if(a==='yes'||a==='no'){Net.send({t:'frAns',id,ok:a==='yes'});if(b.closest('#frPop'))this.unpop('req');return;}
+    if(a==='later')return this.unpop('req');
+    if(a==='invYes'||a==='invNo')return this.answerInvite(a==='invYes');
+    if(a==='menu'){this.menu=this.menu===id?0:id;this.armed='';return this.renderSheet();}
+    if(a==='del'||a==='block'){
+      const outgoing=(this.byId(id)||{}).ok===false;
+      if(!outgoing&&this.armed!==a+id){this.armed=a+id;return this.renderSheet();}
+      this.armed='';this.menu=0;Net.send({t:a==='del'?'frDel':'frBlock',id});return;
+    }
+  },
+  link(){const c=Acct.profile&&Acct.profile.fcode;return location.origin+'/?amic='+encodeURIComponent(c||'');},
+  // Enllaç d'amic (?amic=CODI): es guarda fins que hagi entrat amb Google i llavors s'envia la sol·licitud
+  code:'',
+  readLink(){
+    try{const q=new URLSearchParams(location.search),c=q.get('amic');
+      if(c){this.code=c.slice(0,12);store.set('truc_amic',this.code);q.delete('amic');history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:'')+location.hash);}
+      else this.code=store.get('truc_amic')||'';}catch(e){}
+  },
+  sendLink(){if(this.code&&Acct.profile){Net.send({t:'frCode',code:this.code});this.code='';store.set('truc_amic','');}},
+  clear(){this.list=[];this.hidden=false;this.known=false;this.prev=new Map();this.res={};this.unpop();this.close();this.render();}
+};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-fr]');if(b)Friends.click(b);});
 // ---------- Botiga ----------
 const owns=g=>!!(Acct.profile&&Acct.profile.owned&&Acct.profile.owned.includes(g));
 const eur=c=>(c/100).toFixed(2).replace('.',',')+' €';
@@ -3604,8 +3903,7 @@ function onMsg(m){
       if(Net.updating){Net.updating=false;showConn(false);}
       store.set('truc_token',m.token);
       Shop.anon=!!m.shop;Shop.update();
-      if(Acct.session&&GCLIENT&&GCLIENT.charAt(0)!=='_')Net.send({t:'auth',session:Acct.session});
-      setTimeout(pollRooms,200);
+      if(Acct.session&&GCLIENT&&GCLIENT.charAt(0)!=='_')Net.send({t:'auth',session:Acct.session});      setTimeout(pollRooms,200);
       if(!m.resumed&&Me.code)resetToMenu('S\'ha perdut la sessió de la sala.');
       break;
     case 'room':onRoom(m);break;
@@ -3630,6 +3928,7 @@ function onMsg(m){
     case 'logout':acctClear('');break;
     case 'deleted':acctClear('Hem esborrat el teu compte i tot el seu progrés.');break;
     case 'fb':Feedback.reply(m);break;
+    case 'friends':case 'frRes':case 'frReq':case 'frOk':case 'frInvite':case 'frInvited':case 'frInvAns':Friends.onMsg(m);break;
   }
 }
 function resetToMenu(msg){
@@ -3658,7 +3957,7 @@ function onRoom(m){
   if(Me.searching&&(!was||m.searchMs<1500))Me.searchStart=Date.now()-(m.searchMs||0);
   if(Me.searching&&!was)Net.send({t:'list'}); // quanta gent hi ha connectada ara mateix
   if(!Me.searching)Me.keepWaiting=false;
-  updateRoster();routeScreen();
+  updateRoster();routeScreen();Friends.onRoom();
 }
 // Demanar la revenja: si jugues sol contra bots, comença ara; si hi ha més gent, compta com a «llest»
 // i comença quan tots els que són a la sala la demanen (com «Estic llest»)
@@ -3774,7 +4073,7 @@ function renderLobby(){
   document.querySelectorAll('#hats .chip').forEach(c=>c.classList.toggle('on',c.dataset.hat===hat));
   renderBacks();
   const av=avatarSVG(Me.look,hat);$('#avatar').innerHTML=av;$('#avatarBig').innerHTML=av;
-  renderLevels();renderDur();
+  renderLevels();renderDur();Friends.render();
   if(!inRoom){renderChat();return;}
   $('#roomCode').textContent=Me.code;
   $('#shareUrl').value=location.origin+location.pathname+'?sala='+Me.code;
@@ -3791,7 +4090,7 @@ function renderLobby(){
     const x=Me.players[i],mine=i===Me.seat,el=$('#seat'+i);if(!el||!x)continue;
     el.className='tm-seat '+['s-bottom','s-right','s-top','s-left'][i]+' '+(i%2?'tB':'tA')+(mine?' me':'')+(x.human?'':' empty')+(x.ready?' ready':'');
     const sub=x.human?((mine?'Tu':i%2===Me.seat%2?'Company':'Rival')+(i===Me.host?' · amfitrió':'')+(x.connected?'':' · desconnectat')+(x.ready?' · ✓ llest':'')):'Bot si queda buit';
-    el.innerHTML=`<span class="av">${avatarSVG(x.look,x.hat,i)}</span><span class="nm2"><b>${esc(x.human?x.name:'Lliure')}${x.human?bdTag(x.badge)+lvTag(x.lvl):''}</b><small>${sub}</small>${(!x.human&&!mine)?`<button class="sitbtn" data-sit="${i}">Seure aquí</button>`:''}</span>`;
+    el.innerHTML=`<span class="av">${avatarSVG(x.look,x.hat,i)}</span><span class="nm2"><b>${esc(x.human?x.name:'Lliure')}${x.human?bdTag(x.badge)+lvTag(x.lvl):''}</b><small>${sub}</small>${(!x.human&&!mine)?`<button class="sitbtn" data-sit="${i}">Seure aquí</button>`:''}${mine?'':Friends.seatTag(i)}</span>`;
   }
   const host=Me.host===Me.seat;
   $('#btnStart').hidden=!host;
@@ -4318,9 +4617,11 @@ function onEvent(e){
       const shareBtn='<button class="btn ok" data-share>📤 Comparteix</button>';
       showOverlay(`<h2>${vteam(e.w)===0?'Heu guanyat la partida!':'Heu perdut la partida'}</h2><p>${quick?'Punts':'Cantons'}: ${mine} a ${theirs}.</p>`
         +(acctOn?(Acct.profile?'<div class="ov-xp" id="ovXp"></div>':'<p class="hint">Entra amb Google (a la sala d\'espera) per guardar el teu progrés i pujar de nivell.</p>'):'')
+        +'<div class="ov-fr" id="ovFr"></div>'
         // Revenja: cadascú diu si en vol; comença quan tots els que són a la sala ho han dit (contra bots, a l'acte)
         +(Me.players.filter(x=>x.human).length>1?`<p class="hint" id="ovRematch">La revenja comença quan tots els que sou a la sala la demanau.</p>`:'')
         +`<div class="row"><button class="btn truc" data-ov="rematch">Revenja!</button>${shareBtn}<button class="btn ghost" data-ov="backlobby">Tornar a la sala</button></div>`);
+      Friends.renderOv();
       break;}
   }
 }

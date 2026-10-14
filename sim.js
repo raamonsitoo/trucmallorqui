@@ -154,6 +154,83 @@ async function scenario6(){
   console.log('6) comptes: entrar, +'+me.gained.xp+' XP en acabar, sessió conservada, canvi de nom i esborrat');
   b.ws.close();
 }
+// Amics: demanar-ho a qui és a la sala, acceptar, on és cada amic, convidar, mode invisible, desconnectar, bloquejar i esborrar el compte
+async function scenario21(){
+  const a=new Bot('A'),b=new Bot('B'),c=new Bot('C');
+  for(const x of [a,b,c])await x.connect();
+  const last=(x,t)=>{const l=(x.msgs||[]).filter(m=>m.t===t);return l[l.length-1];};
+  const fr=x=>(last(x,'friends')||{list:[]}).list;
+  const login=async(x,k,n)=>{x.send({t:'login',credential:'test:'+k,name:n,look:'palla'});await x.until(()=>last(x,'login')&&last(x,'friends'),5000);return last(x,'login');};
+  const la=await login(a,'amic-a','Andreu');const lb=await login(b,'amic-b','Bel');const lc=await login(c,'amic-c','Coloma');
+  assert(/^[A-Z2-9]{3,}-[A-Z2-9]{3}$/.test(la.profile.fcode)&&la.profile.fcode!==lb.profile.fcode,"cada compte té el seu codi d'amic");
+  assert.equal(fr(a).length,0,'sense amics de primeres');
+  // na Bel entra a la sala d'en Andreu, i ell li demana de ser amics
+  a.send({t:'create',name:'Andreu',look:'palla'});await a.until(()=>a.room);
+  const code=a.room.code;
+  b.send({t:'join',code,name:'Bel',look:'mocador'});await b.until(()=>b.room);
+  await a.until(()=>a.room.seats.filter(s=>s.human).length===2,3000);
+  const bs=a.room.seats.findIndex((s,i)=>s.human&&i!==a.room.you);
+  assert(a.room.seats[bs].uid>0&&!a.room.seats.some(s=>!s.human&&s.uid),'el seient diu el compte (només de les persones)');
+  a.send({t:'frAdd',seat:bs});
+  await b.until(()=>last(b,'frReq'),3000);
+  assert.equal(last(a,'frRes').res,'asked');
+  const ida=last(b,'frReq').id;
+  assert.equal(last(b,'frReq').name,'Andreu');
+  assert(fr(b).some(f=>f.id===ida&&!f.ok&&!f.mine),'na Bel té la sol·licitud a la llista');
+  a.send({t:'frAdd',seat:bs});await a.until(()=>a.msgs.filter(m=>m.t==='frRes').length>=2,3000);
+  assert.equal(last(a,'frRes').res,'pending','tornar-ho a demanar no la repeteix');
+  b.send({t:'frAns',id:ida,ok:true});
+  await a.until(()=>last(a,'frOk')&&fr(a).length===1&&fr(a)[0].ok,3000);
+  const idb=fr(a)[0].id;
+  assert.equal(fr(a)[0].st,'room','ja són amics i en Andreu la veu a una sala');
+  // se'n va de la sala: la veu connectada i la convida
+  b.send({t:'leave'});
+  assert(await a.until(()=>fr(a)[0].st==='on',9000),'la veu al menú');
+  a.send({t:'frInvite',id:idb});
+  await b.until(()=>last(b,'frInvite'),3000);
+  assert.equal(last(b,'frInvite').code,code);assert.equal(last(b,'frInvite').name,'Andreu');
+  b.send({t:'frInvAns',id:ida,ok:true});b.send({t:'join',code,name:'Bel',look:'mocador'});
+  await a.until(()=>last(a,'frInvAns'),3000);
+  assert(last(a,'frInvAns').ok,'ha dit que sí');
+  assert(await a.until(()=>a.room.seats.filter(s=>s.human).length===2,3000),'ha entrat a la sala');
+  // mode invisible: surt desconnectada, sense dir quan va venir, i no la pot convidar
+  b.send({t:'leave'});await a.until(()=>fr(a)[0].st==='on',9000);
+  b.send({t:'frHide',on:true});
+  assert(await a.until(()=>fr(a)[0].st==='off',9000),'invisible: desconnectada');
+  assert.equal(fr(a)[0].ago,null);
+  assert(last(b,'friends').hidden,'ella sap que és invisible');
+  a.send({t:'frInvite',id:idb});await a.until(()=>a.errors.length>0,3000);
+  assert(/no està connectat/.test(a.errors[a.errors.length-1]),"no es pot convidar qui no hi és");
+  b.send({t:'frHide',on:false});
+  assert(await a.until(()=>fr(a)[0].st==='on',9000),'ja no és invisible');
+  // se'n va de la web: «fa un moment»
+  b.ws.close();
+  assert(await a.until(()=>fr(a)[0].st==='off'&&fr(a)[0].ago!=null,9000),'desconnectada, amb quan hi era');
+  // la bloqueja: ja no són amics i ella no li pot tornar a demanar
+  a.send({t:'frBlock',id:idb});
+  assert(await a.until(()=>fr(a).length===0,3000),'bloquejada');
+  const b2=new Bot('B2');await b2.connect();
+  b2.send({t:'auth',session:lb.session});await b2.until(()=>last(b2,'friends'),3000);
+  assert.equal(fr(b2).length,0,'ella tampoc el té');
+  b2.send({t:'join',code,name:'Bel',look:'mocador'});await b2.until(()=>b2.room);
+  b2.send({t:'frAdd',seat:b2.room.seats.findIndex((s,i)=>s.human&&s.name==='Andreu')});
+  await b2.until(()=>last(b2,'frRes'),3000);
+  assert.equal(last(b2,'frRes').res,'blocked');
+  // na Coloma l'afegeix amb el codi d'amic (sense haver jugat junts); un codi mal escrit o el propi no valen
+  const res=async(x,k)=>{x.send({t:'frCode',code:k});await x.until(()=>(x.msgs||[]).filter(m=>m.t==='frRes').length>(x.nres||0),3000);x.nres=x.msgs.filter(m=>m.t==='frRes').length;return last(x,'frRes').res;};
+  assert.equal(await res(c,la.profile.fcode.replace(/.$/,ch=>ch==='A'?'B':'A')),'nocode','un codi mal escrit no val');
+  assert.equal(await res(c,lc.profile.fcode),'self');
+  assert.equal(await res(c,la.profile.fcode.toLowerCase().replace('-',' ')),'asked','amb el codi (sense importar majúscules ni guió)');
+  await a.until(()=>last(a,'frReq')&&last(a,'frReq').name==='Coloma',3000);
+  a.send({t:'frAns',id:last(a,'frReq').id,ok:true});
+  assert(await a.until(()=>fr(a).some(f=>f.name==='Coloma'&&f.ok),3000),'amiga nova');
+  c.send({t:'delete'});
+  assert(await a.until(()=>fr(a).length===0,3000),'compte esborrat: ja no hi surt');
+  console.log("21) amics: codi d'amic, sol·licitud des de la sala, acceptar, on és (sala, menú), convidar i entrar, invisible, desconnectat, bloquejar i compte esborrat");
+  for(const x of [b2,c,a])x.send({t:'leave'}); // que la sala no quedi oberta (hi ha un màxim de sales per IP)
+  await a.until(()=>!rooms.has(code),3000);
+  for(const x of [a,b2,c])x.ws.close();
+}
 async function scenario7(){
   const fb=require('./feedback');
   const a=new Bot('F');await a.connect();
@@ -783,7 +860,7 @@ async function scenario16(){
 server.listen(0,async()=>{
   port=server.address().port;
   try{
-    scenario5();scenario11();scenario17();await scenario9();await scenario7();await scenario6();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario18();await scenario16();await scenario19();await scenario20();await scenario12();
+    scenario5();scenario11();scenario17();await scenario9();await scenario7();await scenario6();await scenario21();await scenario1();await scenario2();await scenario3();await scenario4();await scenario8();await scenario10();await scenario13();await scenario14();await scenario15();await scenario18();await scenario16();await scenario19();await scenario20();await scenario12();
     console.log('TOT OK');process.exit(0);
   }catch(e){console.error('FALLA',e);process.exit(1);}
 });
