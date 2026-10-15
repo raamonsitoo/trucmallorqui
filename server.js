@@ -518,7 +518,8 @@ const STATIC = {
   '/manifest.webmanifest': 'application/manifest+json', '/sw.js': 'text/javascript; charset=utf-8'
 };
 const PAGES = { '/': 'index.html', '/index.html': 'index.html', '/regles': 'regles.html', '/regles.html': 'regles.html', '/reglas': 'reglas.html', '/reglas.html': 'reglas.html',
-  '/privacitat': 'privacitat.html', '/privacidad': 'privacidad.html', '/condicions': 'condicions.html' };
+  '/privacitat': 'privacitat.html', '/privacidad': 'privacidad.html', '/condicions': 'condicions.html',
+  '/botiga-demo': 'botiga-demo.html' }; // demostració de la botiga per a la revisió de Lemon Squeezy (no indexada)
 const HTML_HEADERS = {
   'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache',
   'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin'
