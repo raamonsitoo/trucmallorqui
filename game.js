@@ -60,12 +60,26 @@ function envitValue(hand) {
   for (let i = 0; i < hand.length; i++) for (let j = i + 1; j < hand.length; j++) best = Math.max(best, pairEnvit(hand[i], hand[j]));
   return best;
 }
-function trickWinner(played) {
+// `mano`: si la ronda s'empata, la següent la surt qui és mà (normativa: «ordre per mà»), no qui ha tirat primer de les cartes empatades
+// Les cartes que fan l'envit d'una mà (les dues millors; si cap parella suma, només la carta més alta), per ensenyar-les en acabar
+function envitCards(hand) {
+  let best = -1, out = [];
+  for (let i = 0; i < hand.length; i++) for (let j = i + 1; j < hand.length; j++) {
+    const v = pairEnvit(hand[i], hand[j]);
+    if (v > best) { best = v; out = [hand[i], hand[j]]; }
+  }
+  if (best < 20 && hand.length) { // sense dues cartes que sumin: l'envit és el punt de la carta més alta
+    const c = hand.slice().sort((a, b) => pip(b) - pip(a))[0];
+    out = [c];
+  }
+  return out;
+}
+function trickWinner(played, mano) {
   let best = -1, top = [];
   for (const x of played) { const r = cardRank(x.card); if (r > best) { best = r; top = [x]; } else if (r === best) top.push(x); }
   const teams = new Set(top.map(x => x.p % 2));
   if (teams.size === 1) return { team: top[0].p % 2, player: top[0].p, tie: false };
-  return { team: null, player: top[0].p, tie: true };
+  return { team: null, player: Number.isInteger(mano) ? mano : top[0].p, tie: true };
 }
 function handDecision(res, manoTeam) {
   if (res.length < 2) return undefined;
@@ -151,10 +165,10 @@ const winP = (a, b) => (a >= 24 ? 1 : b >= 24 ? 0 : WIN_P[a][b]);
 
 // Qui guanya la mà si tothom juga perfecte amb les cartes que té (cerca alfa-beta).
 // Torna 1 si la guanya `team`, 0 si no. Modifica i restaura `hands`, `tricks` i `played`.
-function solveHand(hands, tricks, played, leader, manoTeam, team) {
+function solveHand(hands, tricks, played, leader, manoTeam, team, mano) {
   const rec = (pl, ld, alpha, beta) => {
     if (pl.length === 4) {
-      const w = trickWinner(pl);
+      const w = trickWinner(pl, mano);
       tricks.push(w.team);
       const d = handDecision(tricks, manoTeam);
       const v = d !== undefined ? (d === team ? 1 : 0) : rec([], w.player, alpha, beta);
@@ -545,7 +559,7 @@ class Game {
       idxs.forEach((i, k) => {
         const hands = W.hands.map(h => h.slice()), played = H.played.slice(), tricks = H.tricks.slice();
         if (i >= 0) played.push({ p, card: hands[p].splice(i, 1)[0] });
-        sum[k] += W.w * solveHand(hands, tricks, played, leader, manoTeam, me);
+        sum[k] += W.w * solveHand(hands, tricks, played, leader, manoTeam, me, H.mano);
       });
     }
     return { idxs, vals: sum.map(v => (tot ? v / tot : 0.5)) };
@@ -577,6 +591,8 @@ class Game {
   // Vol envidar? 0 = no, 1 = envit. Els bots només canten «envit» de primeres (com s'han entrenat), mai «envit tots».
   botEnvitCall(p) {
     const P = this.bp(p);
+    // Amb un envit molt alt (més de 31) sempre envida: no es deixa passar de primeres (per sort de la probabilitat)
+    if (envitValue(this.H.initial[p]) > 31) return 1;
     if (P.mc) return this.mcEnvitCall(p, this.mcWorlds(p));
     return this.botWantsEnvit(p) ? 1 : 0;
   }
@@ -589,7 +605,7 @@ class Game {
   mcTurn(p) {
     const H = this.H, P = this.bp(p), worlds = this.mcWorlds(p);
     if (this.canCallEnvit(p)) {
-      const e = this.mcEnvitCall(p, worlds);
+      const e = envitValue(H.initial[p]) > 31 ? 1 : this.mcEnvitCall(p, worlds);
       if (e) return e === 4 ? { type: 'envit', level: 4 } : { type: 'envit' };
     }
     const { idxs, vals } = this.mcHand(p, worlds), hand = H.hands[p];
@@ -643,8 +659,12 @@ class Game {
     const bestRank = cardRank(best.card);
     if (best.p % 2 === p % 2) return lowest.i;
     const beating = sorted.filter(x => x.r > bestRank);
-    // Si encara ha de tirar un rival, de vegades assegura amb la més alta en lloc de la justa
-    if (beating.length) return (trick.length < 3 && this.rnd() < P.secure ? beating[beating.length - 1] : beating[0]).i;
+    // Si encara ha de tirar un rival, de vegades assegura amb una de més alta en lloc de la justa,
+    // però sense gastar l'amo, la madona, les llengües ni les manilles per matar una carta petita
+    if (beating.length) {
+      const sure = trick.length < 3 && this.rnd() < P.secure ? beating.filter(x => x.r < 90) : [];
+      return (sure.length ? sure[sure.length - 1] : beating[0]).i;
+    }
     const equal = sorted.find(x => x.r === bestRank);
     if (equal && H.trickNo === 0) return equal.i;
     return lowest.i;
@@ -902,10 +922,10 @@ class Game {
     const top = [null, null];
     for (let i = 0; i < 4; i++) { const p = (H.mano + i) % 4, t = p % 2; if (!top[t] || vals[p] > top[t].val) top[t] = { p, val: vals[p] }; }
     const pts = this.envitPts(level);
-    this.emit({ e: 'envitShow', p: bp, val: best, wt: bp % 2, pts, top, vals });
+    this.emit({ e: 'envitShow', p: bp, val: best, wt: bp % 2, pts, top, vals, cards: H.initial.map(envitCards) });
     this.addScore(bp % 2, pts);
     this.snap();
-    await this.sleep(3200); // que es puguin llegir els envits (el cartell) abans de repartir la mà següent
+    await this.sleep(4800); // que es puguin llegir els envits (el cartell) abans de repartir la mà següent
   }
 
   // ---------- Torn ----------
@@ -916,7 +936,15 @@ class Game {
       if (H.over) return;
       let act;
       if (this.isHuman(p)) act = await this.ask(p, 'turn', {});
-      else { this.snap(); await this.sleep(650 + Math.random() * 500); act = this.botTurn(p); }
+      else {
+        this.snap();
+        // Si el company és una persona i encara no ha tirat ni ha dit res («vina a mi», «vaig a tu»), el bot li dona temps de parlar abans de tirar
+        const q = (p + 2) % 4;
+        const waitPartner = this.isHuman(q) && !H.played.some(x => x.p === q) && !H.say[q] && H.hands[q].length > 0 ? 2300 : 0;
+        await this.sleep(650 + Math.random() * 500 + waitPartner);
+        if (H.over) return;
+        act = this.botTurn(p);
+      }
       if (H.over) return;
       if (act.type === 'play') {
         const card = H.hands[p].splice(act.idx, 1)[0];
@@ -966,7 +994,7 @@ class Game {
       await this.botAnnounce();
       for (let i = 0; i < 4 && !H.over; i++) await this.takeTurn((leader + i) % 4);
       if (H.over) break;
-      const w = trickWinner(H.played);
+      const w = trickWinner(H.played, H.mano);
       H.tricks.push(w.team); H.winPlayer = w.tie ? null : w.player;
       this.snap(); this.emit({ e: 'trick', team: w.team, tie: w.tie });
       await this.sleep(1500);
@@ -1016,4 +1044,4 @@ class Game {
   }
 }
 
-module.exports = { Game, Abort, makeDeck, cardRank, envitValue, trickWinner, handDecision, signOf, SIGN_DUR, LEVELS, LEVEL_IDS, BASE, mulberry32, solveHand };
+module.exports = { Game, Abort, makeDeck, cardRank, envitValue, envitCards, trickWinner, handDecision, signOf, SIGN_DUR, LEVELS, LEVEL_IDS, BASE, mulberry32, solveHand };

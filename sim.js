@@ -118,6 +118,15 @@ function scenario5(){
   g.G.scores=[5,22];assert.deepEqual([1,2,3].map(l=>g.envitPts(l)),[2,2,2],'a 22 valen 2');
   g.G.scores=[21,21];assert.deepEqual([1,2,3].map(l=>g.envitPts(l)),[2,3,3],'a 21: envit 2, jo envit i 2 més 3');
   g.G.scores=[0,0];assert.deepEqual([1,2,3].map(l=>g.envitPts(l)),[2,4,6]);
+  // Empat: la ronda següent la surt qui és mà, no qui ha tirat primer de les cartes empatades
+  const G=require('./game.js'),C3=(n,s)=>({n,s});
+  const tie=G.trickWinner([{p:1,card:C3(3,'oros')},{p:2,card:C3(4,'copes')},{p:3,card:C3(5,'bastos')},{p:0,card:C3(3,'copes')}],1);
+  assert(tie.tie&&tie.player===1,'empat: surt qui és mà (1)');
+  assert.equal(G.trickWinner([{p:3,card:C3(3,'oros')},{p:0,card:C3(3,'copes')},{p:1,card:C3(4,'copes')},{p:2,card:C3(5,'bastos')}],0).player,0,'empat: surt la mà (0), no en Miquel que va tirar primer');
+  assert.equal(G.trickWinner([{p:1,card:C3(3,'oros')},{p:2,card:C3(4,'copes')}],3).player,1,'sense empat, surt qui guanya');
+  // Les cartes de l'envit: les dues que sumen (o l'amo amb la millor), no una altra parella
+  assert.deepEqual(G.envitCards([C3(7,'oros'),C3(6,'oros'),C3(12,'copes')]).map(c=>c.n).sort(),[6,7],'envit 33 = 7 i 6 d\'oros');
+  assert.equal(G.envitCards([C3(5,'oros'),C3(6,'copes'),C3(7,'bastos')]).length,1,'sense dues del mateix coll, la carta més alta');
   console.log('5) regles: envit després del truc, «envit tots» = el que falta, i cap envit val més del que falta (23 → 1, 22 → 2, 21 → 3)');
 }
 // Comptes: entrar, guanyar experiència, tornar a entrar, canviar el nom i esborrar

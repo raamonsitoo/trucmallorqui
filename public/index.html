@@ -244,6 +244,12 @@ body.immersive .coach{grid-area:actions;align-self:start;margin:0;font-size:.85r
 .callban.raise{background:rgba(233,179,28,.97);border-color:#fff3c4;color:#2b1c00}
 .callban.ok{background:rgba(39,128,70,.96);border-color:#b4f2c7}
 .callban.no{background:rgba(28,28,28,.95);border-color:#ff9a9a}
+.callban .ebrow{display:flex;gap:18px;justify-content:center;margin-top:10px}
+.callban .ebcards{display:flex;flex-direction:column;align-items:center;gap:4px}
+.callban .ebcards i{font-style:normal;font-size:.78rem;font-weight:700;opacity:.95}
+.callban .ebcards>span{display:flex;gap:4px}
+.callban .ebc{display:block;width:46px;filter:drop-shadow(0 3px 5px rgba(0,0,0,.5))}
+.callban .ebc svg{width:100%;height:auto;display:block}
 .callban.in{animation:cbIn .22s ease-out}
 .callban.out{opacity:0;transition:opacity .3s}
 @keyframes cbIn{from{transform:translate(-50%,-50%) scale(.85);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
@@ -3501,7 +3507,7 @@ function rulesHTML(backAttr,backLabel){
     <li>Tens 40 segons per tirar carta o contestar un cant. Si s'acaba el temps, es tira la carta més baixa o es diu «no vull».</li>
     <li>Els seients buits els juguen bots. Si algú es desconnecta, un bot juga per ell fins que torni.</li>
     <li>Si les dues cartes més altes d'una ronda són iguals i de parelles diferents, la ronda s'empata. Si s'empata la primera, guanya la mà qui guanyi la segona. Si s'empata la segona, guanya qui va guanyar la primera. Si s'empaten les tres, guanya la parella de qui és mà.</li>
-    <li>Després d'un empat, la ronda següent la surt qui va tirar primer de les cartes empatades.</li>
+    <li>Després d'un empat, la ronda següent la surt qui és mà (com a la normativa: «ordre per mà»), no qui ha tirat primer de les cartes empatades.</li>
     <li>L'envit es canta a la primera ronda. Si s'ha cantat truc i s'ha acceptat, encara es pot envidar mentre duri la primera ronda; però la parella que truca sense haver envidat ja no pot envidar.</li>
     <li>Si et truquen de primeres i la teva parella encara no ha tirat cap carta, abans de contestar el truc podeu envidar: primer es contesta l'envit i després el truc.</li>
     <li>Si te'n vas a la primera ronda sense que s'hagi envidat i no ets el darrer a tirar, els rivals guanyen també 1 punt d'envit.</li>
@@ -4582,11 +4588,11 @@ function applyGaze(g){
 }
 // Cartell gran de colors al mig de la taula: qui canta, qui puja i què responen (que no s'hagi d'endevinar)
 const CallBan={t:null,
-  show(title,sub,cls){
+  show(title,sub,cls,extra,ms){
     const el=$('#callBan');if(!el)return;
-    el.className='callban '+(cls||'');el.innerHTML=`<b>${title}</b>${sub?`<small>${sub}</small>`:''}`;el.hidden=false;
+    el.className='callban '+(cls||'');el.innerHTML=`<b>${title}</b>${sub?`<small>${sub}</small>`:''}${extra||''}`;el.hidden=false;
     void el.offsetWidth;el.classList.add('in');
-    clearTimeout(this.t);this.t=setTimeout(()=>{el.classList.add('out');this.t=setTimeout(()=>{el.hidden=true;},320);},3500);
+    clearTimeout(this.t);this.t=setTimeout(()=>{el.classList.add('out');this.t=setTimeout(()=>{el.hidden=true;},320);},ms||3500);
   },
   hide(){clearTimeout(this.t);const el=$('#callBan');if(el)el.hidden=true;}
 };
@@ -4649,7 +4655,11 @@ function onEvent(e){
       setStatus(m);
       if(e.vals)log('Envits de tothom: '+[0,1,2,3].map(a=>`${nm(P(a))} ${e.vals[a]}`).join(', '));
       log(m);
-      CallBan.show(`Envits: ${nm(w)} ${e.val}${lo?` · ${nm(l)} ${lo.val}`:''}`,`${cap(gw)}. Punts per a ${tl(vteam(e.wt))} (+${pt(e.pts)})`,vteam(e.wt)===0?'ok':'no');
+      // les cartes que fan cada envit, perquè es vegi què duien de veres (també si no les han jugades)
+      const cardsOf=(a,v)=>e.cards&&e.cards[a]&&e.cards[a].length?`<span class="ebcards"><i>${esc(nm(P(a)))} · ${v}</i><span>${e.cards[a].map(c=>`<span class="ebc">${cardSVG(c)}</span>`).join('')}</span></span>`:'';
+      const extra=e.cards?`<span class="ebrow">${cardsOf(e.p,e.val)}${lo?cardsOf(lo.p,lo.val):''}</span>`:'';
+      CallBan.show(`Envits: ${nm(w)} ${e.val}${lo?` · ${nm(l)} ${lo.val}`:''}`,`${cap(gw)}. Punts per a ${tl(vteam(e.wt))} (+${pt(e.pts)})`,vteam(e.wt)===0?'ok':'no',extra,4600);
+      if(e.cards)log('Cartes dels envits: '+[0,1,2,3].filter(a=>e.cards[a]&&e.cards[a].length).map(a=>`${nm(P(a))} ${e.cards[a].map(cardLabel).join(' + ')}`).join(' · '));
       break;}
     case 'refuse':{
       const m=`Envit no volgut. Punts per a ${tl(vteam(e.callerTeam))} (+${pt(e.pts)})`;setStatus(m);log(m);break;}
